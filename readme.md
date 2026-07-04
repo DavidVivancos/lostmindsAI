@@ -49,6 +49,7 @@ That question is the essence of this encyclopedia (here as the open source code 
 In a sense it is a first, technically feasible approximation to what Isaac Asimov called Psychohistory in his seminal Foundation - but in reverse, only here focused entirely on AI. Connections will emerge, and time will tell how far they lead us.
 
 The work is built in batches of twenty minds per volume, running from the deep past of 2700 BCE to 1905 — a horizon that may yet be extended — and using each figure's birth year as the marker. Ending at the start of the twentieth century keeps the project to minds of the past. At the time of writing the corpus holds 1000+ figures, so roughly fifty-seven tomes are planned; watch for the follow-ups.
+
 ---
 
 ## 📚 Released so far (in Open Source Code)
