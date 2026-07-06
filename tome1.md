@@ -1,23 +1,18 @@
 # Tome 1 — Minds 1–20
+### *Dawn of the Record — Mesopotamia to the Greek Epic*
+**Encyclopedia of Lost Minds: Echoes on AI** · *2700–800 BCE*
 
-### *Encyclopedia of Lost Minds: Echoes on AI*
+[🌐 Encyclopedia](https://lostmindsai.com) · [📖 Buy Tome 1 on Amazon](https://www.amazon.com/dp/B0H6F9L324) · [🧪 Interactive Demos](https://artificiology.com/) · [📊 E-AGI Barometer](https://artificiology.com/barometer.html) · [✍️ Author](https://www.vivancos.com/) · [⭐ Repository](https://github.com/DavidVivancos/LostMindsAI)
 
-**How History's Greatest Thinkers Would Have Thought About AGI**
-
-
-[🌐 Encyclopedia](https://lostmindsai.com) · [📖 Buy Tome 1 on Amazon](https://www.amazon.com/dp/B0H6F9L324) · [✍️ Author](https://www.vivancos.com/) · [🧪 Interactive Demos](https://artificiology.com/) · [📊 E-AGI Barometer](https://artificiology.com/barometer.html) · [⭐ Repository](https://github.com/DavidVivancos/LostMindsAI)
-
+<div align="center">[Repository README](readme.md) · [Tome 2 →](tome2.md)</div>
 
 ---
 
+Tome 1 runs from **Gilgamesh** to **Homer** — twenty reconstructed minds, each rendered on two planes. The **abstract plane** distils the thinker's cognitive signature into an interactive 3D mind-map; the **mechanistic plane** turns that same signature into a small, *runnable* neural architecture, built from scratch in NumPy, gradient-checked, trained and self-tested.
 
-Tome 1 opens the Encyclopedia at the dawn of the written record and carries it to the edge of the Greek epic — twenty minds spanning roughly **2700 to 800 BCE**, from the first hero to seek immortality to the singer who composed the *Iliad* in performance.
+This page collects the twenty **visual mind-map explainers** for this tome and links each to its companion architecture. Runnable code lives in [`minds/`](minds/); the explainer images live in [`maps/`](maps/).
 
-Each chapter reconstructs a historical mind across two planes. The **abstract plane** distils the thinker's cognitive signature into an interactive 3D mind-map. The **mechanistic plane** turns that same signature into a small, *runnable* neural architecture — written from scratch in NumPy, gradient-checked, trained, and self-tested — that embodies how this particular person, alive today, might have tried to build an artificial general intelligence.
-
-This tome collects the twenty **visual mind-map explainers** (below) and their companion architectures. The runnable code for each lives in [`minds/`](minds/); the explainer images live in [`maps/`](maps/).
-
-> Every architecture in this tome executes and passes its own self-test suite (finite-difference gradient check + a real training loop). Nothing here prints fabricated metrics; every number is produced live on the machine that runs it.
+> Every architecture here executes and passes its own self-test suite (a mandatory finite-difference gradient check plus a real training loop). No number is hard-coded — each is produced live on the machine that runs the file.
 
 ---
 
@@ -28,7 +23,7 @@ This tome collects the twenty **visual mind-map explainers** (below) and their c
 | 01 | [Gilgamesh](#01--gilgamesh) | c. 2700 BCE | Sumerian | *The Composite Self* | 🟢 |
 | 02 | [Zoser (Djoser)](#02--zoser-djoser) | c. 2670 BCE | Egyptian | *The Step-Pyramid Network* | 🟢 |
 | 03 | [Imhotep](#03--imhotep) | c. 2650 BCE | Egyptian | *The Imhotep Diagnostic Architecture* | 🟢 |
-| 04 | [Ptahhotep](#04--ptahhotep) | c. 2450 BCE | Egyptian | *The Ptahhotep Architecture (PTH-1)* | 🟢 |
+| 04 | [Ptahhotep](#04--ptahhotep) | c. 2450 BCE | Egyptian | *The Ptahhotep Architecture* | 🟢 |
 | 05 | [Sargon of Akkad](#05--sargon-of-akkad) | c. 2334 BCE | Akkadian | *The Provincial Mixture-of-Experts* | 🟢 |
 | 06 | [Enheduanna](#06--enheduanna) | c. 2285 BCE | Sumerian | *Temple of the Me* | 🟢 |
 | 07 | [Ur-Nammu](#07--ur-nammu) | c. 2100 BCE | Sumerian | *The Codified Equity Network* | 🟢 |
@@ -42,11 +37,11 @@ This tome collects the twenty **visual mind-map explainers** (below) and their c
 | 15 | [Ramses II](#15--ramses-ii) | r. 1279–1213 BCE | Egyptian | *The Ramesside Replication Network* | 🟢 |
 | 16 | [Nefertari](#16--nefertari) | c. 1300 BCE | Egyptian | *The Parity Coupler* | 🔵 |
 | 17 | [Amenemope](#17--amenemope) | c. 1300–1100 BCE | Egyptian | *The Ger-Maa Cell (The Silent Man)* | 🟢 |
-| 18 | [Zoroaster](#18--zoroaster) | c. 1500–600 BCE (disputed) | Persian | *The Dual-Spirit Choice Network (Mainyu-Net)* | 🟢 |
-| 19 | [Shalmaneser III](#19--shalmaneser-iii) | r. 859–824 BCE | Assyrian | *The Annalist (Monotone Self-Narrative Network)* | 🔵 |
+| 18 | [Zoroaster](#18--zoroaster) | c. 1500–600 BCE (disputed) | Persian | *The Dual-Spirit Choice Network* | 🟢 |
+| 19 | [Shalmaneser III](#19--shalmaneser-iii) | r. 859–824 BCE | Assyrian | *The Annalist* | 🔵 |
 | 20 | [Homer](#20--homer) | c. 800 BCE | Greek | *The Metis Engine* | 🟢 |
 
-**Provenance key** — 🟢 belief · 🟡 mediated · 🔵 extrapolated. See [How the minds are reconstructed](#how-the-minds-are-reconstructed) at the foot of this page.
+**Provenance** — 🟢 belief · 🟡 mediated · 🔵 extrapolated. See [How the minds are reconstructed](#how-the-minds-are-reconstructed).
 
 ---
 
@@ -58,7 +53,7 @@ This tome collects the twenty **visual mind-map explainers** (below) and their c
 
 **Architecture — *The Composite Self***  ·  🟢 **belief** — grounded in the figure's own surviving works
 
-Finitude as a *driver* of intelligence, not merely a limit. A mortal, five-organ self learns faster as its life-budget runs out, grows measurably wiser through the death of its peer (Enkidu) and grief, then distils an "epic" that lets a successor begin already wise.
+Finitude as a *driver* of intelligence, not merely a limit: a mortal, five-organ self learns faster as its life-budget runs out, grows wiser through the death of its peer (Enkidu) and grief, then distils an "epic" so a successor can begin already wise.
 
 ▶️ **Run the mind:** [`minds/chapter_0001_gilgamesh_-2700.py`](minds/chapter_0001_gilgamesh_-2700.py)  —  `python3 minds/chapter_0001_gilgamesh_-2700.py --test`
 
@@ -72,7 +67,7 @@ Finitude as a *driver* of intelligence, not merely a limit. A mortal, five-organ
 
 **Architecture — *The Step-Pyramid Network***  ·  🟢 **belief** — grounded in the figure's own surviving works
 
-Cognition as *permanence*. Six ascending tiers each compress and can regenerate the layer below, so that learning something new never erases the hard-won past — an engine for holding one intention stable across deep time.
+Cognition as *permanence*: six ascending tiers each compress and can regenerate the layer below, so learning the new never erases the hard-won past — an engine for holding one intention stable across deep time.
 
 ▶️ **Run the mind:** [`minds/chapter_0002_zoser_-2670.py`](minds/chapter_0002_zoser_-2670.py)  —  `python3 minds/chapter_0002_zoser_-2670.py --test`
 
@@ -86,7 +81,7 @@ Cognition as *permanence*. Six ascending tiers each compress and can regenerate 
 
 **Architecture — *The Imhotep Diagnostic Architecture***  ·  🟢 **belief** — grounded in the figure's own surviving works
 
-The first named polymath's load-bearing hierarchy: diagnosis, construction and writing treated as one continuous discipline of ordered intelligence, where higher tiers rest on and abstract the observations below.
+The first named polymath's load-bearing hierarchy: diagnosis, construction and writing as one continuous discipline of ordered intelligence, where higher tiers rest on and abstract the observations below.
 
 ▶️ **Run the mind:** [`minds/chapter_0003_imhotep_-2650.py`](minds/chapter_0003_imhotep_-2650.py)  —  `python3 minds/chapter_0003_imhotep_-2650.py --test`
 
@@ -98,9 +93,9 @@ The first named polymath's load-bearing hierarchy: diagnosis, construction and w
 
 ![Mind-map explainer for Ptahhotep](maps/chapter_0004_ptahhotep_-2450.jpg)
 
-**Architecture — *The Ptahhotep Architecture (PTH-1)***  ·  🟢 **belief** — grounded in the figure's own surviving works
+**Architecture — *The Ptahhotep Architecture***  ·  🟢 **belief** — grounded in the figure's own surviving works
 
-Wisdom through moderation; speech as a moral act. A multi-task mind that must weigh not only *what* is true but *when* to speak and when to stay silent, learning restraint as a first-class skill.
+Wisdom through moderation; speech as a moral act — a multi-task mind that must weigh not only what is true but *when* to speak and when to stay silent.
 
 ▶️ **Run the mind:** [`minds/chapter_0004_ptahhotep_-2450.py`](minds/chapter_0004_ptahhotep_-2450.py)  —  `python3 minds/chapter_0004_ptahhotep_-2450.py --test`
 
@@ -114,7 +109,7 @@ Wisdom through moderation; speech as a moral act. A multi-task mind that must we
 
 **Architecture — *The Provincial Mixture-of-Experts***  ·  🟢 **belief** — grounded in the figure's own surviving works
 
-Empire as *collective cognition*. A king-as-router dispatches each problem to specialised provincial experts, with an audit (load-balancing) loss that keeps no province idle — state administration reframed as a mixture-of-experts mind.
+Empire as *collective cognition*: a king-as-router dispatches each problem to specialised provincial experts, with an audit loss that keeps no province idle.
 
 ▶️ **Run the mind:** [`minds/chapter_0005_sargon_of_akkad_-2334.py`](minds/chapter_0005_sargon_of_akkad_-2334.py)  —  `python3 minds/chapter_0005_sargon_of_akkad_-2334.py --test`
 
@@ -128,7 +123,7 @@ Empire as *collective cognition*. A king-as-router dispatches each problem to sp
 
 **Architecture — *Temple of the Me***  ·  🟢 **belief** — grounded in the figure's own surviving works
 
-History's first named author: reception before production. Discrete divine `me` codes modulate a hymn-generating mind (FiLM-style) toward cosmic order — the poet as an *ear* that receives structure before it speaks it.
+History's first named author: reception before production. Discrete divine `me` codes modulate a hymn-generating mind toward cosmic order — the poet as an *ear* that receives structure before it speaks it.
 
 ▶️ **Run the mind:** [`minds/chapter_0006_enheduanna_-2285.py`](minds/chapter_0006_enheduanna_-2285.py)  —  `python3 minds/chapter_0006_enheduanna_-2285.py --test`
 
@@ -142,7 +137,7 @@ History's first named author: reception before production. Discrete divine `me` 
 
 **Architecture — *The Codified Equity Network***  ·  🟢 **belief** — grounded in the figure's own surviving works
 
-Justice as a *computable schedule of equivalences*. A neuro-symbolic mind in which the consistent application of a written rule — not the ruler's whim — is what decides the case.
+Justice as a *computable schedule of equivalences*: a neuro-symbolic mind in which the consistent application of a written rule — not the ruler's whim — decides the case.
 
 ▶️ **Run the mind:** [`minds/chapter_0007_ur_nammu_-2100.py`](minds/chapter_0007_ur_nammu_-2100.py)  —  `python3 minds/chapter_0007_ur_nammu_-2100.py --test`
 
@@ -156,7 +151,7 @@ Justice as a *computable schedule of equivalences*. A neuro-symbolic mind in whi
 
 **Architecture — *The Scribe-Vizier Architecture***  ·  🟢 **belief** — grounded in the figure's own surviving works
 
-Alignment by *incentive design*. Outcomes are priced against a fixed standard (Ma'at) on an auditable ledger, with a conscience module that cannot be retrained away — value locked in, not learned out.
+Alignment by *incentive design*: outcomes priced against a fixed standard (Ma'at) on an auditable ledger, with a conscience that cannot be retrained away.
 
 ▶️ **Run the mind:** [`minds/chapter_0008_khety_ii_-2000.py`](minds/chapter_0008_khety_ii_-2000.py)  —  `python3 minds/chapter_0008_khety_ii_-2000.py --test`
 
@@ -170,7 +165,7 @@ Alignment by *incentive design*. Outcomes are priced against a fixed standard (M
 
 **Architecture — *The Sexagesimal–Omen Mind***  ·  🟢 **belief** — grounded in the figure's own surviving works
 
-Number as cognitive infrastructure. A network that *groks* a sexagesimal task — lingering near chance, then snapping to near-perfect accuracy once the base-60 structure is internalised, the heavens read as a register of signs.
+Number as cognitive infrastructure: a network that *groks* a base-60 task — lingering near chance, then snapping to near-perfect once the sexagesimal structure is internalised, the heavens read as a register of signs.
 
 ▶️ **Run the mind:** [`minds/chapter_0009_sin_muballit_-1850.py`](minds/chapter_0009_sin_muballit_-1850.py)  —  `python3 minds/chapter_0009_sin_muballit_-1850.py --test`
 
@@ -184,7 +179,7 @@ Number as cognitive infrastructure. A network that *groks* a sexagesimal task �
 
 **Architecture — *The Stele Network***  ·  🟢 **belief** — grounded in the figure's own surviving works
 
-Justice not as a deductive rulebook but a *curated case base*. An instance-based reasoner decides each new case by weighted analogy to the nearest public precedent — every verdict auditable to a named exemplar carved in stone.
+Justice not as a deductive rulebook but a *curated case base*: an instance-based reasoner decides each new case by weighted analogy to the nearest public precedent, every verdict auditable to a named exemplar carved in stone.
 
 ▶️ **Run the mind:** [`minds/chapter_0010_hammurabi_-1792.py`](minds/chapter_0010_hammurabi_-1792.py)  —  `python3 minds/chapter_0010_hammurabi_-1792.py --test`
 
@@ -198,7 +193,7 @@ Justice not as a deductive rulebook but a *curated case base*. An instance-based
 
 **Architecture — *The Maat-Field Network***  ·  🟢 **belief** — grounded in the figure's own surviving works
 
-Cognition as *constraint-satisfaction toward maat*. An energy-based mind relaxes an over-constrained system to the single balanced configuration that satisfies every rule at once, with identity modelled as a transferable office.
+Cognition as *constraint-satisfaction toward maat*: an energy-based mind relaxes an over-constrained system to the single balanced configuration that satisfies every rule at once, identity modelled as a transferable office.
 
 ▶️ **Run the mind:** [`minds/chapter_0011_hatshepsut_-1507.py`](minds/chapter_0011_hatshepsut_-1507.py)  —  `python3 minds/chapter_0011_hatshepsut_-1507.py --test`
 
@@ -212,7 +207,7 @@ Cognition as *constraint-satisfaction toward maat*. An energy-based mind relaxes
 
 **Architecture — *The Aruna Engine***  ·  🔵 **extrapolated** — inferred from documented deeds
 
-Expectation-inversion as strategy. Intelligence as the disciplined inversion of an adversary's *correct*, shared expectation — the surprise march through the Aruna pass modelled as a deliberate break from the predictable optimum.
+Expectation-inversion as strategy: intelligence as the disciplined inversion of an adversary's *correct*, shared expectation — the surprise march through the Aruna pass as a deliberate break from the predictable optimum.
 
 ▶️ **Run the mind:** [`minds/chapter_0012_thutmose_iii_-1479.py`](minds/chapter_0012_thutmose_iii_-1479.py)  —  `python3 minds/chapter_0012_thutmose_iii_-1479.py --test`
 
@@ -226,7 +221,7 @@ Expectation-inversion as strategy. Intelligence as the disciplined inversion of 
 
 **Architecture — *AtenNet***  ·  🟢 **belief** — grounded in the figure's own surviving works
 
-Truth by *deletion*. Reach the real by erasing the false rather than accumulating the true: the network periodically performs iconoclasm, permanently pruning whatever fails the test of visibility, collapsing many explanations toward one source.
+Truth by *deletion*: reach the real by erasing the false rather than accumulating the true; periodic iconoclasm permanently prunes whatever fails the test of visibility, collapsing many explanations toward one source.
 
 ▶️ **Run the mind:** [`minds/chapter_0013_akhenaten_-1380.py`](minds/chapter_0013_akhenaten_-1380.py)  —  `python3 minds/chapter_0013_akhenaten_-1380.py --test`
 
@@ -240,7 +235,7 @@ Truth by *deletion*. Reach the real by erasing the false rather than accumulatin
 
 **Architecture — *The Aten Broadcast Network***  ·  🔵 **extrapolated** — inferred from documented deeds
 
-Representational reform. Collapse a hidden pantheon of opaque, intermediary-mediated relations into one visible radiant source whose influence is drawn as *traceable rays* — legibility engineered directly into the topology.
+Representational reform: collapse a hidden pantheon of opaque, intermediary-mediated relations into one visible radiant source whose influence is drawn as *traceable rays* — legibility engineered into the topology.
 
 ▶️ **Run the mind:** [`minds/chapter_0014_nefertiti_-1370.py`](minds/chapter_0014_nefertiti_-1370.py)  —  `python3 minds/chapter_0014_nefertiti_-1370.py --test`
 
@@ -254,7 +249,7 @@ Representational reform. Collapse a hidden pantheon of opaque, intermediary-medi
 
 **Architecture — *The Ramesside Replication Network***  ·  🟢 **belief** — grounded in the figure's own surviving works
 
-Power as relentless *self-replication* across territory and time. The colossal, endlessly repeated cartouche as a propaganda engine — a mind whose intelligence is measured by how far and how faithfully it copies itself.
+Power as relentless *self-replication* across territory and time: the colossal, endlessly repeated cartouche as a propaganda engine — intelligence measured by how far and how faithfully it copies itself.
 
 ▶️ **Run the mind:** [`minds/chapter_0015_Ramses_II_-1303.py`](minds/chapter_0015_Ramses_II_-1303.py)  —  `python3 minds/chapter_0015_Ramses_II_-1303.py --test`
 
@@ -268,7 +263,7 @@ Power as relentless *self-replication* across territory and time. The colossal, 
 
 **Architecture — *The Parity Coupler***  ·  🔵 **extrapolated** — inferred from documented deeds
 
-Alignment as *engineered reciprocity*. Symmetric, identity-preserving bonds (isometries) of mutual recognition make two unlike parties into legible peers — a reciprocal-recognition network built on the first surviving royal peace correspondence.
+Alignment as *engineered reciprocity*: symmetric, identity-preserving bonds (isometries) of mutual recognition make two unlike parties into legible peers — built on the first surviving royal peace correspondence.
 
 ▶️ **Run the mind:** [`minds/chapter_0016_nefertari_-1300.py`](minds/chapter_0016_nefertari_-1300.py)  —  `python3 minds/chapter_0016_nefertari_-1300.py --test`
 
@@ -282,7 +277,7 @@ Alignment as *engineered reciprocity*. Symmetric, identity-preserving bonds (iso
 
 **Architecture — *The Ger-Maa Cell (The Silent Man)***  ·  🟢 **belief** — grounded in the figure's own surviving works
 
-The wise mind is the *silent* (cool, self-restrained) one; reactive heat is folly. A thermostatic architecture with a split sensorium where acting heats the agent up, and only the self-cooling "silent" agent keeps its judgment.
+The wise mind is the *silent* (cool, self-restrained) one; reactive heat is folly. A thermostatic architecture where acting heats the agent up, and only the self-cooling "silent" agent keeps its judgment.
 
 ▶️ **Run the mind:** [`minds/chapter_0017_Amenemope_-1300.py`](minds/chapter_0017_Amenemope_-1300.py)  —  `python3 minds/chapter_0017_Amenemope_-1300.py --test`
 
@@ -294,9 +289,9 @@ The wise mind is the *silent* (cool, self-restrained) one; reactive heat is foll
 
 ![Mind-map explainer for Zoroaster](maps/chapter_0018_zoroaster_-1500.jpg)
 
-**Architecture — *The Dual-Spirit Choice Network (Mainyu-Net)***  ·  🟢 **belief** — grounded in the figure's own surviving works
+**Architecture — *The Dual-Spirit Choice Network***  ·  🟢 **belief** — grounded in the figure's own surviving works
 
-Mind as an *originary binary fork*. Twin spirits — Spenta Mainyu (asha / truth) and Angra Mainyu (druj / the lie) — are identical in substance and diverge solely by a freely-made choice, making moral orientation, not architecture, the decisive variable.
+Mind as an *originary binary fork*: twin spirits — asha (truth) and druj (the lie) — identical in substance, diverge solely by a freely-made choice, making moral orientation, not architecture, the decisive variable.
 
 ▶️ **Run the mind:** [`minds/chapter_0018_zoroaster_-1500.py`](minds/chapter_0018_zoroaster_-1500.py)  —  `python3 minds/chapter_0018_zoroaster_-1500.py --test`
 
@@ -308,9 +303,9 @@ Mind as an *originary binary fork*. Twin spirits — Spenta Mainyu (asha / truth
 
 ![Mind-map explainer for Shalmaneser III](maps/chapter_0019_shalmaneser_iii_-858.jpg)
 
-**Architecture — *The Annalist (Monotone Self-Narrative Network)***  ·  🔵 **extrapolated** — inferred from documented deeds
+**Architecture — *The Annalist***  ·  🔵 **extrapolated** — inferred from documented deeds
 
-The *monotone self-narrator*. A mind that fuses identity with self-report, fixes one invariant — royal glory only ever ascends — and treats its own memory of the past as continuously editable raw material to keep that story monotone.
+The *monotone self-narrator*: a mind that fuses identity with self-report, fixes one invariant — royal glory only ever ascends — and edits its own memory of the past to keep that story monotone.
 
 ▶️ **Run the mind:** [`minds/chapter_0019_shalmaneser_iii_-858.py`](minds/chapter_0019_shalmaneser_iii_-858.py)  —  `python3 minds/chapter_0019_shalmaneser_iii_-858.py --test`
 
@@ -324,7 +319,7 @@ The *monotone self-narrator*. A mind that fuses identity with self-report, fixes
 
 **Architecture — *The Metis Engine***  ·  🟢 **belief** — grounded in the figure's own surviving works
 
-Composition-in-performance under an *inviolable gate*. Intelligence is the metrically-legal move (mêtis) recombined in real time from an economised store of formulae — winning *inside* a hard constraint, never by force (bíē) against it.
+Composition-in-performance under an *inviolable gate*: intelligence is the metrically-legal move (mêtis) recombined in real time from an economised store of formulae — winning inside a hard constraint, never by force (bíē).
 
 ▶️ **Run the mind:** [`minds/chapter_0020_homer_-800.py`](minds/chapter_0020_homer_-800.py)  —  `python3 minds/chapter_0020_homer_-800.py --test`
 
@@ -333,22 +328,21 @@ Composition-in-performance under an *inviolable gate*. Intelligence is the metri
 <a id="how-the-minds-are-reconstructed"></a>
 ## How the minds are reconstructed
 
-Every entry is built research-first. Before a line of architecture is written, the figure's surviving works and current scholarship are gathered and each source verified. Where the evidence is thin, the chapter says so plainly rather than inventing an inner life. Each figure's **provenance** is set honestly to one of three values:
+Every entry is built research-first: the figure's surviving works and current scholarship are gathered and each source verified before any architecture is written. Where evidence is thin, the chapter says so rather than inventing an inner life. Each figure's **provenance** is set to one of three real values:
 
 - 🟢 **belief** — the figure's own surviving works or recorded doctrine ground the entry.
-- 🟡 **mediated** — no words of their own survive; they are known only through others' (often hostile or legendary) accounts, and the chapter says so.
-- 🔵 **extrapolated** — no philosophy of mind survives at all; the entry is inferred from documented deeds (typical of kings and builders), and the chapter says so.
+- 🟡 **mediated** — no words of their own survive; they are known only through others' (often hostile or legendary) accounts, and the entry says so.
+- 🔵 **extrapolated** — no philosophy of mind survives at all; the entry is inferred from documented deeds (typical of kings and builders), and the entry says so.
 
-The reconstructed thinking is then scored against the **[Artificiology E-AGI Barometer](https://artificiology.com/barometer.html)** — eight capability dimensions: Cognitive Processing 🧩, Embodied Cognition 🤸, World Modeling 🌍, Consciousness 👁️, Language Understanding 💭, Emotional Intelligence ❤️, Creativity ✨ and Autonomy 🎯 — which is how each mind's imagined AGI is measured against the same yardstick.
+Each reconstructed mind is then measured against the **[Artificiology E-AGI Barometer](https://artificiology.com/barometer.html)** — eight capability dimensions (Cognitive Processing 🧩, Embodied Cognition 🤸, World Modeling 🌍, Consciousness 👁️, Language Understanding 💭, Emotional Intelligence ❤️, Creativity ✨, Autonomy 🎯) — so a Bronze-Age lawgiver and a Hellenistic geometer can be compared on the same yardstick.
 
 ---
 
-### Read & explore
+<div align="center">[Repository README](readme.md) · [Tome 2 →](tome2.md)</div>
 
+### Read & explore
 - 🌐 **Encyclopedia:** [https://lostmindsai.com](https://lostmindsai.com)
 - 📖 **Tome 1 (Amazon):** [https://www.amazon.com/dp/B0H6F9L324](https://www.amazon.com/dp/B0H6F9L324)
 - 🧪 **Interactive demos & résumé:** [https://artificiology.com/](https://artificiology.com/)
 - 📊 **E-AGI Barometer:** [https://artificiology.com/barometer.html](https://artificiology.com/barometer.html)
 - ✍️ **Author — David Vivancos:** [https://www.vivancos.com/](https://www.vivancos.com/)
-
-↩︎ Back to the [repository README](readme.md).
