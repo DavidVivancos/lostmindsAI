@@ -32,7 +32,7 @@ Every mind is reconstructed across **two planes**:
 
 | Plane | File | What it is |
 |-------|------|-----------|
-| 🎛️ **Abstract** | `MindMap.html` | An interactive, visually-rich 3D representation (Three.js + shaders) that abstracts the key factors of a thinker's personality and worldview — playable, not just clickable. |
+| 🎛️ **Abstract** | `MindMap` | An interactive, visually-rich 3D representation that abstracts the key factors of a thinker's personality and worldview — playable, not just clickable. avialable at https://artificiology.com |
 | ⚙️ **Mechanistic** | `Neuron.py` | A small but genuinely *runnable* neural architecture — pure NumPy, built from first principles — whose design embodies that thinker's distinctive cognitive signature. |
 
 This repository open-sources the **mechanistic plane** — the architectures — alongside a **visual mind-map explainer** for each figure. It grows tome by tome until it holds the full Encyclopedia.
