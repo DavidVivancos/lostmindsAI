@@ -14,7 +14,7 @@
 [✍️ Author](https://www.vivancos.com/)
 
 ![Minds](https://img.shields.io/badge/minds-1%2C141_planned-6C5CE7)
-![Released](https://img.shields.io/badge/released-Tomes_1–6_·_Minds_1–120-00B894)
+![Released](https://img.shields.io/badge/released-Tomes_1–7_·_Minds_1–140-00B894)
 ![Python](https://img.shields.io/badge/python-3.x-3776AB?logo=python&logoColor=white)
 ![Dependencies](https://img.shields.io/badge/deps-NumPy_only-013243)
 ![Verified](https://img.shields.io/badge/every_architecture-gradient--checked_%26_self--tested-E17055)
@@ -41,7 +41,7 @@ This repository open-sources the **mechanistic plane** — the architectures —
 
 ---
 
-## 📚 Released so far — Tomes 1–6 · Minds 1–120
+## 📚 Released so far — Tomes 1–7 · Minds 1–140
 
 The corpus runs in chronological order (Date is birth year). Each tome collects **20 minds**; every tome page below is fully illustrated with the mind-map explainers and links each mind to its runnable architecture.
 
@@ -53,8 +53,9 @@ The corpus runs in chronological order (Date is birth year). Each tome collects 
 | **4** | 61–80 | 470–340 BCE | The Examined Mind — Socratics, Schools & World-Conquerors | 📖 [tome4.md](tome4.md) | [Amazon](https://www.amazon.com/dp/B0H71JC95Q) |
 | **5** | 81–100 | 334–179 BCE | Hellenistic Systems — Stoa, Alexandrian Science & Imperial Order | 📖 [tome5.md](tome5.md) | [Amazon](https://www.amazon.com/dp/B0H7LP5LP2) |
 | **6** | 101–120 | 145 BCE–23 CE | Rome and the Record — Republic, Principate & the Han Interregnum | 📖 [tome6.md](tome6.md) | [Amazon](https://www.amazon.com/dp/B0HF7G6JJD) |
+| **7** | 121–140 | 27–192 CE | The Tested World — The Antonine Peak, the Second Sophistic & the Han's Collapse | 📖 [tome7.md](tome7.md) | [Amazon](https://www.amazon.com/dp/B0HFN6GXMH) |
 
-From **Gilgamesh** — the first hero to confront mortality as the core problem of a thinking being — through **Homer**, **Confucius**, **Socrates**, **Plato**, **Aristotle** and **Archimedes**, to **Liu An** and the resonance-cosmology of the *Huainanzi*, and on into Rome and the Han. No two architectures are alike: Gilgamesh's network grows wiser through simulated grief and hands an "epic" to a successor; Hammurabi's decides each case by analogy to a fixed canon of public precedents; Homer's cannot physically emit a line that breaks the metre; Ashoka's wires remorse in as a backpropagated error signal that gates its own dominant objective; Sima Qian's splits one truth across five incompatible views and severs the gradient from its own verdict so judgment can never rewrite the record; Cleopatra's renders a single conserved self into five audiences and is provably faithful only under an audit run across all of them; Cato's seals a permissibility head where the reward channel can read it but never reach it; Heron's winds a program onto a pegged drum and runs it down a finite falling weight.
+From **Gilgamesh** — the first hero to confront mortality as the core problem of a thinking being — through **Homer**, **Confucius**, **Socrates**, **Plato**, **Aristotle** and **Archimedes**, to **Liu An** and the resonance-cosmology of the *Huainanzi*, and on into Rome, the Han and the Antonine world. No two architectures are alike: Gilgamesh's network grows wiser through simulated grief and hands an "epic" to a successor; Hammurabi's decides each case by analogy to a fixed canon of public precedents; Homer's cannot physically emit a line that breaks the metre; Ashoka's wires remorse in as a backpropagated error signal that gates its own dominant objective; Sima Qian's splits one truth across five incompatible views and severs the gradient from its own verdict so judgment can never rewrite the record; Cleopatra's renders a single conserved self into five audiences and is provably faithful only under an audit run across all of them; Cato's seals a permissibility head where the reward channel can read it but never reach it; Heron's winds a program onto a pegged drum and runs it down a finite falling weight; Wang Chong's divides the net tilt of the evidence by its total contested mass, so ten-for against nine-against correctly reads as nothing; Boudica's ignites a coupled field that stays locked far below the coupling that lit it, and has to learn its brake long after; Galen's splits a conserved pneuma between memory and reason so that feeding one starves the other; Nāgārjuna's hands every node the same contentless seed and lets identity precipitate out of relation alone; and Cao Zhi's routes an inner state that has no direct path to speech through a codebook of figures, under a gate tightened until meaning concentrates or breaks.
 
 **→ Start with [Tome 1](tome1.md), or jump to any tome above.**
 
@@ -65,14 +66,14 @@ From **Gilgamesh** — the first hero to confront mortality as the core problem 
 ```
 LostMindsAI/
 ├── readme.md                     ← you are here
-├── tome1.md … tome6.md           ← illustrated indexes, 20 minds each
+├── tome1.md … tome7.md           ← illustrated indexes, 20 minds each
 ├── minds/                        ← the runnable architectures (one Neuron per mind)
 │   ├── chapter_0001_gilgamesh_-2700.py
 │   ├── chapter_0002_zoser_-2670.py
-│   └── … (through chapter_0120_pliny_the_elder_23.py)
+│   └── … (through chapter_0140_cao_zhi_192.py)
 └── maps/                         ← the visual mind-map explainers (one image per mind)
     ├── chapter_0001_gilgamesh_-2700.jpg
-    └── … (through chapter_0120_pliny_the_elder_23.jpg)
+    └── … (through chapter_0140_cao_zhi_192.jpg)
 ```
 
 Every file is prefixed with its **mind number** (`chapter_00NN_…`) so nothing collides as the corpus grows toward 1,141 entries. Each architecture and its explainer image share the same stem.
@@ -127,9 +128,9 @@ The project is **research-first**. Before any architecture is written, the figur
 
 Each figure is tagged with a candid **provenance**:
 
-- 🟢 **belief** — the figure's own surviving works or recorded doctrine ground the entry. *(97 of the first 120.)*
-- 🟡 **mediated** — no words of their own survive; they are known only through others' (often hostile or legendary) accounts. *(15 of the first 120.)*
-- 🔵 **extrapolated** — no philosophy of mind survives at all; the entry is inferred from documented deeds, typical of kings and builders. *(8 of the first 120.)*
+- 🟢 **belief** — the figure's own surviving works or recorded doctrine ground the entry. *(114 of the first 140.)*
+- 🟡 **mediated** — no words of their own survive; they are known only through others' (often hostile or legendary) accounts. *(17 of the first 140.)*
+- 🔵 **extrapolated** — no philosophy of mind survives at all; the entry is inferred from documented deeds, typical of kings and builders. *(9 of the first 140.)*
 
 And each architecture is required to **embody the mind and to run**: from-scratch pure-NumPy, a passing gradient check, a real training loop and self-tests — deliberately *not* a default Transformer, but a mechanism chosen to encode that thinker's own cognitive fingerprint.
 
@@ -137,7 +138,7 @@ And each architecture is required to **embody the mind and to run**: from-scratc
 
 ## 🗺️ Roadmap
 
-- ✅ **Tomes 1–6** — Minds 1–120 · architectures + visual explainers *(this release)*
+- ✅ **Tomes 1–7** — Minds 1–140 · architectures + visual explainers *(this release)*
 - 🔜 Further tomes released here as they open-source, extending toward the full **1,141-mind** corpus (antiquity → 1905).
 - 🎛️ The interactive **`MindMap.html`** planes and the long-form chapter texts live in the wider ecosystem — read them at **[lostmindsai.com](https://lostmindsai.com)** and across the **[Amazon book series](https://www.amazon.com/dp/B0H6F9L324)**.
 
@@ -164,7 +165,7 @@ This README is intentionally **global**: it describes the whole Encyclopedia and
 | | |
 |---|---|
 | 🌐 Encyclopedia | **[lostmindsai.com](https://lostmindsai.com)** |
-| 📖 Book series (Amazon) | **[Tome 1](https://www.amazon.com/dp/B0H6F9L324)** · **[Tome 2](https://www.amazon.com/dp/B0H6QCQ9M7)** · **[Tome 3](https://www.amazon.com/dp/B0H6TVX69S)** · **[Tome 4](https://www.amazon.com/dp/B0H71JC95Q)** · **[Tome 5](https://www.amazon.com/dp/B0H7LP5LP2)** · **[Tome 6](https://www.amazon.com/dp/B0HF7G6JJD)** |
+| 📖 Book series (Amazon) | **[Tome 1](https://www.amazon.com/dp/B0H6F9L324)** · **[Tome 2](https://www.amazon.com/dp/B0H6QCQ9M7)** · **[Tome 3](https://www.amazon.com/dp/B0H6TVX69S)** · **[Tome 4](https://www.amazon.com/dp/B0H71JC95Q)** · **[Tome 5](https://www.amazon.com/dp/B0H7LP5LP2)** · **[Tome 6](https://www.amazon.com/dp/B0HF7G6JJD)** · **[Tome 7](https://www.amazon.com/dp/B0HFN6GXMH)** |
 | 🧪 Résumé & interactive demos | **[artificiology.com](https://artificiology.com/)** |
 | 📊 E-AGI Barometer | **[artificiology.com/barometer.html](https://artificiology.com/barometer.html)** |
 | ✍️ Author — David Vivancos | **[vivancos.com](https://www.vivancos.com/)** |
