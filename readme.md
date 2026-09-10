@@ -59,7 +59,7 @@ The corpus runs in chronological order (Date is birth year). Each tome collects 
 
 The arc so far runs from **Gilgamesh** — the first hero to confront mortality as the core problem of a thinking being — through **Homer**, **Confucius**, **Socrates**, **Plato**, **Aristotle** and **Archimedes**, to **Liu An** and the resonance-cosmology of the *Huainanzi*; on into Rome, the Han and the Antonine world; through the collapse of the West, from the Cao Wei workshops to the wall at Shaolin; and into the sixth century, from **Aryabhata**'s observatory at Kusumapura and **Justinian**'s law commission to the Old North of **Taliesin** and **Aneirin**, and the fair of ʿUkāẓ where **al-Khansāʾ** wept for her brothers.
 
-No two architectures are alike. A sample:
+No two architectures are alike. A sample of the 180:
 
 - **Gilgamesh**'s network grows wiser through simulated grief and hands an "epic" to a successor.
 - **Hammurabi**'s decides each case by analogy to a fixed canon of public precedents.
