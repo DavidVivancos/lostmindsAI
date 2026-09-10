@@ -57,7 +57,37 @@ The corpus runs in chronological order (Date is birth year). Each tome collects 
 | **8** | 141–160 | 200–470 CE | The Shaped Mind — The Fall of Rome, the Church Fathers & the Gupta Golden Age | 📖 [tome8.md](tome8.md) | [Amazon](https://www.amazon.com/dp/B0HH8RTCXF) |
 | **9** | 161–180 | 476–575 CE | The Entrusted Mind — Byzantium, Nālandā, the Old North & the Last Poets of the Jāhiliyya | 📖 [tome9.md](tome9.md) | [Amazon](https://www.amazon.com/dp/B0HJC1QF59) |
 
-From **Gilgamesh** — the first hero to confront mortality as the core problem of a thinking being — through **Homer**, **Confucius**, **Socrates**, **Plato**, **Aristotle** and **Archimedes**, to **Liu An** and the resonance-cosmology of the *Huainanzi*, and on into Rome, the Han and the Antonine world — through the collapse of the West, from the Cao Wei workshops to the wall at Shaolin — and into the sixth century, from **Aryabhata**'s observatory at Kusumapura and **Justinian**'s law commission to the Old North of **Taliesin** and **Aneirin** and the fair of ʿUkāẓ where **al-Khansāʾ** wept for her brothers. No two architectures are alike: Gilgamesh's network grows wiser through simulated grief and hands an "epic" to a successor; Hammurabi's decides each case by analogy to a fixed canon of public precedents; Homer's cannot physically emit a line that breaks the metre; Ashoka's wires remorse in as a backpropagated error signal that gates its own dominant objective; Sima Qian's splits one truth across five incompatible views and severs the gradient from its own verdict so judgment can never rewrite the record; Cleopatra's renders a single conserved self into five audiences and is provably faithful only under an audit run across all of them; Cato's seals a permissibility head where the reward channel can read it but never reach it; Heron's winds a program onto a pegged drum and runs it down a finite falling weight; Wang Chong's divides the net tilt of the evidence by its total contested mass, so ten-for against nine-against correctly reads as nothing; Boudica's ignites a coupled field that stays locked far below the coupling that lit it, and has to learn its brake long after; Galen's splits a conserved pneuma between memory and reason so that feeding one starves the other; Nāgārjuna's hands every node the same contentless seed and lets identity precipitate out of relation alone; Cao Zhi's routes an inner state that has no direct path to speech through a codebook of figures, under a gate tightened until meaning concentrates or breaks; Ma Jun's charges rent for every strung treadle and prunes a fifty-treadle loom to twelve as a training dynamic rather than a setting; Cyprian's gives every bishop the whole verdict and no bishop the deciding vote; Theodosius's throttles a fast will by an estimate of irreversibility and a conscience that shares none of its parameters; Patrick's authenticates a directive before it is allowed to propagate; Bodhidharma's removes the residual instead of adding a feature, and snaps onto its mirror in one step; Aryabhata's stores frequencies rather than signals and predicts by rolling a recurrence forward; Dignāga's keeps no positive class representation anywhere and lands every reason it constructs in the one cell of the wheel that licenses speech; Benedict's keeps two voices that never share an hour so the newer cannot crush the older; Justinian's logs every interpolation it makes and freezes itself on promulgation; Theodora's shelters the refuted branch by exemption and then lets it ordain a successor; Myrddin's finds its own seam and halts when its principal is gone; Aneirin's forecasts its own erasure before it happens and keeps every man in three hands; Shōtoku's has no argmax and walls the bribe off from the verdict so that it can buy a refusal to judge but never a judgement; and al-Khansāʾ's freezes the dead at zero plasticity and keeps the loss in a ledger that only an act can close.
+The arc so far runs from **Gilgamesh** — the first hero to confront mortality as the core problem of a thinking being — through **Homer**, **Confucius**, **Socrates**, **Plato**, **Aristotle** and **Archimedes**, to **Liu An** and the resonance-cosmology of the *Huainanzi*; on into Rome, the Han and the Antonine world; through the collapse of the West, from the Cao Wei workshops to the wall at Shaolin; and into the sixth century, from **Aryabhata**'s observatory at Kusumapura and **Justinian**'s law commission to the Old North of **Taliesin** and **Aneirin**, and the fair of ʿUkāẓ where **al-Khansāʾ** wept for her brothers.
+
+No two architectures are alike. A sample:
+
+- **Gilgamesh**'s network grows wiser through simulated grief and hands an "epic" to a successor.
+- **Hammurabi**'s decides each case by analogy to a fixed canon of public precedents.
+- **Homer**'s cannot physically emit a line that breaks the metre.
+- **Ashoka**'s wires remorse in as a backpropagated error signal that gates its own dominant objective.
+- **Sima Qian**'s splits one truth across five incompatible views and severs the gradient from its own verdict, so judgment can never rewrite the record.
+- **Cleopatra**'s renders a single conserved self into five audiences and is provably faithful only under an audit run across all of them.
+- **Cato**'s seals a permissibility head where the reward channel can read it but never reach it.
+- **Heron**'s winds a program onto a pegged drum and runs it down a finite falling weight.
+- **Wang Chong**'s divides the net tilt of the evidence by its total contested mass, so ten-for against nine-against correctly reads as nothing.
+- **Boudica**'s ignites a coupled field that stays locked far below the coupling that lit it, and has to learn its brake long after.
+- **Galen**'s splits a conserved pneuma between memory and reason, so that feeding one starves the other.
+- **Nāgārjuna**'s hands every node the same contentless seed and lets identity precipitate out of relation alone.
+- **Cao Zhi**'s routes an inner state with no direct path to speech through a codebook of figures, under a gate tightened until meaning concentrates or breaks.
+- **Ma Jun**'s charges rent for every strung treadle and prunes a fifty-treadle loom to twelve as a training dynamic rather than a setting.
+- **Cyprian**'s gives every bishop the whole verdict and no bishop the deciding vote.
+- **Theodosius**'s throttles a fast will by an estimate of irreversibility and a conscience that shares none of its parameters.
+- **Patrick**'s authenticates a directive before it is allowed to propagate.
+- **Bodhidharma**'s removes the residual instead of adding a feature, and snaps onto its mirror in one step.
+- **Aryabhata**'s stores frequencies rather than signals and predicts by rolling a recurrence forward.
+- **Dignāga**'s keeps no positive class representation anywhere and lands every reason it constructs in the one cell of the wheel that licenses speech.
+- **Benedict**'s keeps two voices that never share an hour, so the newer cannot crush the older.
+- **Justinian**'s logs every interpolation it makes and freezes itself on promulgation.
+- **Theodora**'s shelters the refuted branch by exemption and then lets it ordain a successor.
+- **Myrddin**'s finds its own seam and halts when its principal is gone.
+- **Aneirin**'s forecasts its own erasure before it happens and keeps every man in three hands.
+- **Shōtoku**'s has no argmax and walls the bribe off from the verdict, so a bribe can buy a refusal to judge but never a judgement.
+- **al-Khansāʾ**'s freezes the dead at zero plasticity and keeps the loss in a ledger that only an act can close.
 
 **→ Start with [Tome 1](tome1.md), or jump to any tome above.**
 
