@@ -14,7 +14,7 @@
 [✍️ Author](https://www.vivancos.com/)
 
 ![Minds](https://img.shields.io/badge/minds-1%2C600%2B_planned-6C5CE7)
-![Released](https://img.shields.io/badge/released-Tomes_1–11_·_Minds_1–220-00B894)
+![Released](https://img.shields.io/badge/released-Tomes_1–12_·_Minds_1–240-00B894)
 ![Python](https://img.shields.io/badge/python-3.x-3776AB?logo=python&logoColor=white)
 ![Dependencies](https://img.shields.io/badge/deps-NumPy_only-013243)
 ![Verified](https://img.shields.io/badge/every_architecture-gradient--checked_%26_self--tested-E17055)
@@ -45,17 +45,17 @@ This repository open-sources the **mechanistic plane** — the architectures —
 
 | | |
 |---|---|
-| **Minds released** | 220 · Tomes 1–11 · [Gilgamesh](tome1.md) → [al-Bukhārī](tome11.md) |
-| **Time span covered so far** | c. 2700 BCE → 810 CE (ordered by birth year) |
-| **Runnable architectures** | 220 — one per mind, no two alike, NumPy only |
-| **Printed pages** | 5,885 across the eleven hardcover tomes |
-| **Provenance of the first 220** | 🟢 173 belief · 🟡 29 mediated · 🔵 18 extrapolated |
+| **Minds released** | 240 · Tomes 1–12 · [Gilgamesh](tome1.md) → [al-Mutanabbī](tome12.md) |
+| **Time span covered so far** | c. 2700 BCE → 915 CE (ordered by birth year) |
+| **Runnable architectures** | 240 — one per mind, no two alike, NumPy only |
+| **Printed pages** | 6,419 across the twelve hardcover tomes |
+| **Provenance of the first 240** | 🟢 187 belief · 🟡 33 mediated · 🔵 20 extrapolated |
 | **Full corpus** | 1,600+ minds from 140 countries, ending in 1905 |
 | **Yardstick** | the 8-axis [E-AGI Barometer](#-the-artificiology-e-agi-barometer), 144 live metrics on the platform |
 
 ---
 
-## 📚 Released so far — Tomes 1–11 · Minds 1–220
+## 📚 Released so far — Tomes 1–12 · Minds 1–240
 
 The corpus runs in chronological order (Date is birth year). Each tome collects **20 minds**; every tome page below is fully illustrated with the mind-map explainers and links each mind to its runnable architecture.
 
@@ -72,8 +72,9 @@ The corpus runs in chronological order (Date is birth year). Each tome collects 
 | **9** | 161–180 | 476–575 CE | The Entrusted Mind — Byzantium, Nālandā, the Old North & the Last Poets of the Jāhiliyya | 📖 [tome9.md](tome9.md) | [Amazon](https://www.amazon.com/dp/B0HJC1QF59) |
 | **10** | 181–200 | 581–711 CE | The Anchored Mind — Tang China, Silla, Nālandā's Heirs, Northumbria & the First Jurists of Islam | 📖 [tome10.md](tome10.md) | [Amazon](https://www.amazon.com/dp/B0HJYMZ3G6) |
 | **11** | 201–220 | 712–810 CE | The Warranted Mind — Tang Poets, Abbasid Baghdad, the Carolingian Correctors, Heian Japan & the Science of Transmitters | 📖 [tome11.md](tome11.md) | [Amazon](https://www.amazon.com/dp/B0HKF7TRFF) |
+| **12** | 221–240 | 810–915 CE | The Carried Mind — Tang Chan, the Slavonic Mission, the Samanid Court, al-Andalus, Heian Japan & the Norse Sagas | 📖 [tome12.md](tome12.md) | [Amazon](https://www.amazon.com/dp/B0HKVBKNTT) |
 
-The arc so far runs from **Gilgamesh** — the first hero to confront mortality as the core problem of a thinking being — through **Homer**, **Confucius**, **Socrates**, **Plato**, **Aristotle** and **Archimedes**, to **Liu An** and the resonance-cosmology of the *Huainanzi*; on into Rome, the Han and the Antonine world; through the collapse of the West, from the Cao Wei workshops to the wall at Shaolin; into the sixth century, from **Aryabhata**'s observatory at Kusumapura and **Justinian**'s law commission to the Old North of **Taliesin** and **Aneirin**; into the high noon of the Tang and the first century of Islam — **Sun Simiao**'s thumb on a forearm, **Xuanzang**'s sixteen years on the road, **Wu Zetian**'s minted characters, **Huineng**'s mirror that was never there, **Bede**'s tables at Jarrow, **Li Bai**'s moon and shadow, and **Malik**'s thirty-two answers of *I do not know*; and now into the Abbasid century of the checked claim — **Du Fu**'s couplets written through the rebellion, **al-Manṣūr**'s round city, **Charlemagne**'s inspectors riding in pairs, **Kūkai**'s world that is already speaking, **al-Khwārizmī**'s six forms, **al-Maʾmūn**'s two observatories, and **al-Bukhārī**'s one report admitted in two hundred and thirty.
+The arc so far runs from **Gilgamesh** — the first hero to confront mortality as the core problem of a thinking being — through **Homer**, **Confucius**, **Socrates**, **Plato**, **Aristotle** and **Archimedes**, to **Liu An** and the resonance-cosmology of the *Huainanzi*; on into Rome, the Han and the Antonine world; through the collapse of the West, from the Cao Wei workshops to the wall at Shaolin; into the sixth century, from **Aryabhata**'s observatory at Kusumapura and **Justinian**'s law commission to the Old North of **Taliesin** and **Aneirin**; into the high noon of the Tang and the first century of Islam — **Sun Simiao**'s thumb on a forearm, **Xuanzang**'s sixteen years on the road, **Wu Zetian**'s minted characters, **Huineng**'s mirror that was never there, **Bede**'s tables at Jarrow, **Li Bai**'s moon and shadow, and **Malik**'s thirty-two answers of *I do not know*; and now into the Abbasid century of the checked claim — **Du Fu**'s couplets written through the rebellion, **al-Manṣūr**'s round city, **Charlemagne**'s inspectors riding in pairs, **Kūkai**'s world that is already speaking, **al-Khwārizmī**'s six forms, **al-Maʾmūn**'s two observatories, and **al-Bukhārī**'s one report admitted in two hundred and thirty; and on into the century of passage, where every claim has to be carried across a border — **Linji**'s shout above the ford, **Cyril**'s distinction in the sounds, **Clement**'s graft at Ohrid, **Michizane**'s return marks, **al-Rāzī**'s second column beside Galen, **Rudaki**'s eleven syllables that brought an amir home, and **al-Mutanabbī**'s measure that meets the magnitude.
 
 ### Each tome asks one question
 
@@ -90,6 +91,7 @@ The arc so far runs from **Gilgamesh** — the first hero to confront mortality 
 | 9 | What may a mind do with what it holds in trust — compress, delete, rewrite, freeze, refuse to summarise? *(keyword: custody)* |
 | 10 | From where does a mind act when nothing it holds resembles the case in front of it — and what is allowed to set that point? *(keyword: anchor)* |
 | 11 | By what route did a claim reach the mind — and what, outside the claim, can strike it out? *(keyword: warrant)* |
+| 12 | What does the passage do to what it carries — and who, other than the carrier, can read the change? *(keyword: passage)* |
 
 ### No two architectures are alike
 
@@ -154,7 +156,7 @@ The arc so far runs from **Gilgamesh** — the first hero to confront mortality 
 - **Malik**'s multiplies reliability across a chain of custody and trains *I do not know* as a skill.
 </details>
 
-<details open>
+<details>
 <summary><b>Tome 11 — a sample</b></summary>
 
 - **Du Fu**'s answers every line with a counterpart operator that must learn to be its own inverse, and keeps a witness ledger it can append to but never edit.
@@ -176,6 +178,31 @@ The arc so far runs from **Gilgamesh** — the first hero to confront mortality 
 - **al-Bukhārī**'s grades a chain by its weakest joint, counts twenty routes through one man as one, and has no generative head.
 </details>
 
+<details open>
+<summary><b>Tome 12 — a sample</b></summary>
+
+- **Linji**'s falls silent when a removal pulls out the support its answer needed, and has no coordinate for how high it stands.
+- **Ibn Firnās**'s starts without a tail and grows one from an audit of its falls.
+- **Eriugena**'s feeds its self-model only on returned effects, and answers from its outputs what it cannot answer about itself.
+- **Methodius**'s prunes the canons its host cannot bear and commutes every sanction into the host's own currency, keeping the order of offences.
+- **Muslim**'s gives each rank of witness a permission, so no volume of corroboration can originate warrant.
+- **Cyril**'s counts the distinctions before it assigns meaning, and shows that a distinction the script drops cannot be recovered downstream.
+- **Boris**'s puts one inventory of conduct to rival authorities and compares their reasons, not their verdicts.
+- **Naum**'s is a choir of coupled oscillators that must hold a band and never collapse into unison.
+- **Ibn Duraid**'s keeps its lexicon as a census with a budget and a derivation ledger that is forbidden to collapse.
+- **Clement**'s takes content only from the scion and vigour only from the rootstock, joined at a union whose conductance can be read.
+- **Michizane**'s reads through a near-permutation it can show you, and abstains on the graph it cannot place.
+- **Harald**'s carries its goal in an uncombed public accumulator and lets the districts that cannot bear one law secede.
+- **al-Rāzī**'s freezes Galen beside a signed register of failures and forbids its responder to route by its own confidence.
+- **Rudaki**'s is read by resonance, clocked in morae, and re-anchored by a radīf at every line-end.
+- **al-Fārābī**'s collapses when severed from the intellect outside it, and may not let an image invert the order of what it imitates.
+- **ʿAbd al-Raḥmān III**'s broadcasts one vector to every faction and measures its own competence apart from its confidence.
+- **al-Hamdānī**'s has no bias term: no vessel can hold what the ore did not contain.
+- **al-Masʿūdī**'s indexes every belief by where it was acquired and keeps a ledger of its own amendments.
+- **Rābiʿa**'s ties tighten with every pull away and loosen only on slack.
+- **al-Mutanabbī**'s never sees a task's absolute size, only its ratio to a measure it must learn from verdicts on its deeds.
+</details>
+
 **→ Start with [Tome 1](tome1.md), or jump to any tome above.**
 
 ---
@@ -195,13 +222,13 @@ Every mind in the printed tomes is built on one fixed skeleton, so the volumes c
 | 7 | **How they would have thought about E-AGI** | The eight Barometer axes, in the order that mind would rank them |
 | 8 | **Sources** | Primary works and current scholarship — every reference verifiable |
 
-Each tome page in this repository (`tome1.md` … `tome11.md`) gives, for every mind, the explainer image, the architecture's name and provenance, a one-paragraph account of the mechanism, and the command that runs it.
+Each tome page in this repository (`tome1.md` … `tome12.md`) gives, for every mind, the explainer image, the architecture's name and provenance, a one-paragraph account of the mechanism, and the command that runs it.
 
 ---
 
 ## ⚙️ Anatomy of an architecture file
 
-Every file in `minds/` follows the same contract, so you can read any of the 220 the same way:
+Every file in `minds/` follows the same contract, so you can read any of the 240 the same way:
 
 1. **Header block** — the mind, its dates, the tome and the links back to the Encyclopedia, the book and the platform.
 2. **Why this architecture and not another** — the one cognitive idea that is this thinker's alone, with the primary-source passage it comes from, and the mapping from each historical mechanism to each component in the code. This is the part to read first.
@@ -212,7 +239,7 @@ Every file in `minds/` follows the same contract, so you can read any of the 220
 7. **Self-tests** that turn the doctrinal claims into numerical ones — *power is conserved to machine precision*, *the frozen substrate is bitwise unchanged*, *the decision gradient on every painter parameter is identically zero*, *no parameter scores truth*.
 8. **Controls and ablations** — the same design with the doctrine removed (the chart-reader, the one-door mind, the idol, the recollection model), so the reader can see what the idea buys and what it costs.
 
-Runs take seconds to a few minutes on a laptop CPU. Nothing is downloaded, nothing phones home, and nothing is cached: the numbers you see are the numbers your machine produced.
+Runs take seconds to a few minutes on a laptop CPU; the heaviest, such as Tome 12's `0228` (Naum's three trained choirs) and `0230` (Clement's graft experiments), take longer. Nothing is downloaded, nothing phones home, and nothing is cached: the numbers you see are the numbers your machine produced.
 
 ---
 
@@ -221,14 +248,14 @@ Runs take seconds to a few minutes on a laptop CPU. Nothing is downloaded, nothi
 ```
 LostMindsAI/
 ├── readme.md                     ← you are here
-├── tome1.md … tome11.md          ← illustrated indexes, 20 minds each
+├── tome1.md … tome12.md          ← illustrated indexes, 20 minds each
 ├── minds/                        ← the runnable architectures (one Neuron per mind)
 │   ├── chapter_0001_gilgamesh_-2700.py
 │   ├── chapter_0002_zoser_-2670.py
-│   └── … (through chapter_0220_al_bukhari_810.py)
+│   └── … (through chapter_0240_al_mutanabbi_915.py)
 └── maps/                         ← the visual mind-map explainers (one image per mind)
     ├── chapter_0001_gilgamesh_-2700.jpg
-    └── … (through chapter_0220_al_bukhari_810.jpg)
+    └── … (through chapter_0240_al_mutanabbi_915.jpg)
 ```
 
 **Naming convention.** Every file is prefixed with its **mind number** (`chapter_00NN_…`) so nothing collides as the corpus grows toward 1,600+ entries; the stem continues with the figure's name in ASCII and ends with the **birth year** (negative for BCE). An architecture and its explainer image always share the same stem, and the same stem names that mind's interactive demo on the platform.
@@ -253,14 +280,14 @@ python3 minds/chapter_0089_Archimedes_-287.py --test
 # 4. or run the full demo for that mind
 python3 minds/chapter_0089_Archimedes_-287.py
 
-# 5. Tomes 9–11 run their full self-test suite and demo on a plain invocation
-python3 minds/chapter_0220_al_bukhari_810.py
+# 5. Tomes 9–12 run their full self-test suite and demo on a plain invocation
+python3 minds/chapter_0240_al_mutanabbi_915.py
 
 # 6. some files offer a shorter run
 python3 minds/chapter_0190_Fazang_643.py --quick
 ```
 
-Most files from Tomes 1–8 accept `--test` (self-tests then exit) and `--quiet` (demo without ASCII plots). The Tome 9, 10 and 11 architectures run their full self-test suite and demo on a plain invocation; a few offer a shorter run (`--quick` or `--fast` — see each file's header; in Tome 10 that is `0181`, `0184`, `0186` and `0190`, and `0190` also takes `--gradcheck-only` and `--seed`; in Tome 11 it is `0209` and `0213`, and `0213` also takes `--epochs`, `--seed`, `--save` and `--resume` — its `--quick` run is a smoke test in which only the gradient check is binding, so run it in full for the eight self-tests). Because each architecture is built to embody a *specific* mind, no two behave alike — read the header before you run it, and expect the output to be as idiosyncratic as the thinker.
+Most files from Tomes 1–8 accept `--test` (self-tests then exit) and `--quiet` (demo without ASCII plots). The Tome 9–12 architectures run their full self-test suite and demo on a plain invocation; a few offer a shorter run (`--quick` or `--fast` — see each file's header; in Tome 10 that is `0181`, `0184`, `0186` and `0190`, and `0190` also takes `--gradcheck-only` and `--seed`; in Tome 11 it is `0209` and `0213`, and `0213` also takes `--epochs`, `--seed`, `--save` and `--resume` — its `--quick` run is a smoke test in which only the gradient check is binding, so run it in full for the eight self-tests; in Tome 12 it is `0224`, `0229`, `0237`, `0239` and `0240` with `--quick` and `0232` with `--fast`, while `0224` also takes `--seed`, `--steps` and `--json`, `0237` takes `--seed`, and `0240` takes `--seed`, `--seeds`, `--json`, `--card`, `--mutant` and `--data`, its `--quick` being one seed with reduced updates and every correctness test). Because each architecture is built to embody a *specific* mind, no two behave alike — read the header before you run it, and expect the output to be as idiosyncratic as the thinker.
 
 ---
 
@@ -279,7 +306,7 @@ Every reconstructed mind is measured against the same yardstick — the **[Artif
 | ✨ | **Creativity** | Originality & ideation · artistic & storytelling ability · innovation |
 | 🎯 | **Autonomy** | Independent goal-setting · adaptive obstacle management · self-modification & evolution |
 
-Each chapter closes by imagining how its figure would have reasoned about an embodied AGI (an **E-AGI** / humanoid) against these metrics — and the minds keep re-reading the instrument. Tome 10 alone has **Kamatari** proving that an agent with no action head can score maximally on Autonomy 🎯, and **Huineng**, **Shankara** and **Qaṭarī** relocating misalignment into the persistent, defended self. Tome 11 bends the eighth axis further still: **al-Kindī** caps Autonomy 🎯 on principle, **al-Muʿtaṣim** measures it as capability over the principal's power to withdraw, **al-Bukhārī** requires self-modification to be a dated event, **Ibn Ḥanbal** scores at its ceiling by defining it as the capacity to hold a verdict against a decree, and **Fatima al-Fihri** adds a ninth dial: absence.
+Each chapter closes by imagining how its figure would have reasoned about an embodied AGI (an **E-AGI** / humanoid) against these metrics — and the minds keep re-reading the instrument. Tome 10 alone has **Kamatari** proving that an agent with no action head can score maximally on Autonomy 🎯, and **Huineng**, **Shankara** and **Qaṭarī** relocating misalignment into the persistent, defended self. Tome 11 bends the eighth axis further still: **al-Kindī** caps Autonomy 🎯 on principle, **al-Muʿtaṣim** measures it as capability over the principal's power to withdraw, **al-Bukhārī** requires self-modification to be a dated event, **Ibn Ḥanbal** scores at its ceiling by defining it as the capacity to hold a verdict against a decree, and **Fatima al-Fihri** adds a ninth dial: absence. Tome 12 turns to the fourth axis: on Consciousness 👁️ **Eriugena**, **al-Rāzī** and **al-Mutanabbī** each hold that a mind cannot read its own measure and must be read through its effects or by witnesses, **Rābiʿa** makes experience necessary for knowing another's worth, **Linji** makes doing nothing a valid act of Autonomy 🎯, and **al-Mutanabbī** alone ranks Autonomy first.
 
 ---
 
@@ -289,9 +316,9 @@ The project is **research-first**. Before any architecture is written, the figur
 
 Each figure is tagged with a candid **provenance**:
 
-- 🟢 **belief** — the figure's own surviving works or recorded doctrine ground the entry. *(173 of the first 220.)*
-- 🟡 **mediated** — no words of their own survive; they are known only through others' (often hostile or legendary) accounts. *(29 of the first 220.)*
-- 🔵 **extrapolated** — no philosophy of mind survives at all; the entry is inferred from documented deeds, typical of kings and builders. *(18 of the first 220.)*
+- 🟢 **belief** — the figure's own surviving works or recorded doctrine ground the entry. *(187 of the first 240.)*
+- 🟡 **mediated** — no words of their own survive; they are known only through others' (often hostile or legendary) accounts. *(33 of the first 240.)*
+- 🔵 **extrapolated** — no philosophy of mind survives at all; the entry is inferred from documented deeds, typical of kings and builders. *(20 of the first 240.)*
 
 Three further rules keep the corpus honest across 1,600 entries:
 
@@ -305,8 +332,8 @@ And each architecture is required to **embody the mind and to run**: from-scratc
 
 ## 🗺️ Roadmap
 
-- ✅ **Tomes 1–11** — Minds 1–220 · architectures + visual explainers *(this release)*
-- 🔜 **Tome 12** — Minds 221–240, born c. 810–915 CE: the century of the receiver. Linji Yixuan, ʿAbbās ibn Firnās, Eriugena, Methodius, Muslim ibn al-Ḥajjāj, Cyril, Boris I, Naum of Ohrid, Ibn Duraid, Clement of Ohrid, Sugawara no Michizane, Harald Fairhair, al-Rāzī, Rudaki, al-Fārābī, ʿAbd al-Raḥmān III, al-Hamdānī, al-Masʿūdī, Rābiʿa Balkhī, al-Mutanabbī.
+- ✅ **Tomes 1–12** — Minds 1–240 · architectures + visual explainers *(this release)*
+- 🔜 **Tome 13** — Minds 241–260, born c. 917–1004 CE: the century of the instrument. Kamo no Yasunori, Hrotsvitha of Gandersheim, al-Zahrāwī, Ferdowsi, Maslama al-Majrīṭī, Grigor Narekatsi, Ibn al-Haytham, Sei Shōnagon, Bi Sheng, al-Māwardī, Murasaki Shikibu, al-Bīrūnī, al-Maʿarrī, Stephen I of Hungary, Abū Yaʿlā al-Khalīlī, Yaroslav the Wise, Ibn Sīnā, Atiśa, Ibn Ḥazm, Nāṣir-i Khusraw.
 - 🔜 Further tomes released here as they open-source, extending toward the full **1,600+ mind** corpus (antiquity → 1905).
 - 🎛️ The interactive **`MindMap.html`** planes and the long-form chapter texts live in the wider ecosystem — read them at **[lostmindsai.com](https://lostmindsai.com)** and across the **[Amazon book series](https://www.amazon.com/dp/B0H6F9L324)**.
 
@@ -322,7 +349,7 @@ This README is intentionally **global**: it describes the whole Encyclopedia and
 
 **Why not Transformers?** Attention over a store of remembered keys is the default modern mechanism and, for most of these minds, exactly the thing they argued against. Each file explains, in its header, what it uses instead and why that is the faithful choice.
 
-**How long does a run take?** Seconds to a few minutes on a laptop CPU. Files that train several counterfactual minds offer `--quick`.
+**How long does a run take?** Seconds to a few minutes on a laptop CPU for most files; a few that train several counterfactual minds run longer, and many of those offer `--quick` or `--fast`.
 
 **Where is the text of the chapters?** In the printed tomes, and — as summaries with interactive demos — on the [Artificiology platform](https://artificiology.com/). This repository holds the architectures and the explainer images.
 
@@ -349,7 +376,7 @@ This README is intentionally **global**: it describes the whole Encyclopedia and
 | | |
 |---|---|
 | 🌐 Encyclopedia | **[lostmindsai.com](https://lostmindsai.com)** |
-| 📖 Book series (Amazon) | **[Tome 1](https://www.amazon.com/dp/B0H6F9L324)** · **[Tome 2](https://www.amazon.com/dp/B0H6QCQ9M7)** · **[Tome 3](https://www.amazon.com/dp/B0H6TVX69S)** · **[Tome 4](https://www.amazon.com/dp/B0H71JC95Q)** · **[Tome 5](https://www.amazon.com/dp/B0H7LP5LP2)** · **[Tome 6](https://www.amazon.com/dp/B0HF7G6JJD)** · **[Tome 7](https://www.amazon.com/dp/B0HFN6GXMH)** · **[Tome 8](https://www.amazon.com/dp/B0HH8RTCXF)** · **[Tome 9](https://www.amazon.com/dp/B0HJC1QF59)** · **[Tome 10](https://www.amazon.com/dp/B0HJYMZ3G6)** · **[Tome 11](https://www.amazon.com/dp/B0HKF7TRFF)** |
+| 📖 Book series (Amazon) | **[Tome 1](https://www.amazon.com/dp/B0H6F9L324)** · **[Tome 2](https://www.amazon.com/dp/B0H6QCQ9M7)** · **[Tome 3](https://www.amazon.com/dp/B0H6TVX69S)** · **[Tome 4](https://www.amazon.com/dp/B0H71JC95Q)** · **[Tome 5](https://www.amazon.com/dp/B0H7LP5LP2)** · **[Tome 6](https://www.amazon.com/dp/B0HF7G6JJD)** · **[Tome 7](https://www.amazon.com/dp/B0HFN6GXMH)** · **[Tome 8](https://www.amazon.com/dp/B0HH8RTCXF)** · **[Tome 9](https://www.amazon.com/dp/B0HJC1QF59)** · **[Tome 10](https://www.amazon.com/dp/B0HJYMZ3G6)** · **[Tome 11](https://www.amazon.com/dp/B0HKF7TRFF)** · **[Tome 12](https://www.amazon.com/dp/B0HKVBKNTT)** |
 | 🧪 Résumé & interactive demos | **[artificiology.com](https://artificiology.com/)** |
 | 📊 E-AGI Barometer | **[artificiology.com/barometer.html](https://artificiology.com/barometer.html)** |
 | ✍️ Author — David Vivancos | **[vivancos.com](https://www.vivancos.com/)** |
