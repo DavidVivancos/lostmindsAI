@@ -1,3014 +1,1179 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# BEGIN ATTRIBUTION
+# Encyclopedia of Lost Minds: Echoes on AI · Chapter 0118 · Heron of Alexandria
+# By David Vivancos · https://www.vivancos.com/ · https://lostmindsai.com
+# Tome 6, Minds 101-120: https://www.amazon.com/dp/B0HF7G6JJD · Demos: https://artificiology.com/
+# END ATTRIBUTION
+"""Differentiable winding automaton: Heron's self-moving cart made to wind its own drum.
+
+Thesis
+    Behaviour can be laid out in advance along a cord: wound lengths drive, slack
+    lengths wait and a change of winding direction reverses, so a whole performance
+    is an open-loop program spent by a falling weight.
+
+Evidence and provenance
+    Provenance is belief: the entries rest on Heron's own treatises. Loci follow
+    F. Grillo's 2019 edition of the Automata. Chapters I.2-I.19 were checked through
+    published summaries of that edition and of the Glasgow automata project, not by
+    reading the Greek in this session; the proem was read in Schmidt's Greek text.
+    D1  Automata I.2-4: a cord wound on the drive axle is pulled by a lead weight
+        lowered as millet or mustard seed drains from beneath it.
+    D2  Automata I.5-6: forward travel, standstill and backward travel come from
+        winding the cord one way, leaving it slack, and winding it the other way.
+    D3  Automata I.7-11: changes of direction use separate wheel configurations,
+        among them two independently driven axles for the left and right wheels.
+    D4  Automata I.4: a fixed script: advance to a mark, stop, fire and libations,
+        dancing, turning of the figures, and return to the starting place.
+    D5  Automata proem 8: the arrangement fits other arrangements, so a builder can
+        lay it out differently without needing anything further.
+    D6  Automata I.17-19: ways to stretch the range of a limited drop of the weight.
+    D7  The least-distance proof of equal-angle reflection is ascribed to Heron by
+        Damianus; the Latin De speculis that preserves it is a late compilation
+        (Jones 2001).
+    D8  Automata I.2: set the automaton on a flat, even floor where possible.
+    D9  Speculation from D1-D3: nothing in the mobile automaton senses or corrects
+        its path while it runs.
+    D10 Mayr 1970: float regulators run from Ktesibios' water clock and Philon's
+        lamp to Heron's float devices.
+
+Doctrine -> mechanism -> test (IDs as in MIND_CARD)
+    D2 D3  M1 winding: per-beat softmax over roll, pivot-left, pivot-right and
+           slack, times one reversal sign, gives both axle windings  C6.1 H-SIG H-NEC
+    D5     M2 recam: linear goal offsets of the winding code            H-SIG
+    D1 D6  M3 falling_weight: fuel spent by wound cord, smooth stop gate C6.2
+    D10    M4 float_valve: drive pressure pulled to a learned set-point C6.3 H-NEC
+    D2 D3  M5 cart: two-axle kinematics with a heading-midpoint step    C6.1
+    D4 D7  M6 objective: figure accuracy + excess path + weight budget  C3
+    D8 D9  blind-spot floor: biased wheel slip and rising friction      H-BLIND H-RIVAL
+
+Research question (embodied control and sensorimotor adaptation)
+    When behaviour is induced by gradient descent as an open-loop winding program
+    through a differentiable mechanism, where does it match or beat feedback control
+    on new goals, and how quickly does that standing collapse under slip and friction?
+
+Closest prior art and the delta
+    Single-shooting trajectory optimisation through differentiable dynamics, goal-
+    conditioned movement primitives, turtle-graphics program induction. Delta: the
+    trajectory is a winding code (roll, pivot and slack shares with one reversal
+    sign), re-cammed linearly by the goal and metered by a falling-weight gate, so it
+    reads out as wound, slack and reversed lengths. Baselines in this file: a size-
+    matched closed-loop MLP policy trained through the same cart (standard
+    alternative) and a three-gain tracking regulator after chapter 0090 (rival).
+
+Blind spot
+    A winding cannot correct what the floor does to it: biased wheel slip and rising
+    friction accumulate into heading error that no later instruction can undo.
+
+Task (generative process)
+    Goal g in [-1, 1]^5 encodes D1 in [0.6, 1.2], k1 in [-0.8, 0.8], theta in
+    [-0.9, 0.9] rad, D2 in [0.4, 1.0], k2 in [-0.8, 0.8].
+    Script of 24 beats: I advance 8 beats along an arc (D1, k1); II stand 4 beats;
+    III pivot 4 beats through theta about one wheel; IV reverse 8 beats along an arc
+    (D2, k2). The ideal cart executing the script traces the figure r_1..r_24.
+    Splits: train 64, validation 32, held-out 64, shifted 64. Shifted goals lie in
+    the corner where k1, theta and k2 all exceed 0.4 (normalized); no other split
+    visits it. Floors: nominal; nuisance (slip s.d. 0.03, millet-flow s.d. 0.03,
+    used for training); blind (slip s.d. 0.06, left-wheel slip -0.06, friction
+    rising from 0.05 to 0.20).
+
+Limits
+    Kinematic cart without inertia or contact mechanics; one script family; synthetic
+    goals; perfect pose sensing for the feedback controllers; 400 updates per model.
+    A research prototype of one AGI-relevant mechanism: not an AGI, and not a claim
+    to reproduce Heron's mind.
 """
-1000Minds Book — Chapter 118: Heron of Alexandria
-==================================================
-========================
-# Part of the Encyclopedia of Lost Minds: Echoes on AI By David Vivancos https://www.vivancos.com/
-# How History's Greatest Thinkers Would Have Thought About AGI  https://lostmindsai.com
-# Tome 6 Minds 101 - 120 Available on Amazon https://www.amazon.com/dp/B0HF7G6JJD
-# Resume and Interactive Demos at https://artificiology.com/
-# Author: David Vivancos · Chapter 118: Heron of Alexandria (10 to 70 CE)
-================================================================================
-Heron of Alexandria (c. 10–70 CE): "The greatest experimentalist of antiquity."
-Key inventions: Aeolipile (first steam turbine), vending machine, automata, hydraulic organs.
 
-Philosophy of Mind:
-- Mind as mechanism: cognition is a mechanical process
-- Automata as cognitive models: complex behavior from simple mechanical parts
-- Feedback as regulation: closed-loop control maintains stable behavior
-- Sequencing: complex behavior = sequence of simpler operations
-- Programmable behavior: stored programs determine behavior
-- Embodiment: cognition requires physical body
+MIND_CARD = {
+    "schema_version": "1.0",
+    "card_revision": 1,
+    "revision_log": [],
+    "generation": {"template_version": "codeguidelines 1.0 (15 September 2026), Appendix A",
+                   "generator": "Claude (Anthropic)", "generator_version": "claude-opus-5", "date": "2026-09-15"},
+    "id": 118, "figure": "Heron of Alexandria", "born": 10, "died": 70, "civilization": "Greek",
+    "provenance": "belief",
+    "thesis": ("Behaviour can be laid out in advance along a cord: wound lengths drive, slack lengths wait and a "
+               "change of winding direction reverses, so a whole performance is an open-loop program spent by a "
+               "falling weight."),
+    "evidence": [
+        {"id": "D1", "claim": "The mobile automaton's drive cord is wound on the axle and pulled by a lead weight "
+         "lowered as millet or mustard seed drains from beneath it.", "basis": "primary",
+         "source": "Heron, Automata I.2-4 (ed. Grillo 2019)"},
+        {"id": "D2", "claim": "Forward travel, standstill and backward travel come from winding the cord one way, "
+         "leaving it slack, and winding it the other way.", "basis": "primary",
+         "source": "Heron, Automata I.5-6 (ed. Grillo 2019)"},
+        {"id": "D3", "claim": "Changes of direction use separate wheel configurations, among them two independently "
+         "driven axles for the left and right wheels.", "basis": "primary",
+         "source": "Heron, Automata I.7-11 (ed. Grillo 2019)"},
+        {"id": "D4", "claim": "The performance is a fixed script: advance to a mark, stop, altar fire and libations, "
+         "dancing, turning of the figures, and return to the starting place.", "basis": "primary",
+         "source": "Heron, Automata I.4 (ed. Grillo 2019)"},
+        {"id": "D5", "claim": "Heron offers his arrangement as one that fits other arrangements, so a builder can lay "
+         "it out differently without needing anything further.", "basis": "primary",
+         "source": "Heron, Automata proem 8 (ed. Schmidt 1899)"},
+        {"id": "D6", "claim": "Heron gives ways to stretch the range available from a limited drop of the weight: "
+         "larger wheels or thinner axles, a cord led from a small drum to a larger one, a second counterweight.",
+         "basis": "primary", "source": "Heron, Automata I.17-19 (ed. Grillo 2019)"},
+        {"id": "D7", "claim": "A proof that rays reflected at equal angles take the shortest path is ascribed to Heron "
+         "by Damianus; the Latin De speculis that preserves it is a late compilation.", "basis": "scholarship",
+         "source": "Jones 2001, Pseudo-Ptolemy De Speculis, SCIAMVS 2"},
+        {"id": "D8", "claim": "Heron advises setting the automaton on a flat, even surface where possible.",
+         "basis": "primary", "source": "Heron, Automata I.2 (ed. Grillo 2019)"},
+        {"id": "D9", "claim": "Nothing in the mobile automaton senses or corrects its path during the run, so "
+         "disturbances are never compensated.", "basis": "speculation", "source": "inference from Automata I.2-11"},
+        {"id": "D10", "claim": "Float regulation belongs to an Alexandrian line running from Ktesibios' water clock "
+         "and Philon's lamp to Heron's float devices.", "basis": "scholarship",
+         "source": "Mayr 1970, The Origins of Feedback Control"},
+    ],
+    "research_question": {
+        "category": "embodied control and sensorimotor adaptation",
+        "question": ("When behaviour is induced by gradient descent as an open-loop winding program through a "
+                     "differentiable mechanism, where does it match or beat feedback control on new goals, and how "
+                     "quickly does that standing collapse when slip and friction push back?")},
+    "mechanism": {
+        "name": "differentiable winding automaton (a machine that winds its own drum)",
+        "family": "program induction; open-loop trajectory optimisation through differentiable dynamics",
+        "signature_modules": ["winding"],
+        "closest_prior_art": [
+            "single-shooting trajectory optimisation through differentiable dynamics (Bryson and Ho 1969)",
+            "goal-conditioned dynamic movement primitives (Ijspeert et al. 2013)",
+            "turtle-graphics program induction (Ellis et al. 2021, DreamCoder)"],
+        "overlap": "Medium",
+        "prior_art_queries": [],
+        "prior_art_note": "No literature search was run for this card; overlap is rated against the named methods.",
+        "contribution_type": "mechanism",
+        "delta": ("The control sequence is a winding code (roll, pivot and slack shares with one reversal sign), "
+                  "re-cammed linearly by the goal and metered by a falling-weight gate, so the learned trajectory "
+                  "reads out as wound, slack and reversed lengths; it is tested against closed-loop control."),
+        "baselines": {
+            "baseline": ("size-matched closed-loop MLP policy (goal, sensed pose and beat phase in; 36 tanh units) "
+                         "trained through the same cart, weight and valve"),
+            "rival": "three-gain proportional regulator toward the commanded figure's next point, after chapter 0090"}},
+    "traceability": [
+        {"doctrine": "D2", "mechanism": "M1 winding", "property_test": "C6.1", "hypothesis": "H-SIG, H-NEC"},
+        {"doctrine": "D3", "mechanism": "M1 winding, M5 cart", "property_test": "C6.1", "hypothesis": "H-SIG"},
+        {"doctrine": "D5", "mechanism": "M2 recam", "property_test": "none", "hypothesis": "H-SIG"},
+        {"doctrine": "D1", "mechanism": "M3 falling_weight", "property_test": "C6.2", "hypothesis": "knockout table"},
+        {"doctrine": "D6", "mechanism": "M3 falling_weight", "property_test": "C6.2", "hypothesis": "knockout table"},
+        {"doctrine": "D4", "mechanism": "M6 objective (script figures)", "property_test": "C7", "hypothesis": "none (C3)"},
+        {"doctrine": "D7", "mechanism": "M6 objective (excess-path term)", "property_test": "none", "hypothesis": "none"},
+        {"doctrine": "D10", "mechanism": "M4 float_valve; rival regulator", "property_test": "C6.3 (definition check)",
+         "hypothesis": "H-NEC (matched knockout), H-RIVAL"},
+        {"doctrine": "D8", "mechanism": "blind-spot floor", "property_test": "none", "hypothesis": "H-BLIND, H-RIVAL"},
+        {"doctrine": "D9", "mechanism": "blind-spot floor", "property_test": "none", "hypothesis": "H-BLIND, H-RIVAL"},
+    ],
+    "hypotheses": [
+        {"id": "H-SIG", "statement": ("Re-cammed to goal combinations excluded from training, the learned winding "
+                                      "traces the figure more accurately than a size-matched closed-loop policy "
+                                      "trained through the same cart."),
+         "metric": "figure_error", "split": "shifted", "condition": "nominal",
+         "comparison": "model - baseline", "direction": "less", "mesi": 0.02, "seeds": 5},
+        {"id": "H-NEC", "statement": ("Replacing the winding by its mean instruction degrades the figure more than "
+                                      "removing the float valve's regulation."),
+         "metric": "figure_error", "split": "heldout", "condition": "nuisance",
+         "comparison": "signature_knockout - matched_knockout", "knockouts": ["winding:mean", "float_valve:identity"],
+         "direction": "greater", "mesi": 0.05, "seeds": 5},
+        {"id": "H-BLIND", "statement": ("Under biased wheel slip and rising friction the open-loop winding traces the "
+                                        "figure less accurately than the closed-loop policy."),
+         "condition": "blind", "grounding": ("Heron's cart executes a fixed winding with no sensing; the only remedy he "
+                                             "records is a flat, even floor (Automata I.2)."),
+         "metric": "figure_error", "split": "heldout", "comparison": "model - baseline", "direction": "greater",
+         "mesi": 0.02, "seeds": 5},
+        {"id": "H-RIVAL", "statement": ("The winding's standing against a Ctesibian tracking regulator falls when slip "
+                                        "and friction are added to the floor."),
+         "metric": "figure_error difference-in-differences", "split": "heldout",
+         "comparison": "(model - rival | blind) - (model - rival | nominal)", "direction": "greater",
+         "mesi": 0.02, "seeds": 5},
+    ],
+    "thresholds": {"loss_drop_fraction": 0.5, "margin_over_trivial": 0.3, "shuffled_ratio_min": 0.8,
+                   "gradcheck_rel_error": 1e-5, "gradcheck_floor": 1e-3, "property_tol": 1e-9,
+                   "negative_control_min_violation": 1e-6},
+    "metrics": {"figure_error": "RMS distance between cart and commanded figure over the 24 beats, mean over goals",
+                "trivial_baseline": "the mean training figure, whatever the goal",
+                "shuffled_band": "one-sided: a leak would show as held-out error well below the trivial error"},
+    "training": {"optimizer": "Adam", "lr_grid": [0.02], "updates": {"full": 400, "quick": 120}, "clip_norm": 5.0,
+                 "batch": "all 64 training goals, fresh nuisance noise every update",
+                 "model_selection": "validation figure_error every 25 updates from update 50",
+                 "applies_to": ["winding", "policy", "regulator"]},
+    "task": {"beats": 24, "splits": {"train": 64, "val": 32, "heldout": 64, "shifted": 64},
+             "conditions": {"nominal": "no slip, no friction, steady millet flow",
+                            "nuisance": "slip s.d. 0.03, millet-flow s.d. 0.03",
+                            "blind": "slip s.d. 0.06, left-wheel slip -0.06, friction 0.05 rising to 0.20, flow s.d. 0.03"}},
+    "probe_predictions": [{"probe": "P11", "expected": "below baseline"}],
+    "probe_support": "episodic_control only; probes P1-P10 are not supported",
+    "dialectic_links": [{"chapter": 90, "relation": "rival", "test": "H-RIVAL",
+                         "note": ("Heron works in the Alexandrian line of float regulation that Mayr traces from "
+                                  "Ktesibios; no citation of Ktesibios in the Pneumatica or Automata was verified.")}],
+    "corpus_neighbors": [
+        {"chapter": 90, "similarity": None, "difference": ("0090 regulates by a constant head; here regulation is the "
+                                                           "rival and the float valve a non-signature part, while the "
+                                                           "signature is an open-loop stored winding.")},
+        {"chapter": 89, "similarity": None, "difference": ("0089 proposes by mechanical heuristic and certifies by "
+                                                           "proof; here nothing is bracketed or proved: a program is "
+                                                           "induced through the mechanism and judged by its figure.")},
+        {"chapter": 83, "similarity": None, "difference": ("0083 builds objects from a frugal operator set; here the "
+                                                           "primitives are timed motion shares spent against a fuel "
+                                                           "budget and generality comes from goal re-camming.")},
+        {"chapter": 219, "similarity": None, "difference": ("0219 owns pinned-barrel event schedules; here the program "
+                                                            "is a continuous winding encoding a trajectory through "
+                                                            "slack and reversal, with no event pins.")},
+        {"chapter": 301, "similarity": None, "difference": ("0301 composes a standard part library; here one mechanism "
+                                                            "is fixed and only its winding is learned.")},
+    ],
+    "similarity_note": "Nearest-neighbour similarity not computed: corpus files were not available to this session.",
+    "barometer": {
+        "cognitive_processing": ["transfer of the winding to excluded goal combinations (shifted split)"],
+        "embodied_cognition": ["two-axle cart control", "degradation when slip and friction change the dynamics"],
+        "world_modeling": [], "consciousness": [], "language_understanding": [], "emotional_intelligence": [],
+        "creativity": [], "autonomy": ["completing the performance within a fixed weight budget"]},
+    "task_types": ["episodic_control"],
+    "applications": [
+        {"use": ("stroke programs for plotters and drawing machines learned from demonstrations, with pen-up spans "
+                 "as slack and direction changes as reversals"),
+         "sector": "creative tools and education", "dataset": "Quick, Draw! stroke data (Google Creative Lab)",
+         "readiness": "low"},
+        {"use": ("goal-conditioned manoeuvre programs for differential-drive robots, audited against feedback "
+                 "control under wheel slip before deployment"),
+         "sector": "logistics and service robotics",
+         "dataset": "LASA Handwriting Dataset (2-D demonstrations; Khansari-Zadeh and Billard 2011)",
+         "readiness": "low"},
+        {"use": "tool-path programs under actuator energy budgets for CNC machining", "sector": "manufacturing",
+         "dataset": "CNC Mill Tool Wear (University of Michigan SMART lab, 2018, Kaggle)", "readiness": "low"},
+    ],
+    "safety_notes": ("Heron's artillery treatise and every war machine are excluded from the evidence, the mechanism "
+                     "and the applications, which are civilian. The file does not claim to replicate Heron's mind "
+                     "and puts no generated words in his mouth."),
+}
 
-This module implements the Heron Automaton Network (HAN) architecture:
-
-1. AEOLIPILE DYNAMICS MODULE (AeolipileDynamics)
-   - Rotational attractor dynamics — continuous rotation generates stable states
-   - Thermal-inspired momentum: continuous rotation from steady energy input
-   - Nozzle configuration → rotation direction/speed (attention steering)
-
-2. PNEUMATIC CONTROL LAYER (PneumaticControlLayer)
-   - Global broadcast of regulatory signals
-   - Pressure-modulated processing thresholds
-   - Fluid-like information propagation throughout network
-
-3. GEAR-BASED PROCESSING HIERARCHY (GearBasedHierarchy)
-   - Staged transformations: input → gear stages → output
-   - Each gear stage: rotation+scaling+translation of representations
-   - Gear engagement: learned attention over transformation stages
-
-4. AUTOMATA SEQUENCER (AutomataSequencer)
-   - Cam-drum program storage: sequence of control patterns
-   - Multi-timescale: short/medium/long behavioral sequences
-   - Re-camming: learning new sequences by modifying cam profiles
-
-5. FEEDBACK REGULATION NETWORK (FeedbackRegulationNetwork)
-   - Multi-scale error signals: local, regional, global
-   - Prediction-error-driven weight updates
-   - Homeostatic regulation maintaining stability
-
-6. HYDRAULIC MEMORY SYSTEM (HydraulicMemory)
-   - Pressure-state associative memory
-   - Query by pressure pattern → retrieval at output sites
-   - Hierarchical vessels: primary + secondary + tertiary storage
-
-7. GEOMETRY AND SPACE PROCESSOR (GeometryProcessor)
-   - Heron's geometric algorithms: area, volume, distance computation
-   - Spatial reasoning with dioptra-inspired angular computation
-   - Shape representation and transformation
-
-8. EMBODIMENT INTERFACE (EmbodimentInterface)
-   - Connects HAN to simulated or physical body
-   - Sensorimotor coupling: perception-action loops
-   - Environmental interaction feedback
-
-9. PROGRAM SYNTHESIS MODULE (ProgramSynthesis)
-   - Generates new sequences for Automata Sequencer
-   - Combines existing subsequences into novel programs
-   - Selection by performance: evolutionary pressure
-
-Demonstration: HAN processes geometric patterns, stores sequences,
-regulates its own behavior through feedback, and generates novel programs.
-
-Author: 1000Minds AI Scholar
-Topic: Heron of Alexandria, Automata, Mechanical Philosophy of Mind, Neural Architecture
-"""
-
-from __future__ import annotations
-
-import math
-import copy
+import argparse
+import hashlib
+import itertools
 import json
+import math
+import os
 import sys
 import time
-import traceback
-from dataclasses import dataclass, field
-from typing import Callable, List, Dict, Tuple, Optional, Any, Set
-from abc import ABC, abstractmethod
-from collections import defaultdict, deque
-from enum import Enum, auto
+
+import numpy as np
+
+T_BEATS, G_DIM, HIDDEN = 24, 5, 36
+CORD, TRACK, FUEL0, RESERVE = 0.25, 0.30, 6.0, 0.9   # cord per beat, axle track, weight drop, usable share
+GATE_BETA, GATE_MARGIN, SABS_EPS, HINGE_K = 40.0, 0.04, 1e-3, 20.0
+LAMBDA_PATH, LAMBDA_BUDGET = 0.05, 0.5
+LR, CLIP_NORM, VAL_EVERY, VAL_START = 0.02, 5.0, 25, 50
+STEPS = {"full": 400, "quick": 120}
+TIME_BUDGET = {"full": 180.0, "quick": 20.0}
+SPLIT_SIZES = {"train": 64, "val": 32, "heldout": 64, "shifted": 64}
+GOAL_LO = np.array([0.6, -0.8, -0.9, 0.4, -0.8])
+GOAL_HI = np.array([1.2, 0.8, 0.9, 1.0, 0.8])
+CORNER_DIMS, CORNER_EDGE = [1, 2, 4], 0.4
+CONDITIONS = {
+    "nominal": {"slip": 0.0, "bias": 0.0, "fric0": 0.0, "fric1": 0.0, "flow": 0.0},
+    "nuisance": {"slip": 0.03, "bias": 0.0, "fric0": 0.0, "fric1": 0.0, "flow": 0.03},
+    "blind": {"slip": 0.06, "bias": -0.06, "fric0": 0.05, "fric1": 0.20, "flow": 0.03},
+}
+# Rows are the cart's primitives (roll, pivot-left, pivot-right, slack); columns say which axle's cord is wound.
+PRIMITIVE_AXLES = np.array([[1.0, 1.0], [0.0, 1.0], [1.0, 0.0], [0.0, 0.0]])
+PHASE = np.stack([f(2.0 * np.pi * j * np.arange(T_BEATS) / T_BEATS) for j in (1, 2, 3, 4) for f in (np.sin, np.cos)],
+                 axis=1)
+TASK_TYPES = ["episodic_control"]
+ACTIVE_MUTANT = None
+np.seterr(over="raise", invalid="raise", divide="raise", under="ignore")
 
 
-# =============================================================================
-# SECTION 1: FOUNDATIONAL DATA STRUCTURES AND UTILITIES
-# =============================================================================
-
-class PRNG:
-    """
-    Deterministic pseudo-random number generator for reproducible experiments.
-    Heron would have appreciated the precision of this: just as his automata
-    produced consistent outputs from consistent inputs, our PRNG produces
-    consistent random sequences from consistent seeds.
-    """
-    
-    def __init__(self, seed: int = 120):
-        self._state = seed
-        self._original_seed = seed
-    
-    def random(self) -> float:
-        """Returns a float in [0, 1)."""
-        self._state = (self._state * 1103515245 + 12345) & 0x7fffffff
-        return self._state / 0x7fffffff
-    
-    def uniform(self, low: float, high: float) -> float:
-        """Returns a float in [low, high)."""
-        return low + (high - low) * self.random()
-    
-    def randint(self, low: int, high: int) -> int:
-        """Returns an int in [low, high] inclusive."""
-        return int(low + (high - low + 1) * self.random())
-    
-    def choice(self, seq: List[Any]) -> Any:
-        """Returns a random element from seq."""
-        return seq[self.randint(0, len(seq) - 1)]
-    
-    def shuffle(self, seq: List[Any]) -> List[Any]:
-        """Returns a shuffled copy of seq (Fisher-Yates)."""
-        result = list(seq)
-        for i in range(len(result) - 1, 0, -1):
-            j = self.randint(0, i)
-            result[i], result[j] = result[j], result[i]
-        return result
-    
-    def gauss(self, mu: float = 0.0, sigma: float = 1.0) -> float:
-        """Box-Muller transform for normally distributed random numbers."""
-        u1 = self.random()
-        while u1 == 0:
-            u1 = self.random()
-        u2 = self.random()
-        z = math.sqrt(-2.0 * math.log(u1)) * math.cos(2.0 * math.pi * u2)
-        return mu + sigma * z
-    
-    def sample(self, population: List[Any], k: int) -> List[Any]:
-        """Sample k unique elements from population (without replacement)."""
-        pop = list(population)
-        if k > len(pop):
-            k = len(pop)
-        result = []
-        for _ in range(k):
-            idx = self.randint(0, len(pop) - 1)
-            result.append(pop[idx])
-            pop.pop(idx)
-        return result
-    
-    def reset(self) -> None:
-        """Reset to original seed for reproducible experiments."""
-        self._state = self._original_seed
+# BEGIN STANDARD UTILITIES v1.0
+def softmax(z, axis=-1):
+    z = z - z.max(axis=axis, keepdims=True)
+    e = np.exp(z)
+    return e / e.sum(axis=axis, keepdims=True)
 
 
-_global_prng = PRNG(seed=120)
+def logsumexp(z, axis=-1):
+    m = z.max(axis=axis, keepdims=True)
+    return (m + np.log(np.exp(z - m).sum(axis=axis, keepdims=True))).squeeze(axis)
 
 
-def set_global_seed(seed: int) -> PRNG:
-    """Set the global PRNG seed and return the new PRNG."""
-    global _global_prng
-    _global_prng = PRNG(seed=seed)
-    return _global_prng
+def softplus(z):
+    return np.logaddexp(0.0, z)
 
 
-def get_global_prng() -> PRNG:
-    """Get the current global PRNG."""
-    return _global_prng
+def sigmoid(z):
+    return np.exp(-np.logaddexp(0.0, -z))
 
 
-def sigmoid(x: float) -> float:
-    """Standard sigmoid activation function."""
-    if x < -500:
-        return 0.0
-    if x > 500:
-        return 1.0
-    return 1.0 / (1.0 + math.exp(-x))
+def adam_init(params):
+    return {"t": 0, "m": {k: np.zeros_like(v) for k, v in params.items()},
+            "v": {k: np.zeros_like(v) for k, v in params.items()}}
 
 
-def sigmoid_derivative(s: float) -> float:
-    """Derivative of sigmoid given sigmoid output s."""
-    return s * (1.0 - s)
+def adam_step(params, grads, state, lr, b1=0.9, b2=0.999, eps=1e-8):
+    state["t"] += 1
+    for k in params:
+        state["m"][k] = b1 * state["m"][k] + (1.0 - b1) * grads[k]
+        state["v"][k] = b2 * state["v"][k] + (1.0 - b2) * grads[k] ** 2
+        m_hat = state["m"][k] / (1.0 - b1 ** state["t"])
+        v_hat = state["v"][k] / (1.0 - b2 ** state["t"])
+        params[k] -= lr * m_hat / (np.sqrt(v_hat) + eps)
 
 
-def relu(x: float) -> float:
-    """ReLU activation."""
-    return max(0.0, x)
+def clip_global(grads, max_norm):
+    norm = math.sqrt(sum(float((g * g).sum()) for g in grads.values()))
+    scale = min(1.0, max_norm / (norm + 1e-12))
+    return {k: g * scale for k, g in grads.items()}, norm
 
 
-def relu_derivative(x: float) -> float:
-    """Derivative of ReLU."""
-    return 1.0 if x > 0.0 else 0.0
+def finite_difference_check(params, grads, loss_fn, rng, eps=1e-6, n_entries=20, floor=1e-3):
+    """Central differences on n random entries per tensor plus its largest-gradient entry.
+    Relative error uses max(|analytic|, |numeric|, floor) as denominator."""
+    worst = {}
+    for name, arr in params.items():
+        flat, g = arr.reshape(-1), grads[name].reshape(-1)
+        if flat.size <= n_entries + 1:
+            idx = np.arange(flat.size)
+        else:
+            idx = np.unique(np.append(rng.choice(flat.size, n_entries, replace=False), np.argmax(np.abs(g))))
+        err = 0.0
+        for i in idx:
+            keep = flat[i]
+            flat[i] = keep + eps
+            up = loss_fn()
+            flat[i] = keep - eps
+            down = loss_fn()
+            flat[i] = keep
+            num = (up - down) / (2.0 * eps)
+            err = max(err, abs(g[i] - num) / max(abs(g[i]), abs(num), floor))
+        worst[name] = err
+    return worst
 
 
-def tanh_activation(x: float) -> float:
-    """Hyperbolic tangent activation."""
-    if x < -20:
-        return -1.0
-    if x > 20:
-        return 1.0
-    e2x = math.exp(2.0 * x)
-    return (e2x - 1.0) / (e2x + 1.0)
+def paired_bootstrap(diffs, rng, n_boot=2000, level=0.95):
+    d = np.asarray(diffs, dtype=float)
+    means = d[rng.integers(0, d.size, size=(n_boot, d.size))].mean(axis=1)
+    tail = 50.0 * (1.0 - level)
+    return float(d.mean()), [float(np.percentile(means, tail)), float(np.percentile(means, 100.0 - tail))]
 
 
-def softmax(inputs: List[float]) -> List[float]:
-    """Softmax activation over a list of inputs."""
-    if not inputs:
-        return []
-    max_inp = max(inputs)
-    exps = [math.exp(x - max_inp) for x in inputs]
-    sum_exps = sum(exps)
-    return [e / sum_exps for e in exps]
+def verdict(mean, ci, mesi, direction):
+    s = 1.0 if direction == "greater" else -1.0
+    lo, hi = sorted((s * ci[0], s * ci[1]))
+    if lo > 0.0 and s * mean >= mesi:
+        return "supported"
+    if hi < 0.0:
+        return "contradicted"
+    return "inconclusive"
 
 
-def clip(x: float, low: float, high: float) -> float:
-    """Clip a value to a range."""
-    return max(low, min(high, x))
+def write_report(lines, payload, json_path):
+    print("\n".join(lines))
+    if json_path:
+        with open(json_path, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, indent=2)
+# END STANDARD UTILITIES
 
 
-def euclidean_distance(a: List[float], b: List[float]) -> float:
-    """Euclidean distance between two vectors."""
-    return math.sqrt(sum((x - y) ** 2 for x, y in zip(a, b)))
+# ---------------------------------------------------------------- data and tasks
+def in_corner(goals):
+    return (goals[:, CORNER_DIMS] > CORNER_EDGE).all(axis=1)
 
 
-def cosine_similarity(a: List[float], b: List[float]) -> float:
-    """Cosine similarity between two vectors."""
-    dot = sum(x * y for x, y in zip(a, b))
-    norm_a = math.sqrt(sum(x ** 2 for x in a))
-    norm_b = math.sqrt(sum(y ** 2 for y in b))
-    if norm_a == 0.0 or norm_b == 0.0:
-        return 0.0
-    return dot / (norm_a * norm_b)
+def sample_goals(rng, n, corner):
+    """Uniform normalized goals, either inside the excluded corner or outside it."""
+    kept, total = [], 0
+    while total < n:
+        g = rng.uniform(-1.0, 1.0, (4 * n, G_DIM))
+        if corner:
+            g[:, CORNER_DIMS] = rng.uniform(CORNER_EDGE, 1.0, (4 * n, len(CORNER_DIMS)))
+        g = g[in_corner(g) == corner]
+        kept.append(g)
+        total += len(g)
+    return np.concatenate(kept)[:n]
 
 
-def matmul(A: List[List[float]], B: List[List[float]]) -> List[List[float]]:
-    """Matrix multiplication of two 2D lists."""
-    if not A or not B:
-        return []
-    n = len(A)
-    m = len(B[0]) if B else 0
-    k = len(B)
-    result = [[0.0] * m for _ in range(n)]
-    for i in range(n):
-        for j in range(m):
-            for p in range(k):
-                result[i][j] += A[i][p] * B[p][j]
-    return result
+def script_commands(goals):
+    """Heron's script as wound shares per axle: arc, stand, pivot about one wheel, reversed arc."""
+    raw = GOAL_LO + (goals + 1.0) * 0.5 * (GOAL_HI - GOAL_LO)
+    d1, k1, theta, d2, k2 = (raw[:, i] for i in range(G_DIM))
+    u = np.zeros((goals.shape[0], T_BEATS, 2))
+    for beats, dist, curv, sign in ((slice(0, 8), d1 / 8.0, k1, 1.0), (slice(16, 24), d2 / 8.0, k2, -1.0)):
+        u[:, beats, 0] = (sign * dist * (1.0 - curv * TRACK / 2.0) / CORD)[:, None]
+        u[:, beats, 1] = (sign * dist * (1.0 + curv * TRACK / 2.0) / CORD)[:, None]
+    pivot = np.abs(theta) * TRACK / (4.0 * CORD)
+    u[:, 12:16, 0] = np.where(theta < 0.0, pivot, 0.0)[:, None]
+    u[:, 12:16, 1] = np.where(theta > 0.0, pivot, 0.0)[:, None]
+    return u
 
 
-def vecadd(a: List[float], b: List[float]) -> List[float]:
-    """Add two vectors."""
-    return [x + y for x, y in zip(a, b)]
+def nominal_noise(n):
+    return {"slip": np.ones((n, T_BEATS, 2)), "friction": np.zeros(T_BEATS), "flow": np.zeros((n, T_BEATS))}
 
 
-def vecsub(a: List[float], b: List[float]) -> List[float]:
-    """Subtract two vectors."""
-    return [x - y for x, y in zip(a, b)]
+def disturbance(rng, n, condition):
+    c = CONDITIONS[condition]
+    slip = 1.0 + c["slip"] * rng.standard_normal((n, T_BEATS, 2))
+    slip[:, :, 0] += c["bias"]
+    return {"slip": slip, "friction": np.linspace(c["fric0"], c["fric1"], T_BEATS),
+            "flow": c["flow"] * rng.standard_normal((n, T_BEATS))}
 
 
-def vecscale(a: List[float], s: float) -> List[float]:
-    """Scale a vector by a scalar."""
-    return [x * s for x in a]
+def batch_for(split, condition, rng):
+    n = split["goals"].shape[0]
+    noise = nominal_noise(n) if condition == "nominal" else disturbance(rng, n, condition)
+    return dict(split, start=np.zeros((n, 3)), **noise)
 
 
-def vecnormalize(a: List[float]) -> List[float]:
-    """Normalize a vector to unit length."""
-    norm = math.sqrt(sum(x ** 2 for x in a))
-    if norm == 0.0:
-        return [0.0] * len(a)
-    return [x / norm for x in a]
+def reference(goals):
+    """The ideal cart (full weight, set-point pressure, true floor) executing the script."""
+    n = goals.shape[0]
+    batch = dict(goals=goals, commands=script_commands(goals), ref=np.zeros((n, T_BEATS + 1, 2)),
+                 path_ref=np.zeros(n), start=np.zeros((n, 3)), **nominal_noise(n))
+    trace = run(SCRIPT, batch)[1]
+    return {"goals": goals, "commands": batch["commands"], "ref": np.stack(trace["xy"], axis=1),
+            "ref_heading": np.stack(trace["heading"], axis=1), "path_ref": trace["path"]}
 
 
-def hadamard(a: List[float], b: List[float]) -> List[float]:
-    """Hadamard (element-wise) product of two vectors."""
-    return [x * y for x, y in zip(a, b)]
+def make_data(rng):
+    return {name: reference(sample_goals(rng, size, name == "shifted")) for name, size in SPLIT_SIZES.items()}
 
 
-def outer_product(a: List[float], b: List[float]) -> List[List[float]]:
-    """Outer product of two vectors, resulting in a matrix."""
-    return [[ai * bj for bj in b] for ai in a]
+def trivial_error(data):
+    gap = data["heldout"]["ref"][:, 1:] - data["train"]["ref"].mean(axis=0)[None, 1:]
+    return float(np.sqrt((gap ** 2).sum(-1).mean(1)).mean())
 
 
-# =============================================================================
-# SECTION 2: AEOLIPILE DYNAMICS MODULE
-# =============================================================================
-
-class AeolipileNode:
-    """
-    A single rotational dynamics node inspired by Heron's aeolipile.
-    
-    The aeolipile was a bronze sphere mounted on a central axis with two
-    nozzles through which steam escaped, causing the sphere to rotate.
-    The key insight: continuous energy input (steam) generates continuous
-    rotational motion (attractor dynamics).
-    
-    In this implementation, each AeolipileNode maintains a continuous
-    rotational state (phase angle) that evolves over time. The rotation
-    is driven by an input signal (equivalent to steam pressure), and the
-    rotation generates an output (equivalent to the rotational force).
-    
-    Multiple AeolipileNodes can be coupled to form rotational networks
-    that produce complex attractor dynamics.
-    """
-    
-    def __init__(
-        self,
-        node_id: int,
-        input_dim: int = 8,
-        output_dim: int = 8,
-        friction: float = 0.1,
-        inertia: float = 1.0,
-        seed: int = 120
-    ):
-        self.node_id = node_id
-        self.input_dim = input_dim
-        self.output_dim = output_dim
-        self.friction = friction
-        self.inertia = inertia
-        
-        self.prng = PRNG(seed=seed + node_id * 31)
-        
-        # Rotational state
-        self.phase: float = self.prng.uniform(0.0, 2.0 * math.pi)
-        self.angular_velocity: float = 0.0
-        
-        # Input weights (maps input to angular acceleration)
-        self.W_input = [
-            [self.prng.gauss(0.0, 0.1) for _ in range(input_dim)]
-            for _ in range(1)
-        ]
-        
-        # Output weights (maps angular position to output vector)
-        self.W_output = [
-            [self.prng.gauss(0.0, 0.1) for _ in range(output_dim)]
-            for _ in range(8)
-        ]
-        
-        # Nozzle configuration (determines direction and speed of rotation)
-        self.nozzle_weights = [
-            self.prng.gauss(0.0, 0.05) for _ in range(input_dim)
-        ]
-        
-        self.nozzle_bias = self.prng.gauss(0.0, 0.01)
-        
-        self._cache: Optional[List[float]] = None
-    
-    def reset(self) -> None:
-        """Reset the rotational state to initial conditions."""
-        self.phase = self.prng.uniform(0.0, 2.0 * math.pi)
-        self.angular_velocity = 0.0
-    
-    def set_phase(self, phase: float) -> None:
-        """Set the phase angle directly."""
-        self.phase = phase
-    
-    def step(self, input_vector: List[float], dt: float = 0.1) -> List[float]:
-        """
-        Advance the aeolipile by one timestep.
-        
-        Args:
-            input_vector: Input signal (like steam pressure)
-            dt: Timestep duration
-            
-        Returns:
-            Output vector generated from current rotational state
-        """
-        if len(input_vector) != self.input_dim:
-            raise ValueError(
-                f"Expected input dim {self.input_dim}, got {len(input_vector)}"
-            )
-        
-        # Compute effective nozzle pressure from input
-        nozzle_pressure = sum(
-            w * x for w, x in zip(self.nozzle_weights, input_vector)
-        ) + self.nozzle_bias
-        nozzle_pressure = tanh_activation(nozzle_pressure)
-        
-        # Compute angular acceleration (input drives rotation)
-        angular_accel = nozzle_pressure * 2.0
-        
-        # Apply friction
-        angular_accel -= self.friction * self.angular_velocity
-        
-        # Update angular velocity and position (Euler integration)
-        self.angular_velocity += angular_accel * dt
-        self.phase += self.angular_velocity * dt
-        
-        # Wrap phase to [0, 2π)
-        self.phase = self.phase % (2.0 * math.pi)
-        
-        # Generate output from rotational state using sinusoidal basis functions
-        # This is like the nozzles on the aeolipile creating directional outputs
-        output = []
-        for i in range(self.output_dim):
-            freq = (i % 4) + 1
-            phase_offset = (i * math.pi) / self.output_dim
-            val = math.sin(freq * self.phase + phase_offset)
-            output.append(val)
-        
-        # Apply output weight transformation
-        weighted_output = []
-        for j in range(self.output_dim):
-            w_row = self.W_output[j % len(self.W_output)]
-            val = sum(w * out for w, out in zip(w_row, output)) / len(w_row)
-            weighted_output.append(val)
-        
-        self._cache = weighted_output
-        return weighted_output
-    
-    def get_state(self) -> Dict[str, Any]:
-        """Get the current internal state of the node."""
-        return {
-            'node_id': self.node_id,
-            'phase': self.phase,
-            'angular_velocity': self.angular_velocity,
-        }
-    
-    def set_state(self, state: Dict[str, Any]) -> None:
-        """Set the internal state of the node."""
-        if 'phase' in state:
-            self.phase = state['phase']
-        if 'angular_velocity' in state:
-            self.angular_velocity = state['angular_velocity']
+def env_reset(rng):
+    """Start a performance: a training-region goal, its figure and a full weight."""
+    goal = sample_goals(rng, 1, False)
+    return {"goal": goal[0], "ref": reference(goal)["ref"][0], "pose": np.zeros(3), "fuel": FUEL0, "beat": 0}
 
 
-class AeolipileDynamicsLayer:
-    """
-    A layer of AeolipileNodes forming a rotational dynamics network.
-    
-    This layer implements continuous rotational dynamics across a population
-    of nodes. Each node maintains its own rotational state, and nodes can
-    be coupled to each other through learned coupling weights.
-    
-    The layer acts as an attractor network: inputs push the system into
-    different attractor states, and the system maintains those states
-    (like the aeolipile continuing to rotate after the fire is lit).
-    
-    Heron's insight: the aeolipile converts steady input (fire → steam)
-    into continuous rotational motion. This layer converts steady input
-    signals into continuous attractor dynamics.
-    """
-    
-    def __init__(
-        self,
-        num_nodes: int = 16,
-        input_dim: int = 8,
-        output_dim: int = 8,
-        coupling_strength: float = 0.05,
-        seed: int = 120
-    ):
-        self.num_nodes = num_nodes
-        self.input_dim = input_dim
-        self.output_dim = output_dim
-        self.coupling_strength = coupling_strength
-        
-        self.prng = PRNG(seed=seed)
-        
-        # Create nodes
-        self.nodes: List[AeolipileNode] = []
-        for i in range(num_nodes):
-            node = AeolipileNode(
-                node_id=i,
-                input_dim=input_dim,
-                output_dim=output_dim,
-                seed=seed + i * 17
-            )
+def env_step(state, action, rng):
+    """One beat of the ideal cart for action = (left, right) signed wound shares.
+    The ideal floor is deterministic, so rng is accepted for the interface and unused."""
+    s, u = dict(state), np.clip(np.asarray(action, dtype=float), -1.0, 1.0)
+    drive = (math.sqrt(1.0 + SABS_EPS ** 2) - SABS_EPS) * float(sigmoid(GATE_BETA * (s["fuel"] / FUEL0 - GATE_MARGIN)))
+    left, right = drive * CORD * u
+    s["fuel"] -= drive * CORD * float(np.sum(np.sqrt(u * u + SABS_EPS ** 2) - SABS_EPS))
+    v, w = 0.5 * (left + right), (right - left) / TRACK
+    x, y, h = s["pose"]
+    mid = h + 0.5 * w
+    s["pose"], s["beat"] = np.array([x + v * math.cos(mid), y + v * math.sin(mid), h + w]), s["beat"] + 1
+    return s, -float(np.sum((s["pose"][:2] - s["ref"][s["beat"]]) ** 2)), s["beat"] >= T_BEATS
+
+
+# ---------------------------------------------------------------- model
+class Node:
+    __slots__ = ("v", "g", "ps", "bw", "req")
+
+    def __init__(self, v, ps=(), bw=None, req=False):
+        self.v, self.g, self.ps, self.bw, self.req = v, None, ps, bw, req
+
+
+def _unbroadcast(g, shape):
+    while g.ndim > len(shape):
+        g = g.sum(axis=0)
+    for axis, size in enumerate(shape):
+        if size == 1 and g.shape[axis] != 1:
+            g = g.sum(axis=axis, keepdims=True)
+    return g
+
+
+class Tape:
+    """Reverse-mode tape: each op records a closure that maps its gradient onto its parents."""
+
+    def __init__(self, grad=True):
+        self.grad, self.nodes = grad, []
+
+    def param(self, value):
+        return Node(value, req=self.grad)
+
+    def w(self, x):
+        return x if isinstance(x, Node) else Node(np.asarray(x, dtype=float))
+
+    def op(self, value, parents, bw):
+        req = self.grad and any(p.req for p in parents)
+        node = Node(value, parents, bw, req)
+        if req:
             self.nodes.append(node)
-        
-        # Coupling weights between nodes
-        self.coupling_weights = [
-            [self.prng.gauss(0.0, coupling_strength)
-             for _ in range(num_nodes)]
-            for _ in range(num_nodes)
-        ]
-        
-        self._cache: Optional[List[List[float]]] = None
-    
-    def reset(self) -> None:
-        """Reset all nodes to initial states."""
-        for node in self.nodes:
-            node.reset()
-    
-    def step(self, input_vector: List[float]) -> List[List[float]]:
-        """
-        Advance all nodes in the layer by one timestep.
-        
-        Args:
-            input_vector: Global input to the layer
-            
-        Returns:
-            List of output vectors, one per node
-        """
-        # Compute coupling influences
-        all_phases = [node.phase for node in self.nodes]
-        all_velocities = [node.angular_velocity for node in self.nodes]
-        
-        outputs = []
-        for i, node in enumerate(self.nodes):
-            # Compute coupling from other nodes (via phase differences)
-            coupling = 0.0
-            for j, other_node in enumerate(self.nodes):
-                if i != j:
-                    phase_diff = math.sin(all_phases[j] - all_phases[i])
-                    coupling += self.coupling_weights[i][j] * phase_diff
-            
-            # Combine direct input with coupling
-            augmented_input = list(input_vector)
-            if augmented_input:
-                coupling_signal = [coupling] * min(len(augmented_input), 1)
-                augmented_input[0] += coupling_signal[0] if augmented_input else coupling
-            
-            output = node.step(input_vector if augmented_input == [coupling] else augmented_input)
-            outputs.append(output)
-        
-        self._cache = outputs
-        return outputs
-    
-    def get_attractor_state(self) -> List[float]:
-        """Get the aggregate attractor state (mean phase and velocity)."""
-        if not self.nodes:
-            return []
-        mean_phase = sum(n.phase for n in self.nodes) / len(self.nodes)
-        mean_velocity = sum(n.angular_velocity for n in self.nodes) / len(self.nodes)
-        return [math.sin(mean_phase), math.cos(mean_phase), mean_velocity]
-    
-    def apply_coupling_matrix(
-        self,
-        coupling_matrix: List[List[float]]
-    ) -> None:
-        """Update the coupling weight matrix."""
-        if len(coupling_matrix) == len(self.coupling_weights):
-            for i in range(len(coupling_matrix)):
-                if len(coupling_matrix[i]) == len(self.coupling_weights[0]):
-                    self.coupling_weights[i] = list(coupling_matrix[i])
+        return node
+
+    def add(self, a, b):
+        a, b = self.w(a), self.w(b)
+        return self.op(a.v + b.v, (a, b), lambda g: (g, g))
+
+    def sub(self, a, b):
+        a, b = self.w(a), self.w(b)
+        return self.op(a.v - b.v, (a, b), lambda g: (g, -g))
+
+    def mul(self, a, b):
+        a, b = self.w(a), self.w(b)
+        return self.op(a.v * b.v, (a, b), lambda g: (g * b.v, g * a.v))
+
+    def unary(self, a, f, df):
+        a = self.w(a)
+        y = f(a.v)
+        return self.op(y, (a,), lambda g: (g * df(a.v, y),))
+
+    def tanh(self, a):
+        return self.unary(a, np.tanh, lambda x, y: 1.0 - y * y)
+
+    def sin(self, a):
+        return self.unary(a, np.sin, lambda x, y: np.cos(x))
+
+    def cos(self, a):
+        return self.unary(a, np.cos, lambda x, y: -np.sin(x))
+
+    def sigmoid(self, a):
+        return self.unary(a, sigmoid, lambda x, y: y * (1.0 - y))
+
+    def softplus(self, a):
+        return self.unary(a, softplus, lambda x, y: sigmoid(x))
+
+    def sabs(self, a):
+        # smooth |x| keeps effort and path length differentiable at a standstill
+        return self.unary(a, lambda x: np.sqrt(x * x + SABS_EPS ** 2) - SABS_EPS, lambda x, y: x / (y + SABS_EPS))
+
+    def gate(self, fuel):
+        return self.unary(fuel, lambda f: sigmoid(GATE_BETA * (f / FUEL0 - GATE_MARGIN)),
+                          lambda f, y: GATE_BETA / FUEL0 * y * (1.0 - y))
+
+    def softmax(self, a):
+        a = self.w(a)
+        y = softmax(a.v)
+        return self.op(y, (a,), lambda g: (y * (g - (g * y).sum(axis=-1, keepdims=True)),))
+
+    def linear(self, a, w):
+        a, w = self.w(a), self.w(w)
+
+        def bw(g):
+            dw = g.reshape(-1, g.shape[-1]).T @ a.v.reshape(-1, a.v.shape[-1]) if w.req else None
+            return g @ w.v, dw
+        return self.op(a.v @ w.v.T, (a, w), bw)
+
+    def take(self, a, key):
+        a = self.w(a)
+
+        def bw(g):
+            full = np.zeros_like(a.v)
+            full[key] = g
+            return (full,)
+        return self.op(a.v[key], (a,), bw)
+
+    def columns(self, cols):
+        cols = [self.w(c) for c in cols]
+        mats = [c.v.reshape(c.v.shape[0], -1) for c in cols]
+        edges = np.cumsum([0] + [m.shape[1] for m in mats])
+        return self.op(np.concatenate(mats, axis=1), tuple(cols),
+                       lambda g: tuple(g[:, edges[i]:edges[i + 1]].reshape(c.v.shape) for i, c in enumerate(cols)))
+
+    def expand_last(self, a):
+        a = self.w(a)
+        return self.op(a.v[..., None], (a,), lambda g: (g[..., 0],))
+
+    def goal_mod(self, m, goals):
+        m = self.w(m)
+        return self.op(np.einsum("...g,ng->n...", m.v, goals), (m,),
+                       lambda g: (np.einsum("n...,ng->...g", g, goals),))
+
+    def mean(self, a):
+        a = self.w(a)
+        return self.op(np.asarray(a.v.mean()), (a,), lambda g: (np.full(a.v.shape, float(g) / a.v.size),))
+
+    def backward(self, out):
+        out.g = np.ones_like(out.v)
+        for node in reversed(self.nodes):
+            if node.g is None:
+                continue
+            for parent, grad in zip(node.ps, node.bw(node.g)):
+                if parent.req:
+                    grad = _unbroadcast(grad, parent.v.shape)
+                    parent.g = grad if parent.g is None else parent.g + grad
 
 
-# =============================================================================
-# SECTION 3: PNEUMATIC CONTROL LAYER
-# =============================================================================
+def build_model(in_dim, out_dim, task_type, rng, **cfg):
+    """Winding automaton by default; kind='policy' or 'regulator' builds the comparators, 'script' the ideal cart."""
+    kind = cfg.get("kind", "winding")
+    if task_type not in TASK_TYPES or in_dim != G_DIM or out_dim != 2:
+        raise ValueError("chapter 0118 supports episodic_control with a 5-d goal and 2 axle commands")
+    params = {"valve_setpoint": np.array([math.log(math.e - 1.0)]), "valve_gain": np.zeros(1)}
+    if kind == "winding":
+        params.update(winding_logits=rng.normal(0.0, 0.5, (T_BEATS, 4)), winding_sign=rng.normal(0.0, 0.5, T_BEATS),
+                      recam_logits=rng.normal(0.0, 0.05, (T_BEATS, 4, G_DIM)),
+                      recam_sign=rng.normal(0.0, 0.05, (T_BEATS, G_DIM)))
+    elif kind == "policy":
+        fan_in, hidden = G_DIM + 4 + PHASE.shape[1], cfg.get("hidden", HIDDEN)
+        params.update(policy_w1=rng.normal(0.0, fan_in ** -0.5, (hidden, fan_in)), policy_b1=np.zeros(hidden),
+                      policy_w2=rng.normal(0.0, 0.1, (2, hidden)), policy_b2=np.zeros(2))
+    elif kind == "regulator":
+        params.update(gain_forward=np.zeros(1), gain_lateral=np.zeros(1), gain_heading=np.zeros(1))
+    elif kind != "script":
+        raise ValueError(f"unknown kind {kind}")
+    return {"kind": kind, "params": params, "ko": {}, "cfg": {"lr": cfg.get("lr", LR)}}
 
-class PneumaticControlLayer:
-    """
-    Global broadcast layer using pneumatic (fluid pressure) principles.
-    
-    Heron's pneumatic devices used pressurized air to transmit signals
-    throughout a machine — the pressure applied at one point was felt
-    everywhere in the system. This layer implements a similar principle:
-    a global regulatory signal that modulates processing throughout the
-    entire network.
-    
-    Key properties:
-    - Broadcast: regulatory signal reaches all processing units
-    - Pressure semantics: signal strength determines modulation intensity
-    - Propagation: gradual transmission through the network (not instant)
-    - Compression: signals can be compressed or amplified
-    
-    In neural network terms, this layer implements something like
-    a global attention or modulation mechanism, similar to how
-    acetylcholine or norepinephrine act as neuromodulators in the brain.
-    """
-    
-    def __init__(
-        self,
-        num_sources: int = 8,
-        num_targets: int = 64,
-        pressure_decay: float = 0.1,
-        seed: int = 120
-    ):
-        self.num_sources = num_sources
-        self.num_targets = num_targets
-        self.pressure_decay = pressure_decay
-        
-        self.prng = PRNG(seed=seed)
-        
-        # Source nodes (generate regulatory signals)
-        self.sources = [
-            RegulatorySource(source_id=i, seed=seed + i * 13)
-            for i in range(num_sources)
-        ]
-        
-        # Propagation weights: how signals spread from sources to targets
-        self.propagation_weights = [
-            [self.prng.gauss(0.0, 0.1) for _ in range(num_targets)]
-            for _ in range(num_sources)
-        ]
-        
-        # Target thresholds (modulated by incoming pressure)
-        self.target_thresholds = [
-            0.5 for _ in range(num_targets)
-        ]
-        
-        # Current pressure state at each target
-        self.target_pressures = [0.0] * num_targets
-        
-        # History of pressure states
-        self.pressure_history: List[List[float]] = []
-    
-    def generate_regulatory_signals(
-        self,
-        global_signal: List[float],
-        target_activity: List[float]
-    ) -> List[float]:
-        """
-        Generate regulatory signals from global inputs and target states.
-        
-        Args:
-            global_signal: Global input signal (e.g., from environment)
-            target_activity: Current activity levels at targets
-            
-        Returns:
-            Regulatory signal strengths for each target
-        """
-        if len(global_signal) < self.num_sources:
-            padded = list(global_signal) + [0.0] * (self.num_sources - len(global_signal))
+
+def decode_winding(tp, P, goals, ko):
+    """Winding code -> signed axle windings (N, beats, 2); also returns primitive shares and reversal sign."""
+    n = goals.shape[0]
+    logits = tp.add(P["winding_logits"], np.zeros((n, T_BEATS, 4)))
+    sign = tp.add(P["winding_sign"], np.zeros((n, T_BEATS)))
+    if ko.get("recam") != "zero":
+        logits = tp.add(logits, tp.goal_mod(P["recam_logits"], goals))
+        sign = tp.add(sign, tp.goal_mod(P["recam_sign"], goals))
+    shares = tp.softmax(logits)
+    keep = 0.0 if ACTIVE_MUTANT == "reversal_grad_dropped" else 1.0
+    reversal = tp.unary(sign, np.tanh, lambda s, r: keep * (1.0 - r * r))
+    commands = tp.mul(tp.expand_last(reversal), tp.linear(shares, PRIMITIVE_AXLES.T))
+    if ko.get("winding") == "mean":
+        commands = tp.w(np.broadcast_to(commands.v.mean(axis=(0, 1), keepdims=True), commands.v.shape).copy())
+    elif ko.get("winding") == "zero":
+        commands = tp.w(np.zeros_like(commands.v))
+    return commands, shares.v, reversal.v
+
+
+def valve_update(tp, pressure, kappa, setpoint, flow):
+    """Float valve: move the drive pressure a fraction kappa of the way to its set-point, then add the flow jitter."""
+    return tp.add(tp.add(pressure, tp.mul(kappa, tp.sub(setpoint, pressure))), flow)
+
+
+def rollout(tp, model, P, batch):
+    """Drive the cart through the performance; returns the three-part loss node and a numpy trace."""
+    kind, ko, n = model["kind"], model["ko"], batch["goals"].shape[0]
+    x, y, h = (tp.w(batch["start"][:, i]) for i in range(3))
+    fuel, pressure = tp.w(np.full(n, FUEL0)), tp.w(np.ones(n))
+    kappa, setpoint = tp.sigmoid(P["valve_gain"]), tp.softplus(P["valve_setpoint"])
+    path, acc = tp.w(np.zeros(n)), tp.w(np.zeros(n))
+    commands = decode_winding(tp, P, batch["goals"], ko)[0] if kind == "winding" else None
+    trace = {"xy": [batch["start"][:, :2].copy()], "heading": [batch["start"][:, 2].copy()], "fuel": [fuel.v],
+             "gate": [], "pressure": [pressure.v]}
+    for t in range(T_BEATS):
+        if kind == "winding":
+            left_u, right_u = tp.take(commands, (slice(None), t, 0)), tp.take(commands, (slice(None), t, 1))
+        elif kind == "script":
+            left_u, right_u = tp.w(batch["commands"][:, t, 0]), tp.w(batch["commands"][:, t, 1])
+        elif kind == "policy":
+            left_u, right_u = policy_command(tp, P, batch["goals"], t, x, y, h)
         else:
-            padded = list(global_signal[:self.num_sources])
-        
-        # Update source nodes
-        for i, source in enumerate(self.sources):
-            source.update(padded[i])
-        
-        # Compute pressure at each target
-        regulatory_signals = []
-        for t in range(self.num_targets):
-            pressure = 0.0
-            for s, source in enumerate(self.sources):
-                source_signal = source.get_signal()
-                weight = self.propagation_weights[s][t]
-                pressure += source_signal * weight
-            
-            # Apply threshold modulation
-            threshold = self.target_thresholds[t]
-            if pressure > threshold:
-                # Above threshold: amplify
-                modulation = 1.0 + (pressure - threshold)
-            else:
-                # Below threshold: attenuate
-                modulation = pressure / (threshold + 1e-6)
-            
-            regulatory_signals.append(clip(modulation, 0.0, 5.0))
-            self.target_pressures[t] = regulatory_signals[t]
-        
-        self.pressure_history.append(list(self.target_pressures))
-        return regulatory_signals
-    
-    def modulate(
-        self,
-        target_values: List[float],
-        regulatory_signals: List[float]
-    ) -> List[float]:
-        """
-        Apply regulatory modulation to target values.
-        
-        Args:
-            target_values: Values to be modulated
-            regulatory_signals: Regulatory signal strengths
-            
-        Returns:
-            Modulated values
-        """
-        if len(target_values) != len(regulatory_signals):
-            raise ValueError(
-                f"Dimension mismatch: {len(target_values)} vs {len(regulatory_signals)}"
-            )
-        
-        modulated = []
-        for val, pressure in zip(target_values, regulatory_signals):
-            # Higher pressure amplifies and expands range
-            modulated_val = val * pressure
-            modulated.append(modulated_val)
-        
-        return modulated
-    
-    def step(
-        self,
-        global_signal: List[float],
-        target_activity: List[float],
-        target_values: List[float]
-    ) -> List[float]:
-        """
-        Full pneumatic control step: generate signals and apply modulation.
-        
-        Args:
-            global_signal: Global environmental signal
-            target_activity: Current activity at targets
-            target_values: Values to modulate
-            
-        Returns:
-            Modulated values
-        """
-        signals = self.generate_regulatory_signals(global_signal, target_activity)
-        return self.modulate(target_values, signals)
+            left_u, right_u = regulator_command(tp, P, batch, t, x, y, h)
+        # the negative control of C6.2 drives with raw pressure, which may turn negative and refill the weight
+        drive_p = pressure if batch.get("raw_pressure") else tp.sabs(pressure)
+        gate = tp.w(np.ones(n)) if ko.get("falling_weight") else tp.gate(fuel)
+        drive = tp.mul(tp.mul(drive_p, gate), CORD * (1.0 - batch["friction"][t]))
+        left = tp.mul(drive, tp.mul(left_u, batch["slip"][:, t, 0]))
+        right = tp.mul(drive, tp.mul(right_u, batch["slip"][:, t, 1]))
+        if not ko.get("falling_weight"):
+            fuel = tp.sub(fuel, tp.mul(tp.mul(tp.add(tp.sabs(left_u), tp.sabs(right_u)), tp.mul(drive_p, gate)), CORD))
+        v, w = tp.mul(tp.add(left, right), 0.5), tp.mul(tp.sub(right, left), 1.0 / TRACK)
+        # heading at mid-beat makes the step exactly reversible (C6.1); Euler is the negative control
+        heading = h if batch.get("euler") else tp.add(h, tp.mul(w, 0.5))
+        x, y, h = tp.add(x, tp.mul(v, tp.cos(heading))), tp.add(y, tp.mul(v, tp.sin(heading))), tp.add(h, w)
+        path = tp.add(path, tp.sabs(v))
+        flow = batch["flow"][:, t]
+        pressure = tp.add(pressure, flow) if ko.get("float_valve") else valve_update(tp, pressure, kappa, setpoint, flow)
+        dx, dy = tp.sub(x, batch["ref"][:, t + 1, 0]), tp.sub(y, batch["ref"][:, t + 1, 1])
+        err = tp.add(tp.mul(dx, dx), tp.mul(dy, dy))
+        acc = tp.add(acc, err)
+        trace["xy"].append(np.stack([x.v, y.v], axis=1))
+        trace["heading"].append(h.v)
+        trace["fuel"].append(fuel.v)
+        trace["gate"].append(gate.v)
+        trace["pressure"].append(pressure.v)
+    trace["path"] = path.v
+    excess = tp.mul(tp.softplus(tp.mul(tp.sub(path, batch["path_ref"]), HINGE_K)), 1.0 / HINGE_K)
+    spent = tp.mul(tp.sub(FUEL0, fuel), 1.0 / FUEL0)
+    over = tp.mul(tp.softplus(tp.mul(tp.sub(spent, RESERVE), HINGE_K)), 1.0 / HINGE_K)
+    accuracy = tp.mean(tp.add(tp.mul(acc, 1.0 / T_BEATS), err))
+    loss = tp.add(accuracy, tp.add(tp.mul(tp.mean(excess), LAMBDA_PATH), tp.mul(tp.mean(over), LAMBDA_BUDGET)))
+    return loss, trace
 
 
-class RegulatorySource:
-    """
-    A single source of regulatory (pressure) signals.
-    
-    Each source generates a continuous pressure signal that varies
-    over time based on input. Multiple sources can be active
-    simultaneously, generating complex regulatory patterns.
-    """
-    
-    def __init__(self, source_id: int, seed: int = 120):
-        self.source_id = source_id
-        self.prng = PRNG(seed=seed)
-        self.current_signal: float = 0.0
-        self.signal_momentum: float = 0.0
-        self.base_level: float = self.prng.uniform(0.3, 0.7)
-        self.response_rate: float = self.prng.uniform(0.1, 0.3)
-    
-    def update(self, input_val: float) -> None:
-        """Update the signal based on input."""
-        target = self.base_level + self.response_rate * input_val
-        self.signal_momentum = 0.7 * self.signal_momentum + 0.3 * (target - self.current_signal)
-        self.current_signal += self.signal_momentum
-        self.current_signal = clip(self.current_signal, 0.0, 2.0)
-    
-    def get_signal(self) -> float:
-        """Get the current signal value."""
-        return self.current_signal
+def run(model, batch):
+    tp = Tape(grad=False)
+    loss, trace = rollout(tp, model, {k: tp.param(v) for k, v in model["params"].items()}, batch)
+    return float(loss.v), trace
 
 
-# =============================================================================
-# SECTION 4: GEAR-BASED PROCESSING HIERARCHY
-# =============================================================================
-
-class GearStage:
-    """
-    A single gear stage in a gear-based processing hierarchy.
-    
-    Heron's gear systems transformed motion through a series of stages:
-    a gear wheel engaging with a pinion, which engages with another gear,
-    which engages with a rack, and so on. Each stage performs a specific
-    transformation: rotation direction can be reversed, speed can be
-    increased or decreased, and force can be amplified or reduced.
-    
-    In this implementation, a GearStage performs a parameterized
-    affine transformation: output = rotation * weight * input + bias,
-    where rotation can be +1 or -1 (direction reversal), weight
-    controls speed/scaling, and bias controls offset.
-    
-    The gear ratio (weight) and direction (sign) are learnable parameters.
-    """
-    
-    def __init__(
-        self,
-        stage_id: int,
-        input_dim: int,
-        output_dim: int,
-        gear_ratio: Optional[float] = None,
-        direction: Optional[int] = None,
-        seed: int = 120
-    ):
-        self.stage_id = stage_id
-        self.input_dim = input_dim
-        self.output_dim = output_dim
-        
-        self.prng = PRNG(seed=seed + stage_id * 23)
-        
-        # Gear parameters
-        if gear_ratio is None:
-            self.gear_ratio = self.prng.uniform(0.5, 2.0)
-        else:
-            self.gear_ratio = gear_ratio
-        
-        if direction is None:
-            self.direction = 1 if self.prng.random() > 0.5 else -1
-        else:
-            self.direction = direction
-        
-        # Transformation weights
-        self.weights = [
-            [self.prng.gauss(0.0, 0.1) for _ in range(input_dim)]
-            for _ in range(output_dim)
-        ]
-        
-        # Bias (offset)
-        self.bias = [self.prng.gauss(0.0, 0.01) for _ in range(output_dim)]
-        
-        # Accumulated statistics for learning
-        self.input_sum = [0.0] * input_dim
-        self.output_sum = [0.0] * output_dim
-        self.step_count = 0
-    
-    def transform(self, input_vector: List[float]) -> List[float]:
-        """
-        Apply the gear transformation to an input vector.
-        
-        Args:
-            input_vector: Input data to transform
-            
-        Returns:
-            Transformed output vector
-        """
-        if len(input_vector) != self.input_dim:
-            raise ValueError(
-                f"Expected input dim {self.input_dim}, got {len(input_vector)}"
-            )
-        
-        # Compute weighted sum
-        raw_output = []
-        for i in range(self.output_dim):
-            total = sum(
-                self.weights[i][j] * input_vector[j]
-                for j in range(self.input_dim)
-            )
-            # Apply gear ratio scaling and direction reversal
-            scaled = self.gear_ratio * self.direction * total
-            # Apply bias
-            biased = scaled + self.bias[i]
-            # Activation function
-            activated = tanh_activation(biased)
-            raw_output.append(activated)
-        
-        # Update statistics
-        self.input_sum = vecadd(self.input_sum, input_vector)
-        self.output_sum = vecadd(self.output_sum, raw_output)
-        self.step_count += 1
-        
-        return raw_output
-    
-    def get_average_input(self) -> List[float]:
-        """Get the average input seen by this stage."""
-        if self.step_count == 0:
-            return [0.0] * self.input_dim
-        return [s / self.step_count for s in self.input_sum]
-    
-    def get_average_output(self) -> List[float]:
-        """Get the average output produced by this stage."""
-        if self.step_count == 0:
-            return [0.0] * self.output_dim
-        return [s / self.step_count for s in self.output_sum]
-    
-    def update_weights(
-        self,
-        delta_weights: List[List[float]],
-        delta_bias: List[float],
-        learning_rate: float = 0.01
-    ) -> None:
-        """Update weights based on computed deltas."""
-        for i in range(self.output_dim):
-            for j in range(self.input_dim):
-                self.weights[i][j] += learning_rate * delta_weights[i][j]
-            self.bias[i] += learning_rate * delta_bias[i]
+def loss_and_grads(model, batch):
+    tp = Tape(grad=True)
+    P = {k: tp.param(v) for k, v in model["params"].items()}
+    loss = rollout(tp, model, P, batch)[0]
+    tp.backward(loss)
+    grads = {k: np.zeros_like(v) if P[k].g is None else P[k].g for k, v in model["params"].items()}
+    if ACTIVE_MUTANT == "zero_grad_recam_logits" and "recam_logits" in grads:
+        grads["recam_logits"] = np.zeros_like(grads["recam_logits"])
+    return float(loss.v), grads
 
 
-class GearBasedHierarchy:
-    """
-    A deep hierarchical network organized as a series of gear stages.
-    
-    Heron's gear trains processed motion through a sequence of stages,
-    with each stage performing a specific transformation. This hierarchy
-    implements a similar architecture: data flows through a sequence of
-    GearStages, each performing a different transformation on the
-    representation.
-    
-    The key innovation of this architecture is the "gear engagement"
-    mechanism: instead of passing through every stage, data can be
-    routed through selected stages, allowing the network to attend to
-    different levels of the hierarchy.
-    
-    Attributes:
-        num_stages: Number of gear stages in the hierarchy
-        stage_dims: Dimensions of each stage's input/output
-        stages: The actual GearStage instances
-        engagement_weights: How much each stage is engaged
-    """
-    
-    def __init__(
-        self,
-        input_dim: int = 8,
-        hidden_dims: List[int] = None,
-        output_dim: int = 8,
-        num_stages: int = 4,
-        seed: int = 120
-    ):
-        if hidden_dims is None:
-            hidden_dims = [16, 16, 16]
-        
-        self.input_dim = input_dim
-        self.hidden_dims = hidden_dims
-        self.output_dim = output_dim
-        self.num_stages = num_stages
-        
-        self.prng = PRNG(seed=seed)
-        
-        # Build stages
-        self.stages: List[GearStage] = []
-        prev_dim = input_dim
-        for i, hidden_dim in enumerate(hidden_dims):
-            stage = GearStage(
-                stage_id=i,
-                input_dim=prev_dim,
-                output_dim=hidden_dim,
-                seed=seed + i * 37
-            )
-            self.stages.append(stage)
-            prev_dim = hidden_dim
-        
-        # Final output stage
-        final_stage = GearStage(
-            stage_id=len(hidden_dims),
-            input_dim=prev_dim,
-            output_dim=output_dim,
-            seed=seed + len(hidden_dims) * 37
-        )
-        self.stages.append(final_stage)
-        
-        # Engagement weights (attention over stages)
-        self.engagement_weights = [
-            self.prng.uniform(0.0, 1.0) for _ in range(num_stages + 1)
-        ]
-        self._normalize_engagement()
-    
-    def _normalize_engagement(self) -> None:
-        """Normalize engagement weights to sum to 1."""
-        total = sum(self.engagement_weights)
-        if total > 0:
-            self.engagement_weights = [w / total for w in self.engagement_weights]
-    
-    def forward(
-        self,
-        input_vector: List[float],
-        engagement: Optional[List[float]] = None
-    ) -> List[float]:
-        """
-        Forward pass through the gear hierarchy.
-        
-        Args:
-            input_vector: Input data
-            engagement: Optional engagement weights (default: use stored)
-            
-        Returns:
-            Transformed output vector
-        """
-        current = list(input_vector)
-        
-        if engagement is not None:
-            eng = list(engagement)
-        else:
-            eng = list(self.engagement_weights)
-        
-        # Ensure engagement matches number of stages
-        while len(eng) < len(self.stages):
-            eng.append(0.0)
-        eng = eng[:len(self.stages)]
-        
-        outputs = []
-        for i, stage in enumerate(self.stages):
-            transformed = stage.transform(current)
-            outputs.append(transformed)
-        
-        # Weighted combination of stage outputs (engagement = attention)
-        self._normalize_engagement()
-        combined = outputs[0]
-        for i in range(1, len(outputs)):
-            combined = vecadd(
-                combined,
-                [c * self.engagement_weights[i] for c in outputs[i]]
-            )
-        
-        return combined
-    
-    def full_forward(self, input_vector: List[float]) -> Tuple[List[float], List[List[float]]]:
-        """
-        Full forward pass returning all intermediate outputs.
-        
-        Returns:
-            Tuple of (final_output, list_of_intermediate_outputs)
-        """
-        current = list(input_vector)
-        all_outputs = [current]
-        
-        for stage in self.stages:
-            current = stage.transform(current)
-            all_outputs.append(current)
-        
-        return current, all_outputs[1:]
-    
-    def update_engagement(
-        self,
-        relevance_scores: List[float]
-    ) -> None:
-        """Update engagement weights based on relevance scores."""
-        if len(relevance_scores) != len(self.stages):
-            raise ValueError(
-                f"Expected {len(self.stages)} scores, got {len(relevance_scores)}"
-            )
-        
-        for i in range(len(self.stages)):
-            self.engagement_weights[i] = max(0.0, self.engagement_weights[i] + 0.1 * relevance_scores[i])
-        
-        self._normalize_engagement()
-    
-    def get_stage_states(self) -> List[Dict[str, Any]]:
-        """Get the state of each stage for inspection."""
-        return [
-            {
-                'stage_id': s.stage_id,
-                'gear_ratio': s.gear_ratio,
-                'direction': s.direction,
-                'avg_input': s.get_average_input()[:3],
-                'avg_output': s.get_average_output()[:3],
-            }
-            for s in self.stages
-        ]
+def figure_error(model, batch):
+    xy = np.stack(run(model, batch)[1]["xy"], axis=1)
+    return float(np.sqrt(((xy[:, 1:] - batch["ref"][:, 1:]) ** 2).sum(-1).mean(1)).mean())
 
 
-# =============================================================================
-# SECTION 5: AUTOMATA SEQUENCER (CAM-DRUM PROGRAM STORAGE)
-# =============================================================================
-
-class CamProfile:
-    """
-    A single cam profile on a cam-drum, determining one step in a sequence.
-    
-    Heron's automata used cam drums: rotating cylinders with pegs or
-    shoulders that engaged with levers to produce complex sequences
-    of motions. Each cam profile on the drum determined one step
-    in the sequence.
-    
-    A CamProfile stores the control pattern for one step: which
-    modules should be active, what their parameters should be,
-    and how long this step should last.
-    """
-    
-    def __init__(
-        self,
-        cam_id: int,
-        control_pattern: Optional[Dict[int, float]] = None,
-        duration: float = 1.0,
-        seed: int = 120
-    ):
-        self.cam_id = cam_id
-        self.duration = duration
-        
-        self.prng = PRNG(seed=seed + cam_id * 41)
-        
-        # Control pattern: module_id -> activation level
-        if control_pattern is None:
-            self.control_pattern: Dict[int, float] = {}
-        else:
-            self.control_pattern = dict(control_pattern)
-    
-    def set_control(self, module_id: int, level: float) -> None:
-        """Set the control level for a specific module."""
-        self.control_pattern[module_id] = clip(level, 0.0, 1.0)
-    
-    def get_control(self, module_id: int) -> float:
-        """Get the control level for a module, default 0.0."""
-        return self.control_pattern.get(module_id, 0.0)
-    
-    def mutate(
-        self,
-        mutation_rate: float = 0.1,
-        noise_scale: float = 0.1
-    ) -> 'CamProfile':
-        """Create a mutated copy of this cam profile."""
-        new_pattern = {
-            k: clip(v + self.prng.gauss(0.0, noise_scale), 0.0, 1.0)
-            for k, v in self.control_pattern.items()
-        }
-        # Possibly add new module controls
-        if self.prng.random() < mutation_rate:
-            new_module = self.prng.randint(0, 16)
-            new_pattern[new_module] = self.prng.uniform(0.0, 1.0)
-        
-        new_duration = self.duration + self.prng.gauss(0.0, 0.1)
-        new_duration = max(0.1, new_duration)
-        
-        return CamProfile(
-            cam_id=self.cam_id + 1000,
-            control_pattern=new_pattern,
-            duration=new_duration,
-            seed=self.prng.randint(0, 10000)
-        )
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Serialize to dictionary."""
-        return {
-            'cam_id': self.cam_id,
-            'duration': self.duration,
-            'control_pattern': self.control_pattern,
-        }
+SCRIPT = build_model(G_DIM, 2, "episodic_control", None, kind="script")
 
 
-class CamDrum:
-    """
-    A cam drum storing a sequence of control programs.
-    
-    Heron's automata used rotating drums with multiple cam profiles
-    arranged around their circumference. As the drum rotated, each
-    cam engaged with its corresponding lever in sequence, producing
-    a choreographed sequence of actions.
-    
-    This CamDrum stores an ordered sequence of CamProfiles, and
-    supports operations for reading the current profile, advancing
-    the drum, and modifying the sequence.
-    """
-    
-    def __init__(
-        self,
-        drum_id: int,
-        capacity: int = 16,
-        seed: int = 120
-    ):
-        self.drum_id = drum_id
-        self.capacity = capacity
-        
-        self.prng = PRNG(seed=seed)
-        
-        # Cam profiles in sequence
-        self.cams: List[CamProfile] = []
-        
-        # Current position on the drum (which cam is active)
-        self.position: int = 0
-        
-        # Current phase within the active cam (0.0 to 1.0)
-        self.phase: float = 0.0
-    
-    def load_sequence(self, cams: List[CamProfile]) -> None:
-        """Load a sequence of cam profiles onto the drum."""
-        self.cams = list(cams[:self.capacity])
-        self.position = 0
-        self.phase = 0.0
-    
-    def generate_random_sequence(
-        self,
-        num_cams: int,
-        num_modules: int = 8
-    ) -> None:
-        """Generate a random cam sequence."""
-        self.cams = []
-        for i in range(min(num_cams, self.capacity)):
-            pattern = {
-                m: self.prng.uniform(0.0, 1.0)
-                for m in range(num_modules)
-                if self.prng.random() > 0.3
-            }
-            duration = self.prng.uniform(0.5, 2.0)
-            cam = CamProfile(cam_id=i, control_pattern=pattern, duration=duration)
-            self.cams.append(cam)
-        self.position = 0
-        self.phase = 0.0
-    
-    def get_current_cam(self) -> Optional[CamProfile]:
-        """Get the currently active cam profile."""
-        if not self.cams:
-            return None
-        return self.cams[self.position % len(self.cams)]
-    
-    def advance(self, dt: float) -> None:
-        """
-        Advance the drum by dt time units.
-        
-        Args:
-            dt: Time step
-        """
-        if not self.cams:
-            return
-        
-        current_cam = self.get_current_cam()
-        if current_cam is None:
-            return
-        
-        self.phase += dt / current_cam.duration
-        
-        if self.phase >= 1.0:
-            self.phase = 0.0
-            self.position = (self.position + 1) % len(self.cams)
-    
-    def get_current_controls(self) -> Dict[int, float]:
-        """Get the control values for all modules from the current cam."""
-        cam = self.get_current_cam()
-        if cam is None:
-            return {}
-        
-        # Apply phase to modulate control values
-        controls = {}
-        for module_id, level in cam.control_pattern.items():
-            # Smooth modulation using sin at transition points
-            if self.phase < 0.1:
-                fade = math.sin(self.phase / 0.1 * math.pi / 2)
-            elif self.phase > 0.9:
-                fade = math.sin((1.0 - self.phase) / 0.1 * math.pi / 2)
-            else:
-                fade = 1.0
-            controls[module_id] = level * fade
-        
-        return controls
-    
-    def re_cam(
-        self,
-        cam_index: int,
-        new_pattern: Dict[int, float]
-    ) -> bool:
-        """
-        Re-cam the drum: modify a cam profile to implement new behavior.
-        
-        Args:
-            cam_index: Which cam to modify
-            new_pattern: New control pattern for this cam
-            
-        Returns:
-            True if successful, False if index out of range
-        """
-        if 0 <= cam_index < len(self.cams):
-            old_cam = self.cams[cam_index]
-            self.cams[cam_index] = CamProfile(
-                cam_id=old_cam.cam_id,
-                control_pattern=new_pattern,
-                duration=old_cam.duration,
-                seed=old_cam.cam_id * 777
-            )
-            return True
-        return False
-    
-    def crossover(self, other: 'CamDrum', crossover_point: int) -> 'CamDrum':
-        """
-        Create a new drum by crossing over with another drum at a point.
-        
-        Args:
-            other: Another CamDrum to crossover with
-            crossover_point: Index at which to swap
-            
-        Returns:
-            New CamDrum with combined sequence
-        """
-        new_drum = CamDrum(
-            drum_id=self.drum_id * 100 + other.drum_id,
-            capacity=max(self.capacity, other.capacity)
-        )
-        
-        combined = list(self.cams)
-        for i, cam in enumerate(other.cams):
-            if i >= len(combined):
-                combined.append(cam)
-            elif i >= crossover_point:
-                combined[i] = cam
-        
-        new_drum.load_sequence(combined[:new_drum.capacity])
-        return new_drum
-    
-    def __len__(self) -> int:
-        """Number of cams currently loaded."""
-        return len(self.cams)
+# ---------------------------------------------------------------- baselines and rival mechanisms
+def policy_command(tp, P, goals, t, x, y, h):
+    """Size-matched closed-loop baseline: an MLP reads the goal, the sensed pose and the beat phase."""
+    phase = np.repeat(PHASE[t][None], goals.shape[0], axis=0)
+    feats = tp.columns([goals, x, y, tp.cos(h), tp.sin(h), phase])
+    hidden = tp.tanh(tp.add(tp.linear(feats, P["policy_w1"]), P["policy_b1"]))
+    out = tp.tanh(tp.add(tp.linear(hidden, P["policy_w2"]), P["policy_b2"]))
+    return tp.take(out, (slice(None), 0)), tp.take(out, (slice(None), 1))
 
 
-class AutomataSequencer:
-    """
-    Program storage and execution system based on Heron's automata.
-    
-    This sequencer stores behavioral programs as sequences of cam
-    profiles on drum, and executes them by advancing through the
-    sequence over time. It supports:
-    - Multiple timescales: short, medium, and long sequences
-    - Program modification: re-camming to learn new behaviors
-    - Program combination: crossover to create novel programs
-    - Hierarchical sequencing: sequences that call sub-sequences
-    
-    This is the Heronian equivalent of a stored-program computer.
-    """
-    
-    def __init__(
-        self,
-        num_modules: int = 8,
-        short_capacity: int = 8,
-        medium_capacity: int = 16,
-        long_capacity: int = 32,
-        seed: int = 120
-    ):
-        self.num_modules = num_modules
-        self.short_capacity = short_capacity
-        self.medium_capacity = medium_capacity
-        self.long_capacity = long_capacity
-        
-        self.prng = PRNG(seed=seed)
-        
-        # Three levels of drum (short/medium/long sequences)
-        self.short_drum = CamDrum(drum_id=1, capacity=short_capacity, seed=seed)
-        self.medium_drum = CamDrum(drum_id=2, capacity=medium_capacity, seed=seed + 100)
-        self.long_drum = CamDrum(drum_id=3, capacity=long_capacity, seed=seed + 200)
-        
-        # Current timescale being executed
-        self.current_timescale: str = 'short'
-        
-        # Execution state
-        self.current_time: float = 0.0
-        self.tick_count: int = 0
-    
-    def initialize(self) -> None:
-        """Initialize with random sequences at all timescales."""
-        self.short_drum.generate_random_sequence(self.short_capacity, self.num_modules)
-        self.medium_drum.generate_random_sequence(self.medium_capacity, self.num_modules)
-        self.long_drum.generate_random_sequence(self.long_capacity, self.num_modules)
-    
-    def step(self, dt: float = 1.0) -> Dict[int, float]:
-        """
-        Advance the sequencer by one timestep.
-        
-        Args:
-            dt: Time step
-            
-        Returns:
-            Current control signals for all modules
-        """
-        self.current_time += dt
-        self.tick_count += 1
-        
-        # Advance drums
-        self.short_drum.advance(dt)
-        
-        if self.tick_count % 4 == 0:
-            self.medium_drum.advance(dt)
-        
-        if self.tick_count % 16 == 0:
-            self.long_drum.advance(dt)
-        
-        # Get current controls from the current timescale
-        controls = self._get_current_controls()
-        
-        return controls
-    
-    def _get_current_controls(self) -> Dict[int, float]:
-        """Get the current control signals from all active drums."""
-        controls = {}
-        
-        # Add short drum controls (always active)
-        short_controls = self.short_drum.get_current_controls()
-        for module_id, level in short_controls.items():
-            controls[module_id] = controls.get(module_id, 0.0) + 0.6 * level
-        
-        # Add medium drum controls
-        medium_controls = self.medium_drum.get_current_controls()
-        for module_id, level in medium_controls.items():
-            controls[module_id] = controls.get(module_id, 0.0) + 0.3 * level
-        
-        # Add long drum controls
-        long_controls = self.long_drum.get_current_controls()
-        for module_id, level in long_controls.items():
-            controls[module_id] = controls.get(module_id, 0.0) + 0.1 * level
-        
-        # Clip to valid range
-        return {k: clip(v, 0.0, 1.0) for k, v in controls.items()}
-    
-    def get_control_for_module(self, module_id: int) -> float:
-        """Get the current control signal for a specific module."""
-        controls = self._get_current_controls()
-        return controls.get(module_id, 0.0)
-    
-    def learn_sequence(
-        self,
-        sequence_id: str,
-        cam_sequence: List[CamProfile]
-    ) -> bool:
-        """
-        Learn a new sequence by loading it onto the appropriate drum.
-        
-        Args:
-            sequence_id: 'short', 'medium', or 'long'
-            cam_sequence: Sequence of cam profiles to learn
-            
-        Returns:
-            True if successful
-        """
-        if sequence_id == 'short':
-            drum = self.short_drum
-        elif sequence_id == 'medium':
-            drum = self.medium_drum
-        elif sequence_id == 'long':
-            drum = self.long_drum
-        else:
-            return False
-        
-        drum.load_sequence(cam_sequence)
-        return True
-    
-    def mutate_current_sequence(
-        self,
-        sequence_id: str,
-        mutation_rate: float = 0.1
-    ) -> bool:
-        """Mutate the current sequence on a drum."""
-        if sequence_id == 'short':
-            drum = self.short_drum
-        elif sequence_id == 'medium':
-            drum = self.medium_drum
-        elif sequence_id == 'long':
-            drum = self.long_drum
-        else:
-            return False
-        
-        if not drum.cams:
-            return False
-        
-        # Mutate a random cam
-        cam_index = self.prng.randint(0, len(drum.cams) - 1)
-        mutated = drum.cams[cam_index].mutate(mutation_rate)
-        new_sequence = list(drum.cams)
-        new_sequence[cam_index] = mutated
-        drum.load_sequence(new_sequence)
-        return True
-    
-    def evolve_sequence(
-        self,
-        other: 'AutomataSequencer',
-        sequence_id: str,
-        crossover_point: int
-    ) -> bool:
-        """Evolve by crossing over with another sequencer's sequence."""
-        if sequence_id not in ('short', 'medium', 'long'):
-            return False
-        
-        my_drum = getattr(self, f'{sequence_id}_drum')
-        other_drum = getattr(other, f'{sequence_id}_drum')
-        
-        new_drum = my_drum.crossover(other_drum, crossover_point)
-        setattr(self, f'{sequence_id}_drum', new_drum)
-        return True
-    
-    def get_state(self) -> Dict[str, Any]:
-        """Get the current state of the sequencer."""
-        return {
-            'timescale': self.current_timescale,
-            'time': self.current_time,
-            'tick': self.tick_count,
-            'short_pos': self.short_drum.position,
-            'medium_pos': self.medium_drum.position,
-            'long_pos': self.long_drum.position,
-            'short_len': len(self.short_drum),
-            'medium_len': len(self.medium_drum),
-            'long_len': len(self.long_drum),
-        }
+def regulator_command(tp, P, batch, t, x, y, h):
+    """Rival after chapter 0090: proportional regulation toward the figure's next point and heading."""
+    dx, dy = tp.sub(batch["ref"][:, t + 1, 0], x), tp.sub(batch["ref"][:, t + 1, 1], y)
+    ch, sh = tp.cos(h), tp.sin(h)
+    along, across = tp.add(tp.mul(ch, dx), tp.mul(sh, dy)), tp.sub(tp.mul(ch, dy), tp.mul(sh, dx))
+    align = tp.sin(tp.sub(batch["ref_heading"][:, t + 1], h))
+    advance = tp.mul(tp.softplus(P["gain_forward"]), along)
+    turn = tp.add(tp.mul(tp.softplus(P["gain_lateral"]), across), tp.mul(tp.softplus(P["gain_heading"]), align))
+    half = tp.mul(turn, 0.5 * TRACK)
+    return tp.tanh(tp.mul(tp.sub(advance, half), 1.0 / CORD)), tp.tanh(tp.mul(tp.add(advance, half), 1.0 / CORD))
 
 
-# =============================================================================
-# SECTION 6: FEEDBACK REGULATION NETWORK
-# =============================================================================
-
-class FeedbackLoop:
-    """
-    A single feedback loop comparing predictions with actual outputs.
-    
-    Heron's devices used feedback constantly: the vending machine
-    compared the coin's weight with the expected weight, the
-    fountain compared water flow with desired flow. This loop
-    implements a generic prediction-error feedback mechanism.
-    """
-    
-    def __init__(
-        self,
-        loop_id: int,
-        target_dim: int = 8,
-        learning_rate: float = 0.01,
-        adaptation_rate: float = 0.1,
-        seed: int = 120
-    ):
-        self.loop_id = loop_id
-        self.target_dim = target_dim
-        self.learning_rate = learning_rate
-        self.adaptation_rate = adaptation_rate
-        
-        self.prng = PRNG(seed=seed)
-        
-        # Predictive model: predicts next state from current state
-        self.predictor_weights = [
-            [self.prng.gauss(0.0, 0.01) for _ in range(target_dim)]
-            for _ in range(target_dim)
-        ]
-        self.predictor_bias = [0.0] * target_dim
-        
-        # Current predicted state
-        self.predicted_state: List[float] = [0.0] * target_dim
-    
-    def predict(self, current_state: List[float]) -> List[float]:
-        """
-        Generate prediction of next state from current state.
-        
-        Args:
-            current_state: Current observation
-            
-        Returns:
-            Predicted next state
-        """
-        if len(current_state) != self.target_dim:
-            raise ValueError(f"Expected dim {self.target_dim}, got {len(current_state)}")
-        
-        predicted = []
-        for i in range(self.target_dim):
-            pred = self.predictor_bias[i]
-            for j in range(self.target_dim):
-                pred += self.predictor_weights[i][j] * current_state[j]
-            predicted.append(tanh_activation(pred))
-        
-        self.predicted_state = list(predicted)
-        return predicted
-    
-    def compute_error(
-        self,
-        current_state: List[float],
-        next_state: List[float]
-    ) -> Tuple[List[float], float]:
-        """
-        Compute prediction error and update predictor.
-        
-        Args:
-            current_state: State at time t
-            next_state: State at time t+1 (actual)
-            
-        Returns:
-            Tuple of (error_vector, scalar_error)
-        """
-        prediction = self.predict(current_state)
-        
-        # Prediction error
-        error = vecsub(next_state, prediction)
-        scalar_error = sum(e ** 2 for e in error) / len(error)
-        
-        # Update predictor weights (Hebbian + error-driven)
-        for i in range(self.target_dim):
-            for j in range(self.target_dim):
-                # Hebbian update based on correlation
-                hebbian = self.learning_rate * error[i] * current_state[j]
-                self.predictor_weights[i][j] += hebbian
-        
-        # Update bias
-        for i in range(self.target_dim):
-            self.predictor_bias[i] += self.learning_rate * error[i]
-        
-        return error, scalar_error
-    
-    def get_prediction(self) -> List[float]:
-        """Get the current prediction without computing error."""
-        return list(self.predicted_state)
+# ---------------------------------------------------------------- registries
+KNOCKOUT_MODES = {"winding": ("mean", "zero"), "recam": ("zero",), "falling_weight": ("identity",),
+                  "float_valve": ("identity",)}
+KNOCKOUT_PLAN = (("winding", "mean"), ("recam", "zero"), ("falling_weight", "identity"), ("float_valve", "identity"))
+MUTANTS = {
+    "sign_flipped_update": "optimizer climbs the loss gradient instead of descending it (C3 must fail)",
+    "zero_learning_rate": "learning rate forced to zero (C3 must fail)",
+    "zero_grad_recam_logits": "gradient of recam_logits zeroed (C1 must fail)",
+    "reversal_grad_dropped": "backward pass through the reversal sign dropped (C1 must fail)",
+}
 
 
-class FeedbackRegulationNetwork:
-    """
-    Multi-scale feedback regulation network inspired by Heron's control systems.
-    
-    Heron's machines used feedback at multiple scales: low-level feedback
-    regulated individual mechanisms, mid-level feedback coordinated groups
-    of mechanisms, and high-level feedback compared overall behavior with
-    goals. This network implements a similar multi-scale architecture.
-    
-    The network has three levels:
-    - Local feedback: individual units regulate themselves
-    - Regional feedback: groups of units regulate each other
-    - Global feedback: whole system regulated by comparison with goals
-    
-    The feedback signals drive learning throughout the system, enabling
-    the network to adapt and improve its predictions and behaviors.
-    """
-    
-    def __init__(
-        self,
-        num_local_units: int = 16,
-        num_regions: int = 4,
-        goal_dim: int = 8,
-        learning_rate: float = 0.01,
-        seed: int = 120
-    ):
-        self.num_local_units = num_local_units
-        self.num_regions = num_regions
-        self.goal_dim = goal_dim
-        self.learning_rate = learning_rate
-        
-        self.prng = PRNG(seed=seed)
-        
-        # Local feedback loops (one per unit group)
-        units_per_region = max(1, num_local_units // num_regions)
-        self.local_loops: List[FeedbackLoop] = []
-        for i in range(num_regions):
-            loop = FeedbackLoop(
-                loop_id=i,
-                target_dim=units_per_region,
-                learning_rate=learning_rate,
-                seed=seed + i * 19
-            )
-            self.local_loops.append(loop)
-        
-        # Regional feedback loops (one per region)
-        self.regional_loops: List[FeedbackLoop] = []
-        for i in range(num_regions):
-            loop = FeedbackLoop(
-                loop_id=100 + i,
-                target_dim=goal_dim,
-                learning_rate=learning_rate * 0.5,
-                seed=seed + 100 + i * 19
-            )
-            self.regional_loops.append(loop)
-        
-        # Global feedback loop
-        self.global_loop = FeedbackLoop(
-            loop_id=999,
-            target_dim=goal_dim,
-            learning_rate=learning_rate * 0.2,
-            seed=seed + 999
-        )
-        
-        # Goal state (what the system is trying to achieve)
-        self.goal_state: List[float] = [
-            self.prng.uniform(0.3, 0.7) for _ in range(goal_dim)
-        ]
-        
-        # Error history
-        self.local_errors: List[float] = []
-        self.regional_errors: List[float] = []
-        self.global_errors: List[float] = []
-        
-        self.step_count = 0
-    
-    def step(
-        self,
-        local_states: List[List[float]],
-        regional_states: List[List[float]],
-        global_state: List[float],
-        next_global_state: List[float]
-    ) -> Dict[str, Any]:
-        """
-        Advance the feedback network by one timestep.
-        
-        Args:
-            local_states: States of local units (grouped by region)
-            regional_states: States of regions
-            global_state: Global state at time t
-            next_global_state: Global state at time t+1 (actual)
-            
-        Returns:
-            Dictionary of error signals at all scales
-        """
-        self.step_count += 1
-        
-        # Local feedback
-        local_error_total = 0.0
-        for r, loop in enumerate(self.local_loops):
-            if r < len(local_states):
-                current = local_states[r]
-                if r + 1 < len(local_states):
-                    next_state = local_states[r + 1]
-                else:
-                    next_state = current
-                
-                if len(current) == loop.target_dim:
-                    _, err = loop.compute_error(current, next_state)
-                    local_error_total += err
-        
-        self.local_errors.append(local_error_total / max(1, len(self.local_loops)))
-        
-        # Regional feedback
-        regional_error_total = 0.0
-        for r, loop in enumerate(self.regional_loops):
-            if r < len(regional_states):
-                current = regional_states[r]
-                if len(current) == loop.target_dim:
-                    _, err = loop.compute_error(current, self.goal_state)
-                    regional_error_total += err
-        
-        self.regional_errors.append(regional_error_total / max(1, len(self.regional_loops)))
-        
-        # Global feedback
-        _, global_err = self.global_loop.compute_error(global_state, next_global_state)
-        self.global_errors.append(global_err)
-        
-        return {
-            'local_error': local_error_total / max(1, len(self.local_loops)),
-            'regional_error': regional_error_total / max(1, len(self.regional_loops)),
-            'global_error': global_err,
-            'step': self.step_count,
-        }
-    
-    def set_goal(self, goal: List[float]) -> None:
-        """Set the goal state for global regulation."""
-        self.goal_state = list(goal)
-    
-    def get_goal(self) -> List[float]:
-        """Get the current goal state."""
-        return list(self.goal_state)
-    
-    def get_error_history(self) -> Dict[str, List[float]]:
-        """Get the error history at all scales."""
-        return {
-            'local': list(self.local_errors[-100:]),
-            'regional': list(self.regional_errors[-100:]),
-            'global': list(self.global_errors[-100:]),
-        }
+def modules(model):
+    table = {"falling_weight": ([], "smooth stop gate on cumulative actuator effort (fuel budget)", False),
+             "float_valve": (["valve_setpoint", "valve_gain"],
+                             "first-order regulator pulling the drive gain toward a learned set-point", False)}
+    extra = {"winding": {"winding": (["winding_logits", "winding_sign"], "per-step softmax over motion primitives "
+                                     "times a tanh direction sign; open-loop control code", True),
+                         "recam": (["recam_logits", "recam_sign"], "linear goal-conditioned offsets of the control "
+                                   "code", False)},
+             "policy": {"policy": (["policy_w1", "policy_b1", "policy_w2", "policy_b2"],
+                                   "state-feedback MLP controller", False)},
+             "regulator": {"regulator": (["gain_forward", "gain_lateral", "gain_heading"],
+                                         "proportional pose-tracking controller", False)}}
+    table.update(extra.get(model["kind"], {}))
+    return {name: {"params": p, "role": role, "signature": sig} for name, (p, role, sig) in table.items()}
 
 
-# =============================================================================
-# SECTION 7: HYDRAULIC MEMORY SYSTEM
-# =============================================================================
-
-class PressureVessel:
-    """
-    A single pressure vessel for storing information in a hydraulic memory.
-    
-    Heron's hydraulic devices stored energy and information in the
-    pressure of water columns. A taller column meant higher pressure,
-    which could be used to drive mechanisms. This vessel implements
-    a similar principle: the "pressure" in the vessel stores a value,
-    and the vessel can be connected to other vessels to form
-    associative memory networks.
-    """
-    
-    def __init__(
-        self,
-        vessel_id: int,
-        capacity: float = 1.0,
-        leak_rate: float = 0.01,
-        seed: int = 120
-    ):
-        self.vessel_id = vessel_id
-        self.capacity = capacity
-        self.leak_rate = leak_rate
-        
-        self.prng = PRNG(seed=seed)
-        
-        self.pressure: float = 0.0
-        self.connections: Dict[int, float] = {}  # vessel_id -> conductance
-        self.input_history: List[float] = []
-        self.output_history: List[float] = []
-    
-    def fill(self, amount: float) -> None:
-        """Add pressure to the vessel."""
-        self.pressure = clip(self.pressure + amount, 0.0, self.capacity)
-        self.input_history.append(amount)
-    
-    def drain(self, amount: float) -> float:
-        """Remove pressure from the vessel."""
-        drained = min(amount, self.pressure)
-        self.pressure -= drained
-        self.output_history.append(drained)
-        return drained
-    
-    def leak(self) -> None:
-        """Apply leak rate to pressure."""
-        self.pressure *= (1.0 - self.leak_rate)
-    
-    def connect(self, vessel_id: int, conductance: float) -> None:
-        """Connect this vessel to another with given conductance."""
-        self.connections[vessel_id] = clip(conductance, 0.0, 1.0)
-    
-    def propagate(self, other_vessels: Dict[int, 'PressureVessel']) -> None:
-        """Propagate pressure to connected vessels."""
-        for vessel_id, conductance in self.connections.items():
-            if vessel_id in other_vessels:
-                transfer = self.pressure * conductance * 0.1
-                other_vessels[vessel_id].fill(transfer)
-                self.drain(transfer)
-    
-    def get_pressure(self) -> float:
-        """Get the current pressure level."""
-        return self.pressure
-    
-    def set_pressure(self, pressure: float) -> None:
-        """Set the pressure directly."""
-        self.pressure = clip(pressure, 0.0, self.capacity)
+def knockout(model, name, mode):
+    """Copy with one module replaced: winding by its mean or zero output, recam by zero, weight and valve by identity."""
+    if name not in modules(model) or mode not in KNOCKOUT_MODES.get(name, ()):
+        raise ValueError(f"no knockout {name}:{mode} for a {model['kind']} model")
+    return {"kind": model["kind"], "params": {k: v.copy() for k, v in model["params"].items()},
+            "ko": dict(model["ko"], **{name: mode}), "cfg": dict(model["cfg"])}
 
 
-class HydraulicMemory:
-    """
-    Associative memory system using hydraulic principles.
-    
-    Heron's hydraulic systems stored and transmitted energy through
-    networks of connected vessels and tubes. This memory system
-    implements a similar architecture: information is stored as
-    pressure levels in vessels, retrieval is achieved by applying
-    a query pressure and reading the resulting pattern.
-    
-    The system has three levels of storage:
-    - Primary vessels: fast-access, low-capacity
-    - Secondary vessels: medium-access, medium-capacity
-    - Tertiary vessels: slow-access, high-capacity
-    
-    Associations between patterns are stored as connections
-    between vessels with specific conductances.
-    """
-    
-    def __init__(
-        self,
-        primary_count: int = 8,
-        secondary_count: int = 16,
-        tertiary_count: int = 32,
-        pattern_dim: int = 8,
-        seed: int = 120
-    ):
-        self.primary_count = primary_count
-        self.secondary_count = secondary_count
-        self.tertiary_count = tertiary_count
-        self.pattern_dim = pattern_dim
-        
-        self.prng = PRNG(seed=seed)
-        
-        # Create vessels
-        self.primary: List[PressureVessel] = []
-        for i in range(primary_count):
-            v = PressureVessel(
-                vessel_id=i,
-                capacity=1.0,
-                leak_rate=0.05,
-                seed=seed + i * 11
-            )
-            self.primary.append(v)
-        
-        self.secondary: List[PressureVessel] = []
-        for i in range(secondary_count):
-            v = PressureVessel(
-                vessel_id=1000 + i,
-                capacity=2.0,
-                leak_rate=0.02,
-                seed=seed + 1000 + i * 11
-            )
-            self.secondary.append(v)
-        
-        self.tertiary: List[PressureVessel] = []
-        for i in range(tertiary_count):
-            v = PressureVessel(
-                vessel_id=10000 + i,
-                capacity=5.0,
-                leak_rate=0.005,
-                seed=seed + 10000 + i * 11
-            )
-            self.tertiary.append(v)
-        
-        # Association weights between patterns and vessels
-        self.all_vessels = self.primary + self.secondary + self.tertiary
-        self.vessel_map = {v.vessel_id: v for v in self.all_vessels}
-        
-        # Pattern storage
-        self.stored_patterns: List[Dict[str, Any]] = []
-        
-        # Build random associations
-        self._build_random_associations()
-    
-    def _build_random_associations(self) -> None:
-        """Build random associations between vessels."""
-        for i, v in enumerate(self.primary):
-            # Connect to a few secondary vessels
-            targets = self.prng.sample(
-                [s.vessel_id for s in self.secondary],
-                min(3, len(self.secondary))
-            )
-            for t in targets:
-                v.connect(t, self.prng.uniform(0.1, 0.5))
-        
-        for i, s in enumerate(self.secondary):
-            # Connect to tertiary vessels
-            targets = self.prng.sample(
-                [t.vessel_id for t in self.tertiary],
-                min(4, len(self.tertiary))
-            )
-            for t in targets:
-                s.connect(t, self.prng.uniform(0.1, 0.3))
-    
-    def store(self, pattern: List[float]) -> int:
-        """
-        Store a pattern in the hydraulic memory.
-        
-        Args:
-            pattern: Pattern to store (will be encoded as pressures)
-            
-        Returns:
-            Index of stored pattern
-        """
-        if len(pattern) > len(self.primary):
-            pattern = pattern[:len(self.primary)]
-        elif len(pattern) < len(self.primary):
-            pattern = list(pattern) + [0.0] * (len(self.primary) - len(pattern))
-        
-        # Fill primary vessels with pattern
-        for i, p in enumerate(pattern):
-            self.primary[i].fill(clip(p, 0.0, 1.0))
-        
-        # Propagate to secondary and tertiary
-        for _ in range(3):
-            for v in self.primary:
-                v.propagate(self.vessel_map)
-            for s in self.secondary:
-                s.propagate(self.vessel_map)
-        
-        # Record stored pattern
-        pattern_record = {
-            'index': len(self.stored_patterns),
-            'primary_pressures': [v.get_pressure() for v in self.primary],
-            'secondary_pressures': [v.get_pressure() for v in self.secondary],
-            'tertiary_pressures': [v.get_pressure() for v in self.tertiary],
-        }
-        self.stored_patterns.append(pattern_record)
-        
-        return pattern_record['index']
-    
-    def retrieve(self, query: List[float], top_k: int = 1) -> Tuple[List[float], List[float]]:
-        """
-        Retrieve the closest matching pattern to a query.
-        
-        Args:
-            query: Query pattern
-            top_k: Number of top matches to return
-            
-        Returns:
-            Tuple of (best_match_pattern, match_scores)
-        """
-        if len(query) > len(self.primary):
-            query = query[:len(self.primary)]
-        elif len(query) < len(self.primary):
-            query = list(query) + [0.0] * (len(self.primary) - len(query))
-        
-        # Create temporary query vessels
-        query_vessels = [PressureVessel(vessel_id=-i, capacity=1.0, seed=i * 777)
-                        for i in range(len(query))]
-        for i, q in enumerate(query_vessels):
-            q.set_pressure(clip(query[i], 0.0, 1.0))
-        
-        # Compute similarity to each stored pattern
-        scores = []
-        for record in self.stored_patterns:
-            stored = record['primary_pressures']
-            sim = cosine_similarity(query, stored[:len(query)])
-            scores.append(sim)
-        
-        if not scores:
-            return [0.0] * self.pattern_dim, [0.0]
-        
-        # Get top-k matches
-        indexed_scores = list(enumerate(scores))
-        indexed_scores.sort(key=lambda x: x[1], reverse=True)
-        top_indices = [idx for idx, score in indexed_scores[:top_k]]
-        top_scores = [scores[idx] for idx in top_indices]
-        
-        # Return the best matching pattern
-        if top_indices:
-            best_idx = top_indices[0]
-            best_record = self.stored_patterns[best_idx]
-            result = best_record['primary_pressures'][:self.pattern_dim]
-            return result, top_scores
-        
-        return [0.0] * self.pattern_dim, [0.0]
-    
-    def step(self) -> None:
-        """Advance the memory system by applying leaks and propagation."""
-        for v in self.all_vessels:
-            v.leak()
-        
-        for _ in range(2):
-            for v in self.primary:
-                v.propagate(self.vessel_map)
-            for s in self.secondary:
-                s.propagate(self.vessel_map)
+def n_params(model):
+    return int(sum(v.size for v in model["params"].values()))
 
 
-# =============================================================================
-# SECTION 8: GEOMETRY AND SPACE PROCESSOR
-# =============================================================================
-
-class GeometryProcessor:
-    """
-    Geometric reasoning processor based on Heron's mathematical algorithms.
-    
-    Heron's Metrica contained algorithms for computing areas and volumes
-    of various geometric shapes — triangles, circles, cylinders, spheres,
-    and more complex solids. These algorithms represent a remarkable
-    achievement of ancient mathematics. This processor implements
-    geometric reasoning capabilities inspired by Heron's work.
-    
-    The processor can:
-    - Compute distances and areas from given measurements
-    - Transform geometric representations
-    - Reason about spatial relationships
-    - Perform surveying-like calculations (like Heron's dioptra)
-    """
-    
-    def __init__(self, seed: int = 120):
-        self.prng = PRNG(seed=seed)
-        
-        # Geometric primitives cache
-        self.point_cache: List[Tuple[float, float]] = []
-        self.line_cache: List[Dict[str, Any]] = []
-        self.shape_cache: List[Dict[str, Any]] = []
-    
-    def add_point(self, x: float, y: float) -> int:
-        """Add a point to the workspace."""
-        self.point_cache.append((x, y))
-        return len(self.point_cache) - 1
-    
-    def distance(self, p1: Tuple[float, float], p2: Tuple[float, float]) -> float:
-        """Compute Euclidean distance between two points."""
-        return math.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
-    
-    def triangle_area(self, p1: Tuple[float, float], p2: Tuple[float, float],
-                      p3: Tuple[float, float]) -> float:
-        """
-        Compute the area of a triangle using Heron's formula.
-        
-        Heron's formula: area = sqrt(s * (s-a) * (s-b) * (s-c))
-        where a, b, c are the side lengths and s = (a+b+c)/2
-        """
-        a = self.distance(p1, p2)
-        b = self.distance(p2, p3)
-        c = self.distance(p3, p1)
-        
-        s = (a + b + c) / 2.0
-        
-        # Heron's formula
-        area_sq = s * (s - a) * (s - b) * (s - c)
-        
-        if area_sq < 0:
-            return 0.0
-        
-        return math.sqrt(area_sq)
-    
-    def circle_area(self, radius: float) -> float:
-        """Compute area of a circle."""
-        return math.pi * radius ** 2
-    
-    def sphere_volume(self, radius: float) -> float:
-        """Compute volume of a sphere."""
-        return (4.0 / 3.0) * math.pi * radius ** 3
-    
-    def cylinder_volume(self, radius: float, height: float) -> float:
-        """Compute volume of a cylinder."""
-        return math.pi * radius ** 2 * height
-    
-    def cone_volume(self, radius: float, height: float) -> float:
-        """Compute volume of a cone."""
-        return (1.0 / 3.0) * math.pi * radius ** 2 * height
-    
-    def dioptra_angle(self, p1: Tuple[float, float], p2: Tuple[float, float],
-                      reference: Tuple[float, float] = (1.0, 0.0)) -> float:
-        """
-        Compute angle using dioptra-inspired method.
-        
-        The dioptra was a surveying instrument that measured angles
-        with high precision. This method computes the angle between
-        two vectors from a common origin.
-        """
-        v1 = (p1[0] - reference[0], p1[1] - reference[1])
-        v2 = (p2[0] - reference[0], p2[1] - reference[1])
-        
-        dot = v1[0] * v2[0] + v1[1] * v2[1]
-        mag1 = math.sqrt(v1[0] ** 2 + v1[1] ** 2)
-        mag2 = math.sqrt(v2[0] ** 2 + v2[1] ** 2)
-        
-        if mag1 == 0 or mag2 == 0:
-            return 0.0
-        
-        cos_angle = clip(dot / (mag1 * mag2), -1.0, 1.0)
-        return math.acos(cos_angle)
-    
-    def project_point_to_line(
-        self,
-        point: Tuple[float, float],
-        line_start: Tuple[float, float],
-        line_end: Tuple[float, float]
-    ) -> Tuple[float, float]:
-        """
-        Project a point onto a line segment (closest point).
-        
-        Returns the point on the line segment closest to the given point.
-        """
-        dx = line_end[0] - line_start[0]
-        dy = line_end[1] - line_start[1]
-        
-        if dx == 0 and dy == 0:
-            return line_start
-        
-        t = ((point[0] - line_start[0]) * dx + (point[1] - line_start[1]) * dy) / (dx ** 2 + dy ** 2)
-        t = clip(t, 0.0, 1.0)
-        
-        return (line_start[0] + t * dx, line_start[1] + t * dy)
-    
-    def point_in_polygon(self, point: Tuple[float, float],
-                         polygon: List[Tuple[float, float]]) -> bool:
-        """
-        Test if a point is inside a polygon using ray casting.
-        
-        This is a standard algorithm but Heron's work on polygon
-        areas implicitly involved similar spatial reasoning.
-        """
-        n = len(polygon)
-        inside = False
-        
-        j = n - 1
-        for i in range(n):
-            xi, yi = polygon[i]
-            xj, yj = polygon[j]
-            
-            if ((yi > point[1]) != (yj > point[1])) and \
-               (point[0] < (xj - xi) * (point[1] - yi) / (yj - yi) + xi):
-                inside = not inside
-            
-            j = i
-        
-        return inside
-    
-    def polygon_area(self, polygon: List[Tuple[float, float]]) -> float:
-        """
-        Compute area of a polygon using the shoelace formula.
-        
-        The shoelace formula: area = 0.5 * |sum(x_i * y_{i+1} - x_{i+1} * y_i)|
-        """
-        n = len(polygon)
-        if n < 3:
-            return 0.0
-        
-        area = 0.0
-        for i in range(n):
-            j = (i + 1) % n
-            area += polygon[i][0] * polygon[j][1]
-            area -= polygon[j][0] * polygon[i][1]
-        
-        return abs(area) / 2.0
-    
-    def transform_vector(self, vector: List[float],
-                        scale: float = 1.0,
-                        rotation: float = 0.0,
-                        translation: Tuple[float, float] = (0.0, 0.0)) -> List[float]:
-        """
-        Apply geometric transformation to a 2D vector.
-        
-        Args:
-            vector: [x, y] input
-            scale: Scaling factor
-            rotation: Rotation angle in radians
-            translation: (dx, dy) translation
-            
-        Returns:
-            Transformed [x', y'] vector
-        """
-        x, y = vector[0], vector[1]
-        
-        # Scale
-        x *= scale
-        y *= scale
-        
-        # Rotate
-        xr = x * math.cos(rotation) - y * math.sin(rotation)
-        yr = x * math.sin(rotation) + y * math.cos(rotation)
-        
-        # Translate
-        xr += translation[0]
-        yr += translation[1]
-        
-        return [xr, yr]
+# ---------------------------------------------------------------- training
+def fit(model, data, budget, rng):
+    """Adam on the three-part objective; the checkpoint with the best validation figure is kept."""
+    params, state = model["params"], adam_init(model["params"])
+    lr = 0.0 if ACTIVE_MUTANT == "zero_learning_rate" else model["cfg"]["lr"]
+    history, best, best_error = [], None, np.inf
+    for step in range(1, budget + 1):
+        loss, grads = loss_and_grads(model, batch_for(data["train"], "nuisance", rng))
+        if not (math.isfinite(loss) and all(np.isfinite(g).all() for g in grads.values())):
+            raise FloatingPointError(f"non-finite loss or gradient at update {step}")
+        grads = clip_global(grads, CLIP_NORM)[0]
+        if ACTIVE_MUTANT == "sign_flipped_update":
+            grads = {k: -g for k, g in grads.items()}
+        adam_step(params, grads, state, lr)
+        history.append(loss)
+        if step >= VAL_START and (step % VAL_EVERY == 0 or step == budget):
+            error = figure_error(model, data["val_batch"])
+            if error < best_error:
+                best, best_error = {k: v.copy() for k, v in params.items()}, error
+    if best is not None:
+        for k in params:
+            params[k][...] = best[k]
+    return history
 
 
-# =============================================================================
-# SECTION 9: EMBODIMENT INTERFACE
-# =============================================================================
-
-class SimulatedBody:
-    """
-    A simple simulated body for embodied cognition experiments.
-    
-    Heron's automata were embodied: they had physical bodies that
-    moved through space, interacting with objects and obstacles.
-    This simulated body provides a simple 2D embodiment for the HAN.
-    """
-    
-    def __init__(
-        self,
-        x: float = 0.0,
-        y: float = 0.0,
-        heading: float = 0.0,
-        size: float = 1.0,
-        seed: int = 120
-    ):
-        self.x = x
-        self.y = y
-        self.heading = heading
-        self.size = size
-        
-        self.prng = PRNG(seed=seed)
-        
-        self.velocity: float = 0.0
-        self.angular_velocity: float = 0.0
-        
-        self.sensors: Dict[str, float] = {
-            'proximity_front': 10.0,
-            'proximity_back': 10.0,
-            'proximity_left': 10.0,
-            'proximity_right': 10.0,
-        }
-        
-        self.objects: List[Dict[str, Any]] = []
-        self._generate_objects(10)
-    
-    def _generate_objects(self, count: int) -> None:
-        """Generate random objects in the environment."""
-        for _ in range(count):
-            obj = {
-                'x': self.prng.uniform(-20.0, 20.0),
-                'y': self.prng.uniform(-20.0, 20.0),
-                'radius': self.prng.uniform(0.5, 2.0),
-                'type': self.prng.choice(['obstacle', 'target', 'neutral']),
-            }
-            self.objects.append(obj)
-    
-    def step(self, forward: float, turn: float) -> None:
-        """
-        Advance the body by one timestep.
-        
-        Args:
-            forward: Forward velocity command (-1 to 1)
-            turn: Turn command (-1 to 1)
-        """
-        self.velocity = clip(forward * 2.0, -2.0, 2.0)
-        self.angular_velocity = clip(turn * 0.5, -0.5, 0.5)
-        
-        self.heading += self.angular_velocity
-        self.heading = self.heading % (2.0 * math.pi)
-        
-        self.x += self.velocity * math.cos(self.heading)
-        self.y += self.velocity * math.sin(self.heading)
-        
-        self._update_sensors()
-    
-    def _update_sensors(self) -> None:
-        """Update proximity sensors based on current position and objects."""
-        directions = {
-            'front': self.heading,
-            'back': (self.heading + math.pi) % (2.0 * math.pi),
-            'left': (self.heading - math.pi / 2) % (2.0 * math.pi),
-            'right': (self.heading + math.pi / 2) % (2.0 * math.pi),
-        }
-        
-        for direction_name, direction_angle in directions.items():
-            min_dist = 100.0
-            
-            for obj in self.objects:
-                # Distance to object center
-                dx = obj['x'] - self.x
-                dy = obj['y'] - self.y
-                dist = math.sqrt(dx ** 2 + dy ** 2)
-                
-                # Direction to object
-                angle_to_obj = math.atan2(dy, dx)
-                angle_diff = abs(angle_to_obj - direction_angle)
-                angle_diff = min(angle_diff, 2.0 * math.pi - angle_diff)
-                
-                if angle_diff < math.pi / 4:
-                    effective_dist = dist - obj['radius']
-                    min_dist = min(min_dist, effective_dist)
-            
-            self.sensors[f'proximity_{direction_name}'] = max(0.0, min_dist)
-    
-    def get_sensor_vector(self) -> List[float]:
-        """Get sensor readings as a vector."""
-        return [
-            self.sensors['proximity_front'],
-            self.sensors['proximity_back'],
-            self.sensors['proximity_left'],
-            self.sensors['proximity_right'],
-            math.cos(self.heading),
-            math.sin(self.heading),
-            self.velocity,
-            self.angular_velocity,
-        ]
-    
-    def get_position(self) -> Tuple[float, float]:
-        """Get current position."""
-        return (self.x, self.y)
+def predict(model, X):
+    """Cart positions (goals, beats + 1, 2) on the nominal floor for goal vectors X."""
+    return np.stack(run(model, batch_for(reference(np.asarray(X, dtype=float)), "nominal", None))[1]["xy"], axis=1)
 
 
-class EmbodimentInterface:
-    """
-    Interface connecting HAN to a simulated or physical body.
-    
-    Heron understood that cognition is embodied — that intelligent
-    behavior emerges from the interaction of a cognitive system with
-    a physical body moving through a physical environment. This
-    interface implements that connection.
-    """
-    
-    def __init__(
-        self,
-        input_dim: int = 8,
-        output_dim: int = 2,
-        body: Optional[SimulatedBody] = None,
-        seed: int = 120
-    ):
-        self.input_dim = input_dim
-        self.output_dim = output_dim
-        
-        self.prng = PRNG(seed=seed)
-        
-        self.body = body if body is not None else SimulatedBody(seed=seed)
-        
-        # Sensor processing
-        self.sensor_weights = [
-            [self.prng.gauss(0.0, 0.1) for _ in range(input_dim)]
-            for _ in range(input_dim)
-        ]
-        
-        # Motor mapping
-        self.motor_weights = [
-            [self.prng.gauss(0.0, 0.1) for _ in range(output_dim)]
-            for _ in range(input_dim)
-        ]
-        
-        self.step_count = 0
-    
-    def get_sensor_input(self) -> List[float]:
-        """Get current sensor readings as input to the network."""
-        raw = self.body.get_sensor_vector()
-        
-        # Pad or truncate to input_dim
-        if len(raw) < self.input_dim:
-            raw = raw + [0.0] * (self.input_dim - len(raw))
-        elif len(raw) > self.input_dim:
-            raw = raw[:self.input_dim]
-        
-        # Apply sensor processing
-        processed = []
-        for i in range(self.input_dim):
-            val = sum(self.sensor_weights[i][j] * raw[j] for j in range(self.input_dim))
-            processed.append(tanh_activation(val))
-        
-        return processed
-    
-    def apply_motor_command(self, motor_output: List[float]) -> None:
-        """Convert network output to motor commands and apply to body."""
-        if len(motor_output) < self.output_dim:
-            motor_output = list(motor_output) + [0.0] * (self.output_dim - len(motor_output))
-        elif len(motor_output) > self.output_dim:
-            motor_output = motor_output[:self.output_dim]
-        
-        # Apply motor mapping weights
-        forward = sum(self.motor_weights[0][j] * motor_output[j] for j in range(self.output_dim))
-        turn = sum(self.motor_weights[1][j] * motor_output[j] for j in range(self.output_dim))
-        
-        self.body.step(forward, turn)
-        self.step_count += 1
-    
-    def get_body_state(self) -> Dict[str, Any]:
-        """Get the current state of the body."""
-        pos = self.body.get_position()
-        return {
-            'x': pos[0],
-            'y': pos[1],
-            'heading': self.body.heading,
-            'velocity': self.body.velocity,
-            'step': self.step_count,
-            'sensors': dict(self.body.sensors),
-        }
+def hidden_states(model, X):
+    """Beat-by-beat pressure, fuel and gate on the nominal floor; for the winding also its decoded code."""
+    batch = batch_for(reference(np.asarray(X, dtype=float)), "nominal", None)
+    tp = Tape(grad=False)
+    P = {k: tp.param(v) for k, v in model["params"].items()}
+    trace = rollout(tp, model, P, batch)[1]
+    states = {k: np.stack(trace[k], axis=1) for k in ("pressure", "fuel", "gate")}
+    if model["kind"] == "winding":
+        commands, states["shares"], states["reversal"] = decode_winding(tp, P, batch["goals"], model["ko"])
+        states["commands"] = commands.v
+    return states
 
 
-# =============================================================================
-# SECTION 10: PROGRAM SYNTHESIS MODULE
-# =============================================================================
-
-class ProgramSynthesis:
-    """
-    Module for synthesizing new behavioral programs.
-    
-    Heron understood that the power of automata lay not just in their
-    mechanical construction but in the programs that drove them — the
-    arrangement of cams on the drum. This module generates new programs
-    by combining and modifying existing sequences.
-    
-    The synthesis uses an evolutionary approach:
-    1. Generate candidate programs through mutation and crossover
-    2. Evaluate candidates using the AutomataSequencer
-    3. Select the best candidates for retention
-    
-    This is Heron's insight made computational: the program (cam
-    arrangement) can be modified independently of the hardware,
-    enabling learning and adaptation.
-    """
-    
-    def __init__(
-        self,
-        num_modules: int = 8,
-        population_size: int = 16,
-        mutation_rate: float = 0.1,
-        seed: int = 120
-    ):
-        self.num_modules = num_modules
-        self.population_size = population_size
-        self.mutation_rate = mutation_rate
-        
-        self.prng = PRNG(seed=seed)
-        
-        # Population of programs (each is a list of CamProfiles)
-        self.population: List[List[CamProfile]] = []
-        self.fitness_scores: List[float] = []
-        
-        # Initialize with random programs
-        self._initialize_population()
-    
-    def _initialize_population(self) -> None:
-        """Initialize population with random programs."""
-        for _ in range(self.population_size):
-            num_cams = self.prng.randint(4, 12)
-            cams = []
-            for i in range(num_cams):
-                pattern = {
-                    m: self.prng.uniform(0.0, 1.0)
-                    for m in range(self.num_modules)
-                    if self.prng.random() > 0.2
-                }
-                duration = self.prng.uniform(0.5, 2.0)
-                cam = CamProfile(cam_id=i, control_pattern=pattern, duration=duration)
-                cams.append(cam)
-            self.population.append(cams)
-        
-        self.fitness_scores = [0.0] * len(self.population)
-    
-    def evaluate(
-        self,
-        program: List[CamProfile],
-        evaluator_fn: Callable[[List[CamProfile]], float]
-    ) -> float:
-        """
-        Evaluate a program using an evaluator function.
-        
-        Args:
-            program: List of CamProfiles (the program)
-            evaluator_fn: Function that takes a program and returns a fitness score
-            
-        Returns:
-            Fitness score
-        """
-        return evaluator_fn(program)
-    
-    def mutate(self, program: List[CamProfile]) -> List[CamProfile]:
-        """Create a mutated copy of a program."""
-        new_program = []
-        for cam in program:
-            if self.prng.random() < self.mutation_rate:
-                new_program.append(cam.mutate(mutation_rate=self.mutation_rate))
-            else:
-                new_program.append(cam)
-        
-        # Possibly add or remove a cam
-        if self.prng.random() < 0.1 and len(new_program) > 2:
-            idx = self.prng.randint(0, len(new_program) - 1)
-            new_program.pop(idx)
-        elif self.prng.random() < 0.1 and len(new_program) < 16:
-            # Add a new random cam
-            pattern = {
-                m: self.prng.uniform(0.0, 1.0)
-                for m in range(self.num_modules)
-            }
-            new_cam = CamProfile(
-                cam_id=self.prng.randint(10000, 99999),
-                control_pattern=pattern,
-                duration=self.prng.uniform(0.5, 2.0)
-            )
-            new_program.insert(self.prng.randint(0, len(new_program)), new_cam)
-        
-        return new_program
-    
-    def crossover(
-        self,
-        program1: List[CamProfile],
-        program2: List[CamProfile]
-    ) -> List[CamProfile]:
-        """Create a new program by crossing over two programs."""
-        min_len = min(len(program1), len(program2))
-        if min_len < 2:
-            return list(program1)
-        
-        point = self.prng.randint(1, min_len - 1)
-        
-        new_program = list(program1[:point]) + list(program2[point:])
-        return new_program
-    
-    def select_parent(self) -> Tuple[List[CamProfile], int]:
-        """Select a parent program using fitness-proportionate selection."""
-        if not self.fitness_scores:
-            return self.prng.choice(self.population), 0
-        
-        total_fitness = sum(max(0.0, f) for f in self.fitness_scores)
-        if total_fitness == 0:
-            return self.prng.choice(self.population), self.population.index(self.prng.choice(self.population))
-        
-        threshold = self.prng.uniform(0.0, total_fitness)
-        cumulative = 0.0
-        for i, fitness in enumerate(self.fitness_scores):
-            cumulative += max(0.0, fitness)
-            if cumulative >= threshold:
-                return self.population[i], i
-        
-        return self.population[-1], len(self.population) - 1
-    
-    def evolve_one_generation(
-        self,
-        evaluator_fn: Callable[[List[CamProfile]], float]
-    ) -> float:
-        """
-        Evolve one generation of programs.
-        
-        Args:
-            evaluator_fn: Function to evaluate program fitness
-            
-        Returns:
-            Best fitness in the new generation
-        """
-        # Evaluate all programs
-        for i, program in enumerate(self.population):
-            self.fitness_scores[i] = self.evaluate(program, evaluator_fn)
-        
-        # Create new population
-        new_population = []
-        new_fitness = []
-        
-        # Elitism: keep the best program unchanged
-        best_idx = max(range(len(self.fitness_scores)), key=lambda i: self.fitness_scores[i])
-        new_population.append(list(self.population[best_idx]))
-        new_fitness.append(self.fitness_scores[best_idx])
-        
-        # Generate rest through mutation and crossover
-        while len(new_population) < self.population_size:
-            p1, _ = self.select_parent()
-            p2, _ = self.select_parent()
-            
-            if self.prng.random() < 0.7:
-                child = self.crossover(p1, p2)
-            else:
-                child = list(p1)
-            
-            child = self.mutate(child)
-            new_population.append(child)
-            new_fitness.append(0.0)
-        
-        self.population = new_population
-        self.fitness_scores = new_fitness
-        
-        return max(self.fitness_scores)
-    
-    def get_best_program(self) -> Tuple[List[CamProfile], float]:
-        """Get the best program and its fitness score."""
-        if not self.fitness_scores:
-            return self.population[0], 0.0
-        
-        best_idx = max(range(len(self.fitness_scores)), key=lambda i: self.fitness_scores[i])
-        return self.population[best_idx], self.fitness_scores[best_idx]
+def peg_printout(model, goal):
+    """Read a winding back as pegs: > roll, < reversed roll, L/l and R/r pivots, . slack; digit = wound share."""
+    states = hidden_states(model, goal[None])
+    shares, reversal = states["shares"][0], states["reversal"][0]
+    marks, last, reversals = [], 0.0, 0
+    for t in range(T_BEATS):
+        wound = 1.0 - shares[t, 3]
+        if wound < 0.5:
+            marks.append("." + str(int(round(9 * wound))))
+            continue
+        sign = 1.0 if reversal[t] >= 0.0 else -1.0
+        reversals += int(last != 0.0 and sign != last)
+        last = sign
+        marks.append("><LlRr"[2 * int(np.argmax(shares[t, :3])) + int(sign < 0.0)] + str(min(9, int(round(9 * wound)))))
+    return " | ".join("".join(marks[a:b]) for a, b in ((0, 8), (8, 12), (12, 16), (16, 24))), reversals
 
 
-# =============================================================================
-# SECTION 11: HERON AUTOMATON NETWORK (MAIN ARCHITECTURE)
-# =============================================================================
-
-class HeronAutomatonNetwork:
-    """
-    The Heron Automaton Network (HAN): A complete neural architecture
-    inspired by Heron of Alexandria's philosophy of mind.
-    
-    This architecture combines all six of Heron's key principles:
-    1. Aeolipile Dynamics: Continuous rotational attractor dynamics
-    2. Pneumatic Control: Global broadcast regulatory signals
-    3. Gear-Based Hierarchy: Deep staged transformation network
-    4. Automata Sequencer: Stored-program behavior control
-    5. Feedback Regulation: Multi-scale error-driven learning
-    6. Hydraulic Memory: Associative memory with pressure semantics
-    
-    Plus supporting systems:
-    7. Geometry Processor: Spatial/geometric reasoning
-    8. Embodiment Interface: Body-environment coupling
-    9. Program Synthesis: Evolutionary program generation
-    
-    The HAN is designed to learn patterns, store sequences, regulate
-    its own behavior through feedback, and generate novel programs.
-    """
-    
-    def __init__(
-        self,
-        input_dim: int = 8,
-        hidden_dims: List[int] = None,
-        output_dim: int = 8,
-        num_aeolipile_nodes: int = 16,
-        num_pneumatic_sources: int = 8,
-        num_regions: int = 4,
-        memory_pattern_dim: int = 8,
-        seed: int = 120
-    ):
-        if hidden_dims is None:
-            hidden_dims = [16, 16, 16]
-        
-        self.input_dim = input_dim
-        self.hidden_dims = hidden_dims
-        self.output_dim = output_dim
-        self.num_aeolipile_nodes = num_aeolipile_nodes
-        self.num_pneumatic_sources = num_pneumatic_sources
-        self.num_regions = num_regions
-        self.memory_pattern_dim = memory_pattern_dim
-        
-        self.prng = PRNG(seed=seed)
-        
-        # Core processing components
-        self.aeolipile_layer = AeolipileDynamicsLayer(
-            num_nodes=num_aeolipile_nodes,
-            input_dim=input_dim,
-            output_dim=hidden_dims[0] if hidden_dims else output_dim,
-            coupling_strength=0.05,
-            seed=seed
-        )
-        
-        self.pneumatic_layer = PneumaticControlLayer(
-            num_sources=num_pneumatic_sources,
-            num_targets=num_aeolipile_nodes,
-            pressure_decay=0.1,
-            seed=seed
-        )
-        
-        self.gear_hierarchy = GearBasedHierarchy(
-            input_dim=hidden_dims[0] if hidden_dims else input_dim,
-            hidden_dims=hidden_dims[1:] if len(hidden_dims) > 1 else [16, 16],
-            output_dim=output_dim,
-            num_stages=len(hidden_dims),
-            seed=seed
-        )
-        
-        self.sequencer = AutomataSequencer(
-            num_modules=num_aeolipile_nodes,
-            short_capacity=8,
-            medium_capacity=16,
-            long_capacity=32,
-            seed=seed
-        )
-        
-        self.feedback_network = FeedbackRegulationNetwork(
-            num_local_units=num_aeolipile_nodes,
-            num_regions=num_regions,
-            goal_dim=output_dim,
-            learning_rate=0.01,
-            seed=seed
-        )
-        
-        self.hydraulic_memory = HydraulicMemory(
-            primary_count=input_dim,
-            secondary_count=16,
-            tertiary_count=32,
-            pattern_dim=memory_pattern_dim,
-            seed=seed
-        )
-        
-        self.geometry_processor = GeometryProcessor(seed=seed)
-        
-        self.embodiment = EmbodimentInterface(
-            input_dim=input_dim,
-            output_dim=2,
-            body=SimulatedBody(seed=seed),
-            seed=seed
-        )
-        
-        self.program_synthesis = ProgramSynthesis(
-            num_modules=num_aeolipile_nodes,
-            population_size=16,
-            mutation_rate=0.1,
-            seed=seed
-        )
-        
-        # Internal state
-        self.step_count = 0
-        self.internal_state: Dict[str, Any] = {}
-        self.history: List[Dict[str, Any]] = []
-    
-    def initialize(self) -> None:
-        """Initialize all components with default configurations."""
-        self.aeolipile_layer.reset()
-        self.sequencer.initialize()
-        self.step_count = 0
-        self.history = []
-    
-    def step(
-        self,
-        input_vector: Optional[List[float]] = None,
-        use_sequencer: bool = True,
-        use_feedback: bool = True,
-        use_memory: bool = False
-    ) -> Dict[str, Any]:
-        """
-        Advance the HAN by one timestep.
-        
-        Args:
-            input_vector: External input (optional)
-            use_sequencer: Whether to use the automata sequencer
-            use_feedback: Whether to use feedback regulation
-            use_memory: Whether to query/store in hydraulic memory
-            
-        Returns:
-            Dictionary of outputs and internal states
-        """
-        self.step_count += 1
-        
-        if input_vector is None:
-            input_vector = self.embodiment.get_sensor_input()
-        
-        # Pad/truncate input to expected dimension
-        if len(input_vector) < self.input_dim:
-            input_vector = list(input_vector) + [0.0] * (self.input_dim - len(input_vector))
-        elif len(input_vector) > self.input_dim:
-            input_vector = list(input_vector[:self.input_dim])
-        
-        # Step 1: Get sequencer controls (automata program)
-        sequencer_controls: Dict[int, float] = {}
-        if use_sequencer:
-            sequencer_controls = self.sequencer.step(dt=1.0)
-        
-        # Step 2: Pneumatic modulation
-        aeolipile_outputs = self.aeolipile_layer.step(input_vector)
-        
-        # Get global signal for pneumatic layer
-        global_signal = [
-            sum(aeolipile_outputs[i][j] for i in range(len(aeolipile_outputs))) / max(1, len(aeolipile_outputs))
-            for j in range(min(len(aeolipile_outputs[0]), self.num_pneumatic_sources))
-        ]
-        
-        target_activity = [sum(v) / len(v) for v in aeolipile_outputs]
-        
-        pneumatic_signals = self.pneumatic_layer.generate_regulatory_signals(
-            global_signal, target_activity
-        )
-        
-        # Apply pneumatic modulation to aeolipile outputs
-        modulated_outputs = self.pneumatic_layer.modulate(
-            [aeolipile_outputs[0][j] if aeolipile_outputs else 0.0
-             for j in range(len(global_signal))],
-            pneumatic_signals[:len(global_signal)]
-        )
-        
-        # Step 3: Gear hierarchy processing
-        gear_input = modulated_outputs if modulated_outputs else input_vector[:len(modulated_outputs)]
-        if len(gear_input) < self.hidden_dims[0] if self.hidden_dims else self.output_dim:
-            gear_input = gear_input + [0.0] * ((self.hidden_dims[0] if self.hidden_dims else self.output_dim) - len(gear_input))
-        
-        gear_output, all_stage_outputs = self.gear_hierarchy.full_forward(gear_input[:self.hidden_dims[0] if self.hidden_dims else self.output_dim])
-        
-        # Step 4: Feedback (if enabled)
-        feedback_result = {}
-        if use_feedback:
-            local_states = [list(aeolipile_outputs[i]) for i in range(min(len(aeolipile_outputs), self.num_regions))]
-            regional_states = all_stage_outputs[1:-1] if len(all_stage_outputs) > 2 else all_stage_outputs
-            global_state = gear_output
-            
-            # Simulate next global state (in real system, would be actual next state)
-            next_global_state = [g + self.prng.gauss(0.0, 0.01) for g in global_state]
-            
-            feedback_result = self.feedback_network.step(
-                local_states, regional_states, global_state, next_global_state
-            )
-        
-        # Step 5: Memory operations (if enabled)
-        memory_result = {}
-        if use_memory:
-            if self.step_count % 10 == 0:
-                self.hydraulic_memory.store(gear_output)
-            
-            query = gear_output[:self.memory_pattern_dim]
-            retrieved, scores = self.hydraulic_memory.retrieve(query)
-            memory_result = {'retrieved': retrieved, 'scores': scores}
-            
-            self.hydraulic_memory.step()
-        
-        # Step 6: Apply to embodiment
-        motor_output = gear_output[:2]  # First 2 dims -> motor command
-        self.embodiment.apply_motor_command(motor_output)
-        
-        # Collect all outputs
-        result = {
-            'step': self.step_count,
-            'input': input_vector,
-            'aeolipile_outputs': aeolipile_outputs[:3],
-            'gear_output': gear_output,
-            'modulated': modulated_outputs,
-            'sequencer_controls': sequencer_controls,
-            'feedback': feedback_result,
-            'memory': memory_result,
-            'embodiment_state': self.embodiment.get_body_state(),
-        }
-        
-        self.history.append(result)
-        return result
-    
-    def learn_sequence(
-        self,
-        sequence_id: str,
-        evaluator_fn: Callable[[List[CamProfile]], float],
-        generations: int = 10
-    ) -> float:
-        """
-        Learn a behavioral sequence using evolutionary program synthesis.
-        
-        Args:
-            sequence_id: Which sequencer drum to update ('short', 'medium', 'long')
-            evaluator_fn: Function evaluating program fitness
-            generations: Number of evolution generations
-            
-        Returns:
-            Best fitness achieved
-        """
-        best_fitness = 0.0
-        
-        for gen in range(generations):
-            best_fitness = self.program_synthesis.evolve_one_generation(evaluator_fn)
-        
-        best_program, best_score = self.program_synthesis.get_best_program()
-        self.sequencer.learn_sequence(sequence_id, best_program)
-        
-        return best_score
-    
-    def get_attractor_state(self) -> List[float]:
-        """Get the current attractor state of the aeolipile layer."""
-        return self.aeolipile_layer.get_attractor_state()
-    
-    def get_full_state(self) -> Dict[str, Any]:
-        """Get a comprehensive snapshot of the network's current state."""
-        return {
-            'step': self.step_count,
-            'aeolipile_attractor': self.get_attractor_state(),
-            'sequencer_state': self.sequencer.get_state(),
-            'feedback_errors': self.feedback_network.get_error_history(),
-            'embodiment_state': self.embodiment.get_body_state(),
-            'history_len': len(self.history),
-        }
-    
-    def run_episode(
-        self,
-        num_steps: int,
-        use_sequencer: bool = True,
-        use_feedback: bool = True,
-        use_memory: bool = False
-    ) -> List[Dict[str, Any]]:
-        """
-        Run a complete episode of multiple timesteps.
-        
-        Args:
-            num_steps: Number of steps to run
-            use_sequencer: Whether to use the automata sequencer
-            use_feedback: Whether to use feedback regulation
-            use_memory: Whether to use hydraulic memory
-            
-        Returns:
-            List of step results
-        """
-        results = []
-        for _ in range(num_steps):
-            result = self.step(
-                use_sequencer=use_sequencer,
-                use_feedback=use_feedback,
-                use_memory=use_memory
-            )
-            results.append(result)
-        
-        return results
+def data_bridge(path, seed, budget):
+    """Fit one winding to a 2-D demonstration CSV with header x,y (for example a LASA shape)."""
+    if not os.path.exists(path):
+        return f"skipped ({path} not found)"
+    table = np.genfromtxt(path, delimiter=",", names=True)
+    raw = np.stack([table["x"], table["y"]], axis=1).astype(float)
+    grid = np.linspace(0.0, len(raw) - 1.0, T_BEATS + 1)
+    xy = np.stack([np.interp(grid, np.arange(len(raw)), raw[:, i]) for i in range(2)], axis=1) - raw[0]
+    ang = math.atan2(xy[1, 1], xy[1, 0])
+    xy = xy @ np.array([[math.cos(ang), math.sin(ang)], [-math.sin(ang), math.cos(ang)]]).T
+    xy *= 2.0 / max(float(np.linalg.norm(np.diff(xy, axis=0), axis=1).sum()), 1e-9)
+    heading = np.concatenate([[0.0], np.arctan2(np.diff(xy[:, 1]), np.diff(xy[:, 0]))])
+    split = {"goals": np.zeros((1, G_DIM)), "commands": np.zeros((1, T_BEATS, 2)), "ref": xy[None],
+             "ref_heading": heading[None], "path_ref": np.array([2.0])}
+    data = {"train": split, "val_batch": batch_for(split, "nominal", None)}
+    model = build_model(G_DIM, 2, TASK_TYPES[0], np.random.default_rng(seed), kind="winding")
+    fit(model, data, budget, np.random.default_rng(seed + 1))
+    return f"{path}: figure_error {figure_error(model, data['val_batch']):.4f}; pegs {peg_printout(model, split['goals'][0])[0]}"
 
 
-# =============================================================================
-# SECTION 12: DEMONSTRATION
-# =============================================================================
-
-def demo() -> Dict[str, Any]:
-    """
-    Demonstrate the Heron Automaton Network working on a pattern
-    learning and behavioral sequence task.
-    
-    This demo shows:
-    1. Pattern storage and retrieval in hydraulic memory
-    2. Behavioral sequencing via automata sequencer
-    3. Feedback-driven error regulation
-    4. Geometric reasoning with the geometry processor
-    5. Embodied interaction with a simulated body
-    6. Program synthesis via evolutionary algorithms
-    """
-    print("=" * 70)
-    print("Heron Automaton Network (HAN) — Demonstration")
-    print("=" * 70)
-    print()
-    
-    print("[1] Creating the Heron Automaton Network...")
-    han = HeronAutomatonNetwork(
-        input_dim=8,
-        hidden_dims=[16, 16, 16],
-        output_dim=8,
-        num_aeolipile_nodes=16,
-        num_pneumatic_sources=8,
-        num_regions=4,
-        memory_pattern_dim=8,
-        seed=120
-    )
-    han.initialize()
-    print(f"    HAN created with {han.step_count} initial steps")
-    print()
-    
-    print("[2] Running 20 timesteps with sequencer, feedback, and memory...")
-    for i in range(20):
-        result = han.step(use_sequencer=True, use_feedback=True, use_memory=(i % 5 == 0))
-        
-        if i % 5 == 0:
-            body = result['embodiment_state']
-            print(f"    Step {result['step']:3d}: pos=({body['x']:.2f}, {body['y']:.2f}) "
-                  f"heading={body['heading']:.2f} "
-                  f"feedback_error={result['feedback'].get('global_error', 0.0):.4f}")
-    print()
-    
-    print("[3] Testing Hydraulic Memory: storing and retrieving patterns...")
-    test_patterns = [
-        [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],
-        [0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1],
-        [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
-        [0.2, 0.4, 0.6, 0.8, 1.0, 0.8, 0.6, 0.4],
-    ]
-    
-    for i, pattern in enumerate(test_patterns):
-        idx = han.hydraulic_memory.store(pattern)
-        print(f"    Stored pattern {i}: area={han.geometry_processor.polygon_area([(0, 0), (pattern[0]*10, 0), (pattern[0]*10, pattern[1]*10)]) if i == 0 else 0:.2f}")
-    
-    # Retrieve
-    query = [0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85]
-    retrieved, scores = han.hydraulic_memory.retrieve(query)
-    print(f"    Retrieved from query {query[:3]}... : {retrieved[:3]}... score={scores[0]:.4f}")
-    print()
-    
-    print("[4] Testing Geometry Processor (Heron's algorithms)...")
-    gp = han.geometry_processor
-    
-    # Triangle area (Heron's formula)
-    p1 = (0.0, 0.0)
-    p2 = (3.0, 0.0)
-    p3 = (0.0, 4.0)
-    tri_area = gp.triangle_area(p1, p2, p3)
-    print(f"    Triangle (0,0), (3,0), (0,4): area = {tri_area:.2f} (expected 6.0)")
-    
-    # Circle area
-    circ_area = gp.circle_area(radius=2.0)
-    print(f"    Circle radius=2: area = {circ_area:.4f} (expected {4*math.pi:.4f})")
-    
-    # Sphere volume
-    sph_vol = gp.sphere_volume(radius=2.0)
-    print(f"    Sphere radius=2: volume = {sph_vol:.4f} (expected {(4/3)*math.pi*8:.4f})")
-    
-    # Dioptra angle
-    angle = gp.dioptra_angle((1.0, 0.0), (0.0, 1.0))
-    print(f"    Dioptra angle between (1,0) and (0,1): {angle:.4f} rad (expected {math.pi/2:.4f})")
-    
-    # Polygon area (shoelace formula)
-    square = [(0, 0), (1, 0), (1, 1), (0, 1)]
-    poly_area = gp.polygon_area(square)
-    print(f"    Unit square polygon: area = {poly_area:.2f} (expected 1.0)")
-    print()
-    
-    print("[5] Testing Automata Sequencer (cam-drum program storage)...")
-    for timescale in ['short', 'medium', 'long']:
-        drum = getattr(han.sequencer, f'{timescale}_drum')
-        print(f"    {timescale.capitalize()} drum: {len(drum)} cams, position={drum.position}")
-    print()
-    
-    print("[6] Running embodied episode (50 steps with body navigation)...")
-    for i in range(50):
-        han.step(use_sequencer=True, use_feedback=True, use_memory=False)
-    
-    final_state = han.embodiment.get_body_state()
-    print(f"    Final body position: ({final_state['x']:.2f}, {final_state['y']:.2f})")
-    print(f"    Total steps: {final_state['step']}")
-    print()
-    
-    print("[7] Testing Program Synthesis (evolutionary learning)...")
-    def simple_evaluator(program: List[CamProfile]) -> float:
-        """Simple fitness: reward longer, diverse programs."""
-        if not program:
-            return 0.0
-        # Diversity bonus
-        all_controls = set()
-        for cam in program:
-            for m, v in cam.control_pattern.items():
-                all_controls.add((m, round(v, 1)))
-        diversity = len(all_controls) / max(1, len(program) * 3)
-        # Length bonus
-        length_bonus = min(len(program) / 8.0, 1.0)
-        return diversity * 0.5 + length_bonus * 0.5
-    
-    best_fitness = han.learn_sequence(
-        'short',
-        simple_evaluator,
-        generations=5
-    )
-    print(f"    Best evolved fitness: {best_fitness:.4f}")
-    print()
-    
-    print("[8] Full network state summary...")
-    state = han.get_full_state()
-    print(f"    Total steps run: {state['step']}")
-    print(f"    Aeolipile attractor: {state['aeolipile_attractor'][:3]}")
-    print(f"    Feedback global errors (last 5): {state['feedback_errors']['global'][-5:]}")
-    print()
-    
-    print("=" * 70)
-    print("Demonstration complete. HAN is functional.")
-    print("=" * 70)
-    
-    return {
-        'han': han,
-        'final_state': state,
-        'test_results': {
-            'geometry': {
-                'triangle_area': tri_area,
-                'circle_area': circ_area,
-                'sphere_volume': sph_vol,
-                'dioptra_angle': angle,
-                'polygon_area': poly_area,
-            },
-            'memory_retrieval_score': scores[0] if scores else 0.0,
-            'evolved_fitness': best_fitness,
-        }
-    }
+# ---------------------------------------------------------------- tests: correctness
+def small_batch(split, n=16):
+    return batch_for({k: v[:n] for k, v in split.items()}, "nuisance", np.random.default_rng(1234))
 
 
-if __name__ == '__main__':
-    results = demo()
+def check_gradients(models, batch, rng, n_entries=20):
+    """C1 core: central differences against the tape on every tensor of every model given."""
+    worst, checked, total = 0.0, 0, 0
+    for model in models:
+        grads = loss_and_grads(model, batch)[1]
+        report = finite_difference_check(model["params"], grads, lambda m=model: run(m, batch)[0], rng,
+                                         n_entries=n_entries, floor=MIND_CARD["thresholds"]["gradcheck_floor"])
+        worst, checked, total = max(worst, max(report.values())), checked + len(report), total + len(model["params"])
+    return worst, checked, total
+
+
+def check_determinism(data, seed):
+    """C2: same seed, same losses and outputs; everything finite; env_step replays the ideal figure."""
+    runs = []
+    for _ in range(2):
+        model = build_model(G_DIM, 2, TASK_TYPES[0], np.random.default_rng(seed), kind="winding")
+        history = fit(model, data, 10, np.random.default_rng(seed + 1))
+        runs.append((history, predict(model, data["heldout"]["goals"][:4]), model))
+    same = runs[0][0] == runs[1][0] and np.array_equal(runs[0][1], runs[1][1])
+    finite = bool(np.isfinite(runs[0][1]).all() and all(np.isfinite(v).all() for v in runs[0][2]["params"].values()))
+    state = env_reset(np.random.default_rng(seed))
+    for action in script_commands(state["goal"][None])[0]:
+        state = env_step(state, action, None)[0]
+    gap = float(np.abs(state["pose"][:2] - state["ref"][-1]).max())
+    return same and finite and gap < 1e-9, f"identical: {same}; finite: {finite}; env_step replay gap {gap:.1e}"
+
+
+def check_learning(history, model, data):
+    """C3: training loss falls by the declared fraction and the held-out figure beats the mean figure."""
+    th = MIND_CARD["thresholds"]
+    drop = 1.0 - float(np.mean(history[-10:])) / history[0]
+    error, trivial = figure_error(model, batch_for(data["heldout"], "nominal", None)), trivial_error(data)
+    ok = drop >= th["loss_drop_fraction"] and error <= (1.0 - th["margin_over_trivial"]) * trivial
+    return ok, (f"loss drop {drop:.3f} (min {th['loss_drop_fraction']}); held-out figure_error {error:.4f} vs "
+                f"trivial {trivial:.4f} (max ratio {1.0 - th['margin_over_trivial']:.2f})")
+
+
+def check_shuffled(data, seed, budget):
+    """C4: figures permuted across goals in train and validation; held-out error must stay near the trivial error."""
+    rng = np.random.default_rng(seed + 7)
+    shuffled = dict(data)
+    for name in ("train", "val"):
+        perm = rng.permutation(len(data[name]["goals"]))
+        shuffled[name] = dict(data[name], **{k: data[name][k][perm] for k in ("ref", "ref_heading", "path_ref")})
+    shuffled["val_batch"] = batch_for(shuffled["val"], "nuisance", np.random.default_rng(seed + 8))
+    model = build_model(G_DIM, 2, TASK_TYPES[0], np.random.default_rng(seed + 9), kind="winding")
+    fit(model, shuffled, budget, rng)
+    ratio = figure_error(model, batch_for(data["heldout"], "nominal", None)) / trivial_error(data)
+    floor = MIND_CARD["thresholds"]["shuffled_ratio_min"]
+    return ratio >= floor, f"held-out error / trivial error {ratio:.3f} (min {floor})"
+
+
+def mini_protocol(data, seed, budget):
+    """The base seed's winding run exactly as in run_seed (stream, data, budget), with C1 at init and C3 after."""
+    try:
+        stream = np.random.default_rng(np.random.SeedSequence(seed).spawn(5)[2])
+        model = build_model(G_DIM, 2, TASK_TYPES[0], stream, kind="winding")
+        c1 = check_gradients([model], small_batch(data["train"]), np.random.default_rng(seed), n_entries=4)[0]
+        history = fit(model, data, budget, stream)
+        return c1 <= MIND_CARD["thresholds"]["gradcheck_rel_error"], bool(check_learning(history, model, data)[0])
+    except FloatingPointError:
+        return True, False
+
+
+def check_mutants(data, seed, budget):
+    """C5: the unmutated run passes C1 and C3; every registered mutant must fail one of them."""
+    global ACTIVE_MUTANT
+    outer, control, caught = ACTIVE_MUTANT, mini_protocol(data, seed, budget), {}
+    for name in MUTANTS:
+        ACTIVE_MUTANT = name
+        try:
+            caught[name] = not all(mini_protocol(data, seed, budget))
+        finally:
+            ACTIVE_MUTANT = outer
+    ok = all(control) and all(caught.values())
+    return ok, caught, f"unmutated base-seed run passes C1 and C3: {all(control)}; mutants caught {sum(caught.values())}/{len(caught)}"
+
+
+def check_reversibility(rng):
+    """C6.1: a winding replayed backwards with every sign flipped returns the cart exactly to its start."""
+    model, worst, control = dict(SCRIPT, ko={"falling_weight": "identity"}), 0.0, np.inf
+    for scale in (0.25, 0.6, 1.0):
+        n = 64
+        cmds = rng.uniform(-scale, scale, (n, T_BEATS, 2))
+        start = np.column_stack([rng.normal(0.0, 1.0, (n, 2)), rng.uniform(-np.pi, np.pi, n)])
+        base = dict(goals=np.zeros((n, G_DIM)), ref=np.zeros((n, T_BEATS + 1, 2)), path_ref=np.zeros(n),
+                    **nominal_noise(n))
+        gaps = []
+        for euler in (False, True):
+            there = run(model, dict(base, start=start, commands=cmds, euler=euler))[1]
+            end = np.column_stack([there["xy"][-1], there["heading"][-1]])
+            back = run(model, dict(base, start=end, commands=-cmds[:, ::-1].copy(), euler=euler))[1]
+            gaps.append(float(np.abs(np.column_stack([back["xy"][-1], back["heading"][-1]]) - start).max()))
+        worst, control = max(worst, gaps[0]), min(control, gaps[1])
+    th = MIND_CARD["thresholds"]
+    ok = worst <= th["property_tol"] and control > th["negative_control_min_violation"]
+    return ok, f"max return gap {worst:.1e}; Euler negative control gap {control:.1e}"
+
+
+def check_fuel(rng):
+    """C6.2: whatever the winding, slip and millet flow do, the weight never climbs back up."""
+    worst, control = -np.inf, -np.inf
+    for flow_sd in (0.5, 1.5, 3.0):
+        model = build_model(G_DIM, 2, TASK_TYPES[0], rng, kind="winding")
+        for arr in model["params"].values():
+            arr *= 4.0
+        n = 64
+        batch = dict(goals=rng.uniform(-1.0, 1.0, (n, G_DIM)), ref=np.zeros((n, T_BEATS + 1, 2)), path_ref=np.zeros(n),
+                     start=np.zeros((n, 3)), slip=1.0 + 0.3 * rng.standard_normal((n, T_BEATS, 2)),
+                     friction=np.zeros(T_BEATS), flow=flow_sd * rng.standard_normal((n, T_BEATS)))
+        climbs = [float(np.diff(np.stack(run(model, dict(batch, raw_pressure=raw))[1]["fuel"], axis=1), axis=1).max())
+                  for raw in (False, True)]
+        worst, control = max(worst, climbs[0]), max(control, climbs[1])
+    th = MIND_CARD["thresholds"]
+    ok = worst <= th["property_tol"] and control > th["negative_control_min_violation"]
+    return ok, f"largest fuel rise {worst:.1e}; raw-pressure negative control rise {control:.1e}"
+
+
+def check_valve(rng):
+    """C6.3 definition check (holds by construction for gain in (0, 1); not evidence): deviation contracts."""
+    tp, n = Tape(grad=False), 512
+    setpoint, start, kappa = rng.uniform(0.1, 3.0, n), rng.uniform(-3.0, 3.0, n), sigmoid(rng.uniform(-6.0, 6.0, n))
+    p, excess = start, -np.inf
+    for _ in range(T_BEATS):
+        new = valve_update(tp, p, kappa, setpoint, 0.0).v
+        excess = max(excess, float(np.max(np.abs(new - setpoint) - (1.0 - kappa) * np.abs(p - setpoint))))
+        p = new
+    bad = start
+    for _ in range(T_BEATS):
+        bad = valve_update(tp, bad, 2.5, setpoint, 0.0).v
+    growth = float(np.min(np.abs(bad - setpoint) - np.abs(start - setpoint)))
+    ok = excess <= MIND_CARD["thresholds"]["property_tol"] and growth > 0.0
+    return ok, f"largest contraction excess {excess:.1e}; overshooting gain 2.5 grows every deviation: {growth > 0.0}"
+
+
+def check_splits(data):
+    """C7: no goal appears in two splits and the shifted corner is visited only by the shifted split."""
+    keys = {name: {hashlib.sha256(np.round(g, 12).tobytes()).hexdigest() for g in data[name]["goals"]}
+            for name in SPLIT_SIZES}
+    disjoint = all(not keys[a] & keys[b] for a, b in itertools.combinations(SPLIT_SIZES, 2))
+    corner = bool(in_corner(data["shifted"]["goals"]).all()
+                  and not any(in_corner(data[s]["goals"]).any() for s in ("train", "val", "heldout")))
+    return disjoint and corner, f"pairwise disjoint: {disjoint}; corner confined to the shifted split: {corner}"
+
+
+# ---------------------------------------------------------------- tests: hypotheses
+EVAL_PLAN = (("val", "nuisance"), ("heldout", "nominal"), ("heldout", "nuisance"), ("heldout", "blind"),
+             ("shifted", "nominal"))
+
+
+def run_seed(seed, budget):
+    """Train winding, size-matched policy and rival regulator on one seed's data; score them on shared noise."""
+    streams = [np.random.default_rng(s) for s in np.random.SeedSequence(seed).spawn(5)]
+    data = make_data(streams[0])
+    evals = {key: batch_for(data[key[0]], key[1], streams[1]) for key in EVAL_PLAN}
+    data["val_batch"] = evals[("val", "nuisance")]
+    models, histories = {}, {}
+    for kind, stream in zip(("winding", "policy", "regulator"), streams[2:]):
+        models[kind] = build_model(G_DIM, 2, TASK_TYPES[0], stream, kind=kind)
+        histories[kind] = fit(models[kind], data, budget, stream)
+    err = {(kind, key): figure_error(models[kind], evals[key]) for kind in models for key in EVAL_PLAN[1:]}
+    base = err[("winding", ("heldout", "nuisance"))]
+    kos = {name: figure_error(knockout(models["winding"], name, mode), evals[("heldout", "nuisance")]) - base
+           for name, mode in KNOCKOUT_PLAN}
+    e = {(kind, split, cond): v for (kind, (split, cond)), v in err.items()}
+    row = {"H-SIG": e[("winding", "shifted", "nominal")] - e[("policy", "shifted", "nominal")],
+           "H-NEC": kos["winding"] - kos["float_valve"],
+           "H-BLIND": e[("winding", "heldout", "blind")] - e[("policy", "heldout", "blind")],
+           "H-RIVAL": ((e[("winding", "heldout", "blind")] - e[("regulator", "heldout", "blind")])
+                       - (e[("winding", "heldout", "nominal")] - e[("regulator", "heldout", "nominal")]))}
+    return {"data": data, "models": models, "histories": histories, "errors": e, "knockouts": kos, "row": row}
+
+
+def evaluate_hypotheses(runs, seed, evaluated):
+    """Paired per-seed differences, percentile bootstrap, verdicts against the frozen card."""
+    rng = np.random.default_rng(seed + 9973)
+
+    def summary(values):
+        return paired_bootstrap(values, rng) if evaluated else (float(np.mean(values)), None)
+    hyps = []
+    for h in MIND_CARD["hypotheses"]:
+        mean, ci = summary([r["row"][h["id"]] for r in runs])
+        hyps.append({"id": h["id"], "metric": h["metric"], "mean_diff": mean, "ci95": ci, "mesi": h["mesi"],
+                     "n_seeds": len(runs),
+                     "verdict": verdict(mean, ci, h["mesi"], h["direction"]) if evaluated else "not evaluated"})
+    table = modules(runs[0]["models"]["winding"])
+    kos = []
+    for name, mode in KNOCKOUT_PLAN:
+        mean, ci = summary([r["knockouts"][name] for r in runs])
+        kos.append({"module": name, "mode": mode, "signature": table[name]["signature"], "metric_change": mean,
+                    "ci95": ci})
+    return hyps, kos
+
+
+# ---------------------------------------------------------------- report
+def emit_report(ctx, json_path):
+    def ci_text(ci):
+        return "n/a" if ci is None else f"[{ci[0]:+.4f}, {ci[1]:+.4f}]"
+    g, m = ctx["grad"], ctx["mutants"]
+    lines = ["=== VERIFIED REPORT · chapter 0118 ===",
+             f"file: {ctx['file']} · card_revision {MIND_CARD['card_revision']} · mode {ctx['mode']} · "
+             f"mutant {ACTIVE_MUTANT}",
+             f"environment: python {sys.version.split()[0]} · numpy {np.__version__}",
+             f"seeds: {ctx['seeds']} · runtime_s {ctx['runtime']:.1f} · budget_s {TIME_BUDGET[ctx['mode']]:.0f}",
+             "n_params: " + " · ".join(f"{k} {v}" for k, v in ctx["n_params"].items()),
+             f"gradcheck: {g['tensors_checked']}/{g['tensors_total']} tensors at init and after training · "
+             f"max_rel_error {g['max_rel_error']:.2e} · passed {g['passed']}",
+             "correctness:"]
+    lines += [f"  {tid:<5} {name:<26} {'PASS' if ok else 'FAIL'}  {detail}" for tid, name, ok, detail in ctx["tests"]]
+    lines.append(f"mutants: {m['detected']}/{m['total']} detected · score {m['score']:.2f} · "
+                 + ", ".join(f"{k} {'caught' if v else 'MISSED'}" for k, v in ctx["caught"].items()))
+    lines.append("hypotheses (paired over seeds; 95% percentile bootstrap of the mean, 2000 resamples):")
+    lines += [f"  {h['id']:<8} mean_diff {h['mean_diff']:+.4f} ci95 {ci_text(h['ci95'])} mesi {h['mesi']} "
+              f"seeds {h['n_seeds']} -> {h['verdict']}" for h in ctx["hypotheses"]]
+    lines.append("knockouts (winding automaton; held-out goals, nuisance floor; change in figure_error):")
+    lines += [f"  {k['module']:<15} {k['mode']:<9} signature {str(k['signature']):<5} {k['metric_change']:+.4f} "
+              f"ci95 {ci_text(k['ci95'])}" for k in ctx["knockouts"]]
+    lines += ["figure_error by model (seed mean; held-out nominal / held-out blind / shifted nominal): "
+              + " · ".join(f"{kind} {v[0]:.4f} / {v[1]:.4f} / {v[2]:.4f}" for kind, v in ctx["errors"].items()),
+              f"fuel left at the end (held-out goals, nominal floor, seed {ctx['seeds'][0]}): "
+              f"min {100.0 * ctx['fuel_left']:.1f}% of the weight's drop",
+              f"peg printout (seed {ctx['seeds'][0]}, held-out goal 0): {ctx['pegs']} · reversals {ctx['reversals']}",
+              f"real-data bridge: {ctx['bridge']}",
+              f"task_types: {', '.join(TASK_TYPES)}",
+              f"exit_code: {ctx['exit_code']}",
+              "=== END REPORT ==="]
+    payload = {"schema_version": "1.0", "chapter": 118, "file": ctx["file"], "card_revision": MIND_CARD["card_revision"],
+               "environment": {"python": sys.version.split()[0], "numpy": np.__version__}, "seeds": ctx["seeds"],
+               "runtime_s": round(ctx["runtime"], 2), "n_params": ctx["n_params"]["winding"], "gradcheck": g,
+               "correctness": [{"id": i, "name": n, "passed": bool(ok), "detail": d} for i, n, ok, d in ctx["tests"]],
+               "mutants": m, "hypotheses": ctx["hypotheses"], "knockouts": ctx["knockouts"],
+               "task_types": TASK_TYPES, "exit_code": ctx["exit_code"]}
+    write_report(lines, payload, json_path)
+
+
+# ---------------------------------------------------------------- command line
+def protocol(mode, base_seed, n_seeds, json_path, data_path):
+    start = time.time()
+    budget, seeds, kinds = STEPS[mode], [base_seed + i for i in range(n_seeds)], ("winding", "policy", "regulator")
+    print(f"{os.path.basename(__file__)} · mode {mode} · seeds {seeds} · mutant {ACTIVE_MUTANT}")
+    runs = []
+    for seed in seeds:
+        runs.append(run_seed(seed, budget))
+        print(f"  seed {seed}: winding, policy and regulator trained ({time.time() - start:.1f} s)", flush=True)
+    base, th = runs[0], MIND_CARD["thresholds"]
+    data, models = base["data"], base["models"]
+    batch = small_batch(data["train"])
+    fresh = [build_model(G_DIM, 2, TASK_TYPES[0], np.random.default_rng(base_seed + 50 + i), kind=k)
+             for i, k in enumerate(kinds)]
+    at_init = check_gradients(fresh, batch, np.random.default_rng(base_seed + 3))
+    after = check_gradients([models[k] for k in kinds], batch, np.random.default_rng(base_seed + 4))
+    worst = max(at_init[0], after[0])
+    c1 = bool(worst <= th["gradcheck_rel_error"] and at_init[1] == at_init[2] and after[1] == after[2])
+    c5, caught, c5_detail = check_mutants(data, base_seed, budget)
+    tests = [("C1", "gradient_check", c1, f"max rel error {worst:.2e}; every tensor of winding, policy and regulator "
+                                          f"at init and after {budget} updates"),
+             ("C2", "determinism_finiteness", *check_determinism(data, base_seed)),
+             ("C3", "learning", *check_learning(base["histories"]["winding"], models["winding"], data)),
+             ("C4", "shuffled_label_control", *check_shuffled(data, base_seed, budget)),
+             ("C5", "mutant_detection", c5, c5_detail),
+             ("C6.1", "program_reversibility", *check_reversibility(np.random.default_rng(base_seed + 5))),
+             ("C6.2", "weight_never_refills", *check_fuel(np.random.default_rng(base_seed + 6))),
+             ("C6.3", "valve_contracts_definition", *check_valve(np.random.default_rng(base_seed + 7))),
+             ("C7", "split_integrity", *check_splits(data))]
+    hyps, kos = evaluate_hypotheses(runs, base_seed, mode == "full" and n_seeds >= 5)
+    bridge = data_bridge(data_path, base_seed, budget) if data_path else "skipped (no --data PATH given)"
+    fuel_left = float(hidden_states(models["winding"], data["heldout"]["goals"])["fuel"][:, -1].min() / FUEL0)
+    pegs, reversals = peg_printout(models["winding"], data["heldout"]["goals"][0])
+    errors = {k: [float(np.mean([r["errors"][(k, s, c)] for r in runs])) for s, c in
+                  (("heldout", "nominal"), ("heldout", "blind"), ("shifted", "nominal"))] for k in kinds}
+    runtime = time.time() - start
+    tests.append(("C8", "budget", runtime <= TIME_BUDGET[mode], f"{runtime:.1f} s of {TIME_BUDGET[mode]:.0f} s"))
+    tests = [(i, n, bool(ok), d) for i, n, ok, d in tests]
+    failed = [i for i, _, ok, _ in tests if not ok]
+    exit_code = 0 if not failed else (3 if failed == ["C8"] else 1)
+    ctx = {"file": os.path.basename(__file__), "mode": mode, "seeds": seeds, "runtime": runtime,
+           "n_params": {k: n_params(models[k]) for k in kinds},
+           "grad": {"tensors_checked": min(at_init[1], after[1]), "tensors_total": after[2],
+                    "max_rel_error": worst, "checked_at": ["init", "after_training_steps"], "passed": c1},
+           "tests": tests, "caught": caught,
+           "mutants": {"detected": int(sum(caught.values())), "total": len(caught),
+                       "score": float(sum(caught.values())) / len(caught)},
+           "hypotheses": hyps, "knockouts": kos, "errors": errors, "fuel_left": fuel_left, "pegs": pegs,
+           "reversals": reversals, "bridge": bridge, "exit_code": exit_code}
+    emit_report(ctx, json_path)
+    return exit_code
+
+
+def main(argv=None):
+    global ACTIVE_MUTANT
+    parser = argparse.ArgumentParser(prog=os.path.basename(__file__),
+                                     description="Chapter 0118 winding automaton: the full protocol runs by default.")
+    parser.add_argument("--quick", action="store_true", help="one seed, reduced updates, all correctness tests")
+    parser.add_argument("--seed", type=int, default=0, help="base seed")
+    parser.add_argument("--seeds", type=int, default=None, help="number of seeds (default 5, or 1 with --quick)")
+    parser.add_argument("--json", default=None, help="also write the JSON report to this path")
+    parser.add_argument("--card", action="store_true", help="print MIND_CARD as JSON and exit")
+    parser.add_argument("--mutant", default=None, help="run with a registered mutant: " + ", ".join(MUTANTS))
+    parser.add_argument("--data", default=None, help="optional CSV (header x,y) for the real-data bridge")
+    args = parser.parse_args(argv)
+    if args.card:
+        print(json.dumps(MIND_CARD, indent=2, ensure_ascii=False))
+        return 0
+    if args.mutant is not None and args.mutant not in MUTANTS:
+        print(f"unknown mutant {args.mutant!r}; registered: {', '.join(MUTANTS)}", file=sys.stderr)
+        return 2
+    n_seeds = args.seeds if args.seeds is not None else (1 if args.quick else 5)
+    if n_seeds < 1:
+        print("--seeds must be at least 1", file=sys.stderr)
+        return 2
+    ACTIVE_MUTANT = args.mutant
+    try:
+        return protocol("quick" if args.quick else "full", args.seed, n_seeds, args.json, args.data)
+    except FloatingPointError as exc:
+        print(f"non-finite values: {exc}", file=sys.stderr)
+        return 4
+
+
+if __name__ == "__main__":
+    sys.exit(main())

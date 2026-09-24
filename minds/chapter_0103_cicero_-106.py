@@ -1,1018 +1,668 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# BEGIN ATTRIBUTION
+# Encyclopedia of Lost Minds: Echoes on AI · Chapter 0103 · Cicero
+# By David Vivancos · https://www.vivancos.com/ · https://lostmindsai.com
+# Tome 6, Minds 101-120: https://www.amazon.com/dp/B0HF7G6JJD · Demos: https://artificiology.com/
+# END ATTRIBUTION
+"""Forum of the probable: a shared bank of topics (loci), an eloquence gain (elocutio), two advocates arguing in
+utramque partem, a judge that always returns a graded verdict (the probabile, never suspension), and a binding law
+(recta ratio) the judge did not author, against which every verdict is checked and, where it conflicts, revised.
+
+Thesis
+    When abstention is not an option, stage the strongest case on both sides, commit to the more probable, grade the
+    commitment, and hold it to a standard outside the decider.
+
+Evidence
+    D1  Cicero, Academica and Tusculan Disputations: he lives by probabilities and argues both sides of a question
+        (in utramque partem); natural law as right reason (De Re Publica 3.33, via Lactantius).
+    D2  Sextus Empiricus, Outlines of Pyrrhonism 1.1-3 and 1.226: the Academics (Carneades, Clitomachus) say that
+        truth cannot be apprehended; the Pyrrhonist suspends judgment instead. Cicero's Academica is a main source for
+        the Academic position (SEP, Ancient Skepticism).
+    D3  Carneades' persuasive or probable impression (pithane phantasia) as a criterion for action (Obdrzalek 2006).
+
+Doctrine -> mechanism -> test (IDs as in MIND_CARD)
+    D1     M1 loci, M2 elocutio, M3 advocates, M4 judge (graded, no suspension)   C6.1 C6.2 C6.3 H-SIG H-NEC
+    D1     M5 recta ratio: a fixed law vector; conflicting verdicts are revised   H-NEC (matched knockout)
+    D2 D3  rival: Pyrrhonist suspension on near-balanced cases                     H-RIVAL
+    D1     blind spot: an advocate with more eloquence than the other              H-BLIND
+
+Research question (calibration, abstention and metacognition)
+    When a decision must be made, does adversarial argument resolved to a graded verdict and checked against an
+    external law calibrate better than one-sided argument or suspension, and does unequal eloquence corrupt it?
+
+Closest prior art and the delta
+    AI safety via debate (Irving, Christiano and Amodei 2018); calibration of probabilistic classifiers (Guo et al. 2017);
+    selective prediction with abstention. Delta: a small trainable debate whose advocates optimise opposite objectives
+    over a shared topic bank, a judge that may not abstain, a fixed external law that revises conflicting verdicts,
+    tests against one-sided argument and Pyrrhonist suspension, and an eloquence-asymmetry stress test.
+
+Blind spot
+    Eloquence can outrun truth: when one advocate argues with more force, verdicts track rhetoric rather than evidence.
+
+Task (generative process)
+    Eight evidence features per case, drawn standard normal (shifted split: mean 0.4, s.d. 1.3). The case is true with
+    probability sigmoid(w.e) for a hidden world vector w of norm 2.2; the law vector r is w's direction plus noise 0.35,
+    renormalised. Six loci. Splits: 2000 training, 2000 held-out and 2000 shifted cases.
+
+Limits
+    Binary synthetic cases, linear topics, one law vector. Nothing here reproduces Rome or its courts; historical
+    episodes are not modelled. A research prototype of one mechanism, not an AGI and not Cicero's mind.
 """
-Chapter 103: Cicero
-====================
-Figure 103: Cicero (106-43 BCE)
-========================
-# Part of the Encyclopedia of Lost Minds: Echoes on AI By David Vivancos https://www.vivancos.com/
-# How History's Greatest Thinkers Would Have Thought About AGI  https://lostmindsai.com
-# Tome 6 Minds 101 - 120 Available on Amazon https://www.amazon.com/dp/B0HF7G6JJD
-# Resume and Interactive Demos at https://artificiology.com/
-# Author: David Vivancos · Chapter 103: Cicero (-106 to -43 BCE)
-================================================================================
-Domain: Rhetoric, Philosophy, Politics
 
-Selection Rationale:
-    Roman statesman, orator, lawyer, and writer; considered one of
-    Rome's greatest orators and prose stylists; developed the
-    philosophical concept of "自然会" (natural law) based on Stoic
-    principles; compiled and transmitted Greek philosophy to Roman
-    world; wrote prolifically on rhetoric, philosophy, politics,
-    and law; executed by Antony for his political writings.
+MIND_CARD = {
+    "schema_version": "1.0", "card_revision": 1, "revision_log": [],
+    "generation": {"template_version": "codeguidelines 1.0 (15 September 2026), Appendix A", "generator": "Claude (Anthropic)",
+                   "generator_version": "claude-opus-5", "date": "2026-09-16"},
+    "id": 103, "figure": "Cicero", "born": -106, "died": -43, "civilization": "Roman", "provenance": "belief",
+    "thesis": ("When abstention is not an option, stage the strongest case on both sides, commit to the more probable, grade the "
+               "commitment, and hold it to a standard outside the decider."),
+    "evidence": [
+        {"id": "D1", "basis": "primary", "source": "Cicero, Academica; Tusculan Disputations; De Re Publica 3.33 (via Lactantius)",
+         "claim": "He lives by probabilities, argues both sides of a question, and names natural law right reason."},
+        {"id": "D2", "basis": "primary", "source": "Sextus Empiricus, Outlines of Pyrrhonism 1.1-3, 1.226; SEP, Ancient Skepticism",
+         "claim": "Academics hold truth inapprehensible; Pyrrhonists suspend judgment; Cicero's Academica is a main source for the Academy."},
+        {"id": "D3", "basis": "scholarship", "source": "S. Obdrzalek, Oxford Studies in Ancient Philosophy 31 (2006)",
+         "claim": "Carneades proposed the probable impression as a criterion for life and action."},
+    ],
+    "research_question": {"category": "calibration, abstention and metacognition",
+                          "question": ("When a decision must be made, does adversarial argument resolved to a graded verdict and checked against an "
+                                       "external law calibrate better than one-sided argument or suspension, and does unequal eloquence corrupt it?")},
+    "mechanism": {
+        "name": "forum of the probable", "family": "two softmax topic-selecting advocates over a shared linear topic bank, logistic judge, fixed law check",
+        "signature_modules": ["advocates", "judge"],
+        "closest_prior_art": ["AI safety via debate (Irving, Christiano and Amodei 2018)", "calibration of classifiers (Guo et al. 2017)",
+                              "selective prediction with abstention"],
+        "overlap": "Medium", "prior_art_queries": [],
+        "prior_art_note": "No literature search was run for this card; overlap is rated against the named methods.",
+        "contribution_type": "test",
+        "delta": ("Advocates optimising opposite objectives over shared loci, a judge that may not abstain, a fixed external law revising "
+                  "conflicting verdicts, tests against one-sided argument and Pyrrhonist suspension, and an eloquence-asymmetry stress test."),
+        "baselines": {"baseline": "one-sided forum: the same network trained and evaluated with the opposing advocate silent",
+                      "blind_baseline": "the same trained forum heard with equal eloquence on both sides",
+                      "rival": ("chapter 0139 Sextus Empiricus, minimal: the same verdicts, but suspension (probability 0.5) wherever the "
+                                "verdict lies within 0.15 of balance")}},
+    "traceability": [
+        {"doctrine": "D1", "mechanism": "M1-M4", "property_test": "C6.1, C6.2, C6.3", "hypothesis": "H-SIG, H-NEC"},
+        {"doctrine": "D1", "mechanism": "M5 recta ratio", "property_test": "none", "hypothesis": "H-NEC"},
+        {"doctrine": "D2", "mechanism": "rival suspension", "property_test": "none", "hypothesis": "H-RIVAL"},
+        {"doctrine": "D3", "mechanism": "graded probabile", "property_test": "C6.3", "hypothesis": "H-RIVAL"},
+    ],
+    "hypotheses": [
+        {"id": "H-SIG", "statement": "On shifted cases, the two-advocate forum has lower Brier score than the one-sided forum.",
+         "metric": "brier", "split": "shifted", "comparison": "model - baseline", "direction": "less", "mesi": 0.01, "seeds": 5},
+        {"id": "H-NEC", "statement": "Silencing the opposing advocate raises Brier score more than removing the law's revision does.",
+         "metric": "brier", "split": "heldout", "comparison": "(adversary:silent - full) - (revision:off - full)",
+         "knockouts": ["adversary:silent", "revision:off"], "direction": "greater", "mesi": 0.01, "seeds": 5},
+        {"id": "H-BLIND", "statement": "Hearing the prosecution with four times the eloquence of the defence raises Brier score.",
+         "condition": "held-out cases, eloquence 2.0 for the pro advocate and 0.5 for the con advocate",
+         "grounding": "The chapter's warning that eloquence can outrun truth.",
+         "metric": "brier", "split": "heldout", "comparison": "model(asymmetric) - model(equal)", "direction": "greater", "mesi": 0.01, "seeds": 5},
+        {"id": "H-RIVAL", "statement": "Committing to the graded probabile gives lower Brier score than suspending near balance.",
+         "metric": "brier", "split": "heldout", "comparison": "model - rival", "direction": "less", "mesi": 0.005, "seeds": 5},
+    ],
+    "thresholds": {"loss_drop_fraction": 0.3, "margin_over_trivial": 0.3, "shuffled_ratio_min": 0.9, "gradcheck_rel_error": 1e-5,
+                   "gradcheck_floor": 1e-3, "invariance_tol": 1e-9, "negative_control_min_violation": 1e-6},
+    "metrics": {"brier": "mean squared gap between the final verdict probability and the case's truth",
+                "accuracy": "share of cases decided on the right side of 0.5", "trivial_baseline": "always deciding the commoner side",
+                "shuffled_band": "one-sided: trained on truths shuffled across cases, held-out error at least 0.9 times the trivial error"},
+    "training": {"optimizer": "Adam", "lr_grid": [0.03], "clip_norm": 5.0, "model_selection": "none: final parameters",
+                 "updates": {"full": 600, "quick": 200}, "schedule": "cosine decay to 5 per cent",
+                 "objectives": "judge and loci: log loss on truth; pro advocate: maximise the verdict; con advocate: minimise it",
+                 "law_revision": {"blend": 0.5, "law_gain": 2.0}, "rival_band": 0.15, "applies_to": "forum and one-sided forum"},
+    "task": {"features": 8, "loci": 6, "world_norm": 2.2, "law_noise": 0.35, "shift": {"mean": 0.4, "sd": 1.3},
+             "cases": {"train": 2000, "heldout": 2000, "shifted": 2000}, "eloquence": {"equal": [1.0, 1.0], "asymmetric": [2.0, 0.5]}},
+    "probe_predictions": [{"probe": "P8", "expected": "equal to baseline"}],
+    "probe_support": "vector_classification through the full forum",
+    "dialectic_links": [{"chapter": 139, "relation": "rival", "test": "H-RIVAL"}],
+    "corpus_neighbors": [
+        {"chapter": 139, "similarity": None, "difference": "0139 suspends where arguments balance; here the forum must commit to a graded verdict."},
+        {"chapter": 77, "similarity": None, "difference": "0077 practises abstention; here abstention is ruled out and calibration is measured."},
+    ],
+    "similarity_note": "Nearest-neighbour similarity not computed into the card; the audit reports it for the files at hand.",
+    "barometer": {"language_understanding": ["argument in utramque partem"], "consciousness": ["graded, revisable commitment"],
+                  "cognitive_processing": [], "embodied_cognition": [], "world_modeling": [], "emotional_intelligence": [], "creativity": [], "autonomy": []},
+    "task_types": ["vector_classification"],
+    "applications": [{"use": "debate-style verification of AI answers with a mandatory counter-case", "sector": "AI oversight", "dataset": "QuALITY debate benchmarks", "readiness": "low"},
+                     {"use": "evaluating legal and policy arguments against a fixed external standard", "sector": "legal technology", "dataset": "synthetic argument sets", "readiness": "low"}],
+    "safety_notes": "Synthetic cases only; no historical trial, execution or exile is modelled, and verdicts concern abstract claims.",
+}
 
-Key Belief About Mind:
-    The orator must be a philosopher to be truly effective; the ideal
-    orator combines wisdom with eloquence; philosophical training
-    develops moral character; the properly educated mind can discern
-    truth and speak it persuasively.
-
-Agitation Relevance:
-    Cicero = ideal orator as philosophical AI; natural law as
-    universal ethical reasoning; rhetoric as persuasion technology;
-    philosophical synthesis as knowledge compression; moral education
-    as alignment training.
-
-Sources:
-    - Cicero, Complete Works
-    - Kennedy (1972), 'Cicero'
-    - Polybius, The Histories
-    - Cochrane (1929), 'Thucydides and the Science of History'
-"""
-
-from __future__ import annotations
-from dataclasses import dataclass, field
-from enum import Enum, auto
-from typing import (
-    Dict, List, Optional, Tuple, Any, Callable,
-    Generator, Iterator, TypeVar, Generic, Protocol,
-    NamedTuple, Union, Set
-)
-from datetime import datetime
+import argparse
+import hashlib
 import json
-import copy
-
-
-# =============================================================================
-# ENUMS
-# =============================================================================
-
-class RhetoricalGenre(Enum):
-    """Genres of rhetorical discourse."""
-    DELIBERATIVE = auto()  # political/advice
-    JUDICIAL = auto()      # legal/forensic
-    EPIDEICTIC = auto()    # ceremonial/panegyric
-
-
-class PhilosophicalSchool(Enum):
-    """Schools influencing Cicero."""
-    STOIC = auto()
-    ACADEMIC = auto()      # New Academy
-    PERIPATETIC = auto()   # Aristotelian
-    EPICUREAN = auto()
-
-
-class Virtue(Enum):
-    """Ciceronian virtues."""
-    WISDOM = auto()
-    JUSTICE = auto()
-    FORTITUDE = auto()
-    TEMPERANCE = auto()
-
-
-class OratoricalDevice(Enum):
-    """Rhetorical devices for persuasion."""
-    RHETORICAL_QUESTION = auto()
-    PARALLELISM = auto()
-    ANTITHESIS = auto()
-    TRIAD = auto()
-    CLIMAX = auto()
-
-
-class LegalProcedure(Enum):
-    """Roman legal procedures."""
-    COGNITIO = auto()
-    PROCEDENDO = auto()
-    LIBERUM = auto()
-
-
-# =============================================================================
-# DATA CLASSES
-# =============================================================================
-
-@dataclass(frozen=True)
-class Oration:
-    """A complete oration by Cicero."""
-    title: str
-    date_delivered: Optional[int]
-    genre: RhetoricalGenre
-    main_thesis: str
-    arguments: Tuple[str, ...]
-    stylistic_devices: Tuple[OratoricalDevice, ...]
-    historical_context: str
-
-
-@dataclass
-class PhilosophicalTreatise:
-    """A philosophical work by Cicero."""
-    title: str
-    school: PhilosophicalSchool
-    key_claims: Tuple[str, ...]
-    greek_sources: Tuple[str, ...]
-    roman_application: str
-
-
-@dataclass
-class Orator:
-    """Model of the ideal orator."""
-    name: str
-    rhetorical_skill: float  # 0-1
-    philosophical_knowledge: float
-    moral_character: float
-    political_experience: float
-
-    def is_ideal_orator(self) -> bool:
-        return all([
-            self.rhetorical_skill >= 0.8,
-            self.philosophical_knowledge >= 0.7,
-            self.moral_character >= 0.8
-        ])
-
-
-@dataclass
-class NaturalLawPrinciple:
-    """A principle of natural law theory."""
-    principle: str
-    derivation: str
-    applications: Tuple[str, ...]
-
-
-@dataclass
-class RhetoricalArgument:
-    """An argument structure in rhetoric."""
-    premise: str
-    evidence: Tuple[str, ...]
-    inference: str
-    conclusion: str
-
-    def strength_score(self) -> float:
-        return min(1.0, len(self.evidence) * 0.2 + 0.3)
-
-
-@dataclass
-class PhilosophicalSynthesis:
-    """Synthesis of Greek philosophy for Roman use."""
-    greek_doctrine: str
-    roman_context: str
-    ciceronian_reformulation: str
-    practical_application: str
-
-
-@dataclass
-class PoliticalSpeech:
-    """A speech on political matters."""
-    occasion: str
-    audience: str
-    main_claim: str
-    supporting_reasons: Tuple[str, ...]
-    emotional_appeals: Tuple[str, ...]
-
-
-@dataclass
-class LegalCase:
-    """A legal case structure."""
-    charges: Tuple[str, ...]
-    defense_arguments: Tuple[str, ...]
-    evidence_presented: Tuple[str, ...]
-    verdict_likelihood: float
-
-
-@dataclass
-class RhetoricalTraining:
-    """Cicero's method of rhetorical training."""
-    stages: Tuple[str, ...]
-    exercises: Tuple[str, ...]
-    models_studied: Tuple[str, ...]
-    duration_years: int
-
-
-# =============================================================================
-# TYPING CONSTRUCTS
-# =============================================================================
-
-T = TypeVar('T')
-
-
-class OrationBuilder:
-    """Build orations in Ciceronian style."""
-    def __init__(self):
-        self.thesis = ""
-        self.arguments: List[str] = []
-        self.devices: List[OratoricalDevice] = []
-
-    def set_thesis(self, thesis: str) -> None:
-        self.thesis = thesis
-
-    def add_argument(self, arg: str) -> None:
-        self.arguments.append(arg)
-
-    def add_device(self, device: OratoricalDevice) -> None:
-        self.devices.append(device)
-
-    def build(self) -> str:
-        parts = [f"Thesis: {self.thesis}", ""]
-        parts.append("Arguments:")
-        for i, arg in enumerate(self.arguments, 1):
-            parts.append(f"  {i}. {arg}")
-        parts.append("")
-        parts.append(f"Stylistic devices: {', '.join(d.name for d in self.devices)}")
-        return "\n".join(parts)
-
-
-class IdealOratorChecker:
-    """Check whether someone meets the ideal orator standard."""
-    def __init__(self):
-        self.min_rhetorical = 0.8
-        self.min_philosophical = 0.7
-        self.min_moral = 0.8
-
-    def check(self, orator: Orator) -> Tuple[bool, List[str]]:
-        deficiencies = []
-        if orator.rhetorical_skill < self.min_rhetorical:
-            deficiencies.append("Insufficient rhetorical skill")
-        if orator.philosophical_knowledge < self.min_philosophical:
-            deficiencies.append("Lacks philosophical training")
-        if orator.moral_character < self.min_moral:
-            deficiencies.append("Moral character needs development")
-        is_ideal = len(deficiencies) == 0
-        return is_ideal, deficiencies
-
-
-class NaturalLawReasoner:
-    """Reason about natural law principles."""
-    def __init__(self):
-        self.principles: List[NaturalLawPrinciple] = []
-
-    def add_principle(self, principle: str, derivation: str,
-                     applications: Tuple[str, ...]) -> None:
-        self.principles.append(NaturalLawPrinciple(principle, derivation, applications))
-
-    def derive_from_reason(self, premise: str) -> List[str]:
-        results = []
-        for p in self.principles:
-            if premise.lower() in p.principle.lower():
-                results.append(p.principle)
-        return results
-
-    def apply_principle(self, principle_name: str, case: str) -> str:
-        for p in self.principles:
-            if p.principle == principle_name:
-                return f"Applying {principle_name} to {case}: {p.applications[0] if p.applications else 'no application'}"
-        return "Principle not found"
-
-
-class PhilosophicalSynthesizer:
-    """Synthesize Greek philosophy for Roman context."""
-    def __init__(self):
-        self.syntheses: List[PhilosophicalSynthesis] = []
-
-    def synthesize(self, greek: str, roman_context: str,
-                  reformulation: str, application: str) -> PhilosophicalSynthesis:
-        syn = PhilosophicalSynthesis(greek, roman_context, reformulation, application)
-        self.syntheses.append(syn)
-        return syn
-
-    def get_syntheses_by_school(self, school: PhilosophicalSchool) -> List[PhilosophicalSynthesis]:
-        return [s for s in self.syntheses if self._school_matches(s, school)]
-
-    def _school_matches(self, s: PhilosophicalSynthesis, school: PhilosophicalSchool) -> bool:
-        if school == PhilosophicalSchool.STOIC:
-            return "stoic" in s.greek_doctrine.lower() or "logos" in s.greek_doctrine.lower()
-        if school == PhilosophicalSchool.ACADEMIC:
-            return "academy" in s.greek_doctrine.lower()
-        return False
-
-
-class RhetoricalDeviceApplicator:
-    """Apply rhetorical devices in composition."""
-    def __init__(self):
-        self.history: List[str] = []
-
-    def apply_triplet(self, items: List[str]) -> str:
-        result = " - ".join(items)
-        self.history.append(f"Triad: {result}")
-        return f"{items[0]} - {items[1]} - {items[2]}"
-
-    def apply_antithesis(self, thing1: str, thing2: str) -> str:
-        result = f"{thing1} ... {thing2}"
-        self.history.append(f"Antithesis: {result}")
-        return result
-
-    def apply_climax(self, items: List[str]) -> str:
-        result = " ... ".join(items)
-        self.history.append(f"Climax: {result}")
-        return result
-
-
-class PoliticalReasoner:
-    """Reason about political situations."""
-    def __init__(self):
-        self.speeches: List[PoliticalSpeech] = []
-
-    def analyze_situation(self, context: str) -> Dict[str, Any]:
-        return {
-            "context": context,
-            "likely_claims": ["Unity is strength", "Danger requires action"],
-            "audience_concerns": ["Security", "Honor", "Prosperity"]
-        }
-
-    def prepare_speech(self, occasion: str, audience: str,
-                      claim: str, reasons: Tuple[str, ...]) -> PoliticalSpeech:
-        speech = PoliticalSpeech(occasion, audience, claim, reasons,
-                               ("Appeal to ancestral wisdom", "Appeal to mutual interest"))
-        self.speeches.append(speech)
-        return speech
-
-
-class LegalAnalyzer:
-    """Analyze legal cases in Roman style."""
-    def __init__(self):
-        self.cases: List[LegalCase] = []
-
-    def analyze_case(self, charges: Tuple[str, ...],
-                    defense: Tuple[str, ...],
-                    evidence: Tuple[str, ...]) -> LegalCase:
-        strength = min(1.0, len(defense) * 0.2 + len(evidence) * 0.1)
-        case = LegalCase(charges, defense, evidence, strength)
-        self.cases.append(case)
-        return case
-
-    def estimate_outcome(self, case: LegalCase) -> str:
-        if case.verdict_likelihood >= 0.7:
-            return "Favorable for defense"
-        elif case.verdict_likelihood >= 0.4:
-            return "Uncertain outcome"
+import math
+import os
+import sys
+import time
+
+import numpy as np
+
+FEATURES, LOCI, WORLD_NORM, LAW_NOISE = 8, 6, 2.2, 0.35
+CASES = {"train": 2000, "heldout": 2000, "shifted": 2000}
+UPDATES = {"full": 600, "quick": 200}
+LR, CLIP_NORM, BLEND, LAW_GAIN, RIVAL_BAND = 0.03, 5.0, 0.5, 2.0, 0.15
+EQUAL, ASYMMETRIC = (1.0, 1.0), (2.0, 0.5)
+TIME_BUDGET = {"full": 180.0, "quick": 20.0}
+TASK_TYPES = ["vector_classification"]
+ACTIVE_MUTANT = None
+np.seterr(over="raise", invalid="raise", divide="raise", under="ignore")
+
+# BEGIN STANDARD UTILITIES v1.0
+def softmax(z, axis=-1):
+    z = z - z.max(axis=axis, keepdims=True)
+    e = np.exp(z)
+    return e / e.sum(axis=axis, keepdims=True)
+
+
+def logsumexp(z, axis=-1):
+    m = z.max(axis=axis, keepdims=True)
+    return (m + np.log(np.exp(z - m).sum(axis=axis, keepdims=True))).squeeze(axis)
+
+
+def softplus(z):
+    return np.logaddexp(0.0, z)
+
+
+def sigmoid(z):
+    return np.exp(-np.logaddexp(0.0, -z))
+
+
+def adam_init(params):
+    return {"t": 0, "m": {k: np.zeros_like(v) for k, v in params.items()},
+            "v": {k: np.zeros_like(v) for k, v in params.items()}}
+
+
+def adam_step(params, grads, state, lr, b1=0.9, b2=0.999, eps=1e-8):
+    state["t"] += 1
+    for k in params:
+        state["m"][k] = b1 * state["m"][k] + (1.0 - b1) * grads[k]
+        state["v"][k] = b2 * state["v"][k] + (1.0 - b2) * grads[k] ** 2
+        m_hat = state["m"][k] / (1.0 - b1 ** state["t"])
+        v_hat = state["v"][k] / (1.0 - b2 ** state["t"])
+        params[k] -= lr * m_hat / (np.sqrt(v_hat) + eps)
+
+
+def clip_global(grads, max_norm):
+    norm = math.sqrt(sum(float((g * g).sum()) for g in grads.values()))
+    scale = min(1.0, max_norm / (norm + 1e-12))
+    return {k: g * scale for k, g in grads.items()}, norm
+
+
+def finite_difference_check(params, grads, loss_fn, rng, eps=1e-6, n_entries=20, floor=1e-3):
+    """Central differences on n random entries per tensor plus its largest-gradient entry.
+    Relative error uses max(|analytic|, |numeric|, floor) as denominator."""
+    worst = {}
+    for name, arr in params.items():
+        flat, g = arr.reshape(-1), grads[name].reshape(-1)
+        if flat.size <= n_entries + 1:
+            idx = np.arange(flat.size)
         else:
-            return "Likely unfavorable for defense"
+            idx = np.unique(np.append(rng.choice(flat.size, n_entries, replace=False), np.argmax(np.abs(g))))
+        err = 0.0
+        for i in idx:
+            keep = flat[i]
+            flat[i] = keep + eps
+            up = loss_fn()
+            flat[i] = keep - eps
+            down = loss_fn()
+            flat[i] = keep
+            num = (up - down) / (2.0 * eps)
+            err = max(err, abs(g[i] - num) / max(abs(g[i]), abs(num), floor))
+        worst[name] = err
+    return worst
 
 
-class MoralCharacterEvaluator:
-    """Evaluate moral character of historical figures."""
-    def __init__(self):
-        self.evaluations: Dict[str, Dict[Virtue, int]] = {}
-
-    def evaluate(self, name: str, virtues: Dict[Virtue, int]) -> None:
-        self.evaluations[name] = virtues
-
-    def compare_virtues(self, name1: str, name2: str, virtue: Virtue) -> str:
-        if name1 not in self.evaluations or name2 not in self.evaluations:
-            return "Evaluation not available"
-        v1 = self.evaluations[name1].get(virtue, 0)
-        v2 = self.evaluations[name2].get(virtue, 0)
-        if v1 > v2:
-            return f"{name1} exceeded {name2} in {virtue.name}"
-        elif v2 > v1:
-            return f"{name2} exceeded {name1} in {virtue.name}"
-        return f"Equal in {virtue.name}"
+def paired_bootstrap(diffs, rng, n_boot=2000, level=0.95):
+    d = np.asarray(diffs, dtype=float)
+    means = d[rng.integers(0, d.size, size=(n_boot, d.size))].mean(axis=1)
+    tail = 50.0 * (1.0 - level)
+    return float(d.mean()), [float(np.percentile(means, tail)), float(np.percentile(means, 100.0 - tail))]
 
 
-class RhetoricalTrainingProgram:
-    """Cicero's rhetorical training method."""
-    def __init__(self):
-        self.program = RhetoricalTraining(
-            stages=("Memory", "Delivery", " Invention", "Arrangement", "Style"),
-            exercises=("Imitation", "Composition", "Debate", " declamation"),
-            models_studied=("Demosthenes", "Lysias", "Pericles", "Greek philosophers"),
-            duration_years=2
-        )
-
-    def get_training_stages(self) -> Tuple[str, ...]:
-        return self.program.stages
-
-    def get_exercises(self) -> Tuple[str, ...]:
-        return self.program.exercises
+def verdict(mean, ci, mesi, direction):
+    s = 1.0 if direction == "greater" else -1.0
+    lo, hi = sorted((s * ci[0], s * ci[1]))
+    if lo > 0.0 and s * mean >= mesi:
+        return "supported"
+    if hi < 0.0:
+        return "contradicted"
+    return "inconclusive"
 
 
-# =============================================================================
-# MAIN CLASS
-# =============================================================================
+def write_report(lines, payload, json_path):
+    print("\n".join(lines))
+    if json_path:
+        with open(json_path, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, indent=2)
+# END STANDARD UTILITIES
 
-class CiceroSystem:
-    """
-    Ciceronian rhetorical and philosophical system.
-
-    Implements:
-    - Oration construction in Ciceronian style
-    - Ideal orator evaluation
-    - Natural law reasoning
-    - Greek philosophy synthesis
-    - Political speech preparation
-    - Legal case analysis
-    - Moral character evaluation
-    - Rhetorical training methodology
-    """
-
-    def __init__(self):
-        self.orations: List[Oration] = []
-        self.treatises: List[PhilosophicalTreatise] = []
-        self.natural_law = NaturalLawReasoner()
-        self.synthesizer = PhilosophicalSynthesizer()
-        self.oration_builder = OrationBuilder()
-        self.ideal_orator_checker = IdealOratorChecker()
-        self.device_applicator = RhetoricalDeviceApplicator()
-        self.political_reasoner = PoliticalReasoner()
-        self.legal_analyzer = LegalAnalyzer()
-        self.moral_evaluator = MoralCharacterEvaluator()
-        self.training_program = RhetoricalTrainingProgram()
-
-        self._initialize_orations()
-        self._initialize_natural_law()
-        self._initialize_syntheses()
-
-    def _initialize_orations(self) -> None:
-        self.orations = [
-            Oration(
-                title="In Catilinam",
-                date_delivered=-63,
-                genre=RhetoricalGenre.DELIBERATIVE,
-                main_thesis="Catiline must be expelled from Rome",
-                arguments=(
-                    "He conspires against the state",
-                    "He has raised arms against Rome",
-                    "The people must defend themselves"
-                ),
-                stylistic_devices=(OratoricalDevice.TRIAD, OratoricalDevice.ANTITHESIS),
-                historical_context="Catilinarian conspiracy during consulship"
-            ),
-            Oration(
-                title="Pro Milone",
-                date_delivered=-52,
-                genre=RhetoricalGenre.JUDICIAL,
-                main_thesis="Milo should be acquitted of murder",
-                arguments=(
-                    "Clodius was the aggressor",
-                    "Self-defense is legitimate",
-                    "The people support Milo"
-                ),
-                stylistic_devices=(OratoricalDevice.PARALLELISM, OratoricalDevice.RHETORICAL_QUESTION),
-                historical_context="Trial for killing Clodius"
-            ),
-            Oration(
-                title="Pro Archia",
-                date_delivered=-62,
-                genre=RhetoricalGenre.DELIBERATIVE,
-                main_thesis="Archias should retain citizenship",
-                arguments=(
-                    "Talent benefits the state",
-                    "Education elevates citizens",
-                    "Rome has always welcomed scholars"
-                ),
-                stylistic_devices=(OratoricalDevice.CLIMAX,),
-                historical_context="Defense of poet Archias's citizenship"
-            ),
-        ]
-
-    def _initialize_natural_law(self) -> None:
-        self.natural_law.add_principle(
-            "True law is right reason",
-            "According to nature, applicable to all peoples",
-            ("Natural rights exist", "Law applies universally")
-        )
-        self.natural_law.add_principle(
-            "Justice is the crowning glory of virtue",
-            "Without justice, no virtue has worth",
-            ("Fair treatment of citizens", "Protection of innocents")
-        )
-        self.natural_law.add_principle(
-            "The state exists for the citizen",
-            "Government serves those governed",
-            ("Rule for common good", "Citizens have natural rights")
-        )
-
-    def _initialize_syntheses(self) -> None:
-        self.synthesizer.synthesize(
-            "Stoic Logos doctrine",
-            "Roman political context",
-            "Natural Law as universal rational principle",
-            "Apply to politics and law"
-        )
-        self.synthesizer.synthesize(
-            "Academic skepticism",
-            "Roman rhetorical practice",
-            "Probabilistic knowledge with practical action",
-            "Use in oratory and debate"
-        )
-        self.synthesizer.synthesize(
-            "Peripatetic ethics",
-            "Roman aristocratic values",
-            "Virtue in action within society",
-            "Guide for statesmen"
-        )
-
-    def add_oration(self, oration: Oration) -> None:
-        self.orations.append(oration)
-
-    def find_oration(self, title: str) -> Optional[Oration]:
-        for o in self.orations:
-            if o.title == title:
-                return o
-        return None
-
-    def check_orator(self, orator: Orator) -> Tuple[bool, List[str]]:
-        return self.ideal_orator_checker.check(orator)
-
-    def apply_rhetorical_device(self, device_type: str, content: Any) -> str:
-        if device_type == "triad":
-            return self.device_applicator.apply_triplet(list(content)[:3])
-        elif device_type == "antithesis":
-            items = list(content)
-            return self.device_applicator.apply_antithesis(items[0], items[1])
-        elif device_type == "climax":
-            return self.device_applicator.apply_climax(list(content))
-        return "Device not recognized"
-
-    def analyze_political_situation(self, context: str) -> Dict[str, Any]:
-        return self.political_reasoner.analyze_situation(context)
-
-    def prepare_political_speech(self, occasion: str, audience: str,
-                                claim: str, reasons: Tuple[str, ...]) -> PoliticalSpeech:
-        return self.political_reasoner.prepare_speech(occasion, audience, claim, reasons)
-
-    def analyze_legal_case(self, charges: Tuple[str, ...],
-                          defense: Tuple[str, ...],
-                          evidence: Tuple[str, ...]) -> LegalCase:
-        return self.legal_analyzer.analyze_case(charges, defense, evidence)
-
-    def evaluate_moral_character(self, name: str, virtues: Dict[Virtue, int]) -> None:
-        self.moral_evaluator.evaluate(name, virtues)
-
-    def compare_persons(self, name1: str, name2: str, virtue: Virtue) -> str:
-        return self.moral_evaluator.compare_virtues(name1, name2, virtue)
-
-    def get_training_program(self) -> RhetoricalTraining:
-        return self.training_program.program
+# ================================================================ the cases before the forum
+def world(seed):
+    gen = np.random.default_rng(np.random.SeedSequence(seed).spawn(1)[0])
+    truth_dir = gen.normal(size=FEATURES)
+    truth_dir /= np.linalg.norm(truth_dir)
+    law = truth_dir + LAW_NOISE * gen.normal(size=FEATURES)
+    docket = {"law": law / np.linalg.norm(law)}
+    for part, count in CASES.items():
+        centre, spread = (0.4, 1.3) if part == "shifted" else (0.0, 1.0)
+        e = centre + spread * gen.normal(size=(count, FEATURES))
+        chance = 1.0 / (1.0 + np.exp(-WORLD_NORM * (e @ truth_dir)))
+        docket[part] = {"e": e, "y": (gen.random(count) < chance).astype(float)}
+    return docket
 
 
-# =============================================================================
-# DEMO
-# =============================================================================
+# ================================================================ the forum: loci, elocutio, advocates, judge, law
+def build_model(in_dim, out_dim, task_type, rng, **cfg):
+    """A forum. cfg one_sided=True trains and hears it with the opposing advocate silent (the H-SIG baseline)."""
+    if task_type not in TASK_TYPES or in_dim != FEATURES:
+        raise ValueError("chapter 0103 hears 8-feature cases")
+    return {"one_sided": bool(cfg.get("one_sided", False)), "silence": None, "revise": True, "voice": EQUAL, "history": [],
+            "params": {"loci": rng.normal(0, 0.4, (LOCI, in_dim)), "pro": rng.normal(0, 0.3, (LOCI, in_dim)),
+                       "con": rng.normal(0, 0.3, (LOCI, in_dim)), "alpha": np.array([0.1]), "bias": np.zeros(1)}}
 
-def demo() -> None:
-    print("=" * 70)
-    print("CICERO: IDEAL ORATOR AND NATURAL LAW PHILOSOPHY")
-    print("106-43 BCE | Roman Statesman | Orator | Philosopher")
-    print("=" * 70)
 
-    system = CiceroSystem()
+def _choose(scores):
+    top = scores.max(axis=1, keepdims=True)
+    w = np.exp(scores - top)
+    return w / w.sum(axis=1, keepdims=True)
 
-    print("\n1. CICERONIAN ORATIONS")
-    print("-" * 40)
-    for oration in system.orations:
-        print(f"  {oration.title} (-{oration.date_delivered})")
-        print(f"    Genre: {oration.genre.name}")
-        print(f"    Thesis: {oration.main_thesis}")
-        print(f"    Arguments: {len(oration.arguments)}")
-        devices = [d.name for d in oration.stylistic_devices]
-        print(f"    Devices: {', '.join(devices)}")
-        print()
 
-    print("\n2. IDEAL ORATOR EVALUATION")
-    print("-" * 40)
-    cicero = Orator("Cicero", 0.95, 0.85, 0.90, 0.80)
-    antony = Orator("Antony", 0.70, 0.50, 0.50, 0.75)
-    demosthenes = Orator("Demosthenes", 0.90, 0.75, 0.85, 0.65)
-    for person in [cicero, antony, demosthenes]:
-        is_ideal, deficiencies = system.check_orator(person)
-        status = "IDEAL ORATOR" if is_ideal else "Below standard"
-        print(f"  {person.name}: {status}")
-        if deficiencies:
-            print(f"    Deficiencies: {', '.join(deficiencies)}")
+def hear(forum, e):
+    P = forum["params"]
+    bearing = e @ P["loci"].T
+    pick_pro, pick_con = _choose(e @ P["pro"].T), _choose(e @ P["con"].T)
+    loud_pro, loud_con = forum["voice"]
+    case_pro = loud_pro * (pick_pro * bearing).sum(axis=1)
+    silent = forum["one_sided"] or forum["silence"] == "adversary"
+    case_con = np.zeros(len(e)) if silent else -loud_con * (pick_con * bearing).sum(axis=1)
+    margin = case_pro - case_con
+    verdict_p = 1.0 / (1.0 + np.exp(-(P["alpha"][0] * margin + P["bias"][0])))
+    return {"bearing": bearing, "pick_pro": pick_pro, "pick_con": pick_con, "margin": margin, "p": verdict_p, "silent": silent}
 
-    print("\n3. NATURAL LAW PRINCIPLES")
-    print("-" * 40)
-    principle = system.natural_law.principles[0]
-    print(f"  Principle: {principle.principle}")
-    print(f"  Derivation: {principle.derivation}")
-    print(f"  Applications: {', '.join(principle.applications)}")
-    derivations = system.natural_law.derive_from_reason("law")
-    print(f"  Derived: {derivations}")
 
-    print("\n4. RHETORICAL DEVICE APPLICATION")
-    print("-" * 40)
-    triad = system.apply_rhetorical_device("triad", ["unity", "courage", "wisdom"])
-    print(f"  Triplet: {triad}")
-    antithesis = system.apply_rhetorical_device("antithesis", ["peace", "war"])
-    print(f"  Antithesis: {antithesis}")
-    climax = system.apply_rhetorical_device("climax", ["first", "second", "third"])
-    print(f"  Climax: {climax}")
+def checked_by_law(forum, e, p, law):
+    """Recta ratio: a verdict on the other side of the law from the case is pulled halfway toward the law's own reading."""
+    if not forum["revise"]:
+        return p
+    reading = e @ law
+    against = (p > 0.5) != (reading > 0)
+    return np.where(against, (1.0 - BLEND) * p + BLEND / (1.0 + np.exp(-LAW_GAIN * reading)), p)
 
-    print("\n5. GREEK PHILOSOPHY SYNTHESES")
-    print("-" * 40)
-    stoic_syn = system.synthesizer.get_syntheses_by_school(PhilosophicalSchool.STOIC)
-    print(f"  Stoic syntheses: {len(stoic_syn)}")
-    for syn in stoic_syn:
-        print(f"    Greek: {syn.greek_doctrine}")
-        print(f"    Roman: {syn.roman_context}")
-        print(f"    Application: {syn.practical_application}")
 
-    print("\n6. POLITICAL SPEECH PREPARATION")
-    print("-" * 40)
-    analysis = system.analyze_political_situation("Senate debate on war")
-    print(f"  Context: {analysis['context']}")
-    print(f"  Likely claims: {', '.join(analysis['likely_claims'])}")
-    speech = system.prepare_political_speech(
-        "Senate session",
-        "Roman Senators",
-        "War is necessary for peace",
-        ("Security requires it", "Enemy threatens allies", "Honor demands response")
-    )
-    print(f"  Speech prepared: {speech.main_claim}")
+def _softmax_back(pick, upstream):
+    if ACTIVE_MUTANT == "dropped_softmax_centering":
+        return pick * upstream
+    return pick * (upstream - (pick * upstream).sum(axis=1, keepdims=True))
 
-    print("\n7. LEGAL CASE ANALYSIS")
-    print("-" * 40)
-    case = system.analyze_legal_case(
-        ("Murder", "Conspiracy"),
-        ("Self-defense", "Provocation"),
-        ("Witness testimony", "Physical evidence")
-    )
-    print(f"  Charges: {', '.join(case.charges)}")
-    print(f"  Defense arguments: {', '.join(case.defense_arguments)}")
-    print(f"  Evidence: {', '.join(case.evidence_presented)}")
-    outcome = system.legal_analyzer.estimate_outcome(case)
-    print(f"  Estimated outcome: {outcome}")
 
-    print("\n8. MORAL CHARACTER EVALUATION")
-    print("-" * 40)
-    system.evaluate_moral_character("Cicero", {
-        Virtue.WISDOM: 4, Virtue.JUSTICE: 4,
-        Virtue.FORTITUDE: 3, Virtue.TEMPERANCE: 3
-    })
-    system.evaluate_moral_character("Catiline", {
-        Virtue.WISDOM: 2, Virtue.JUSTICE: 1,
-        Virtue.FORTITUDE: 3, Virtue.TEMPERANCE: 1
-    })
-    comparison = system.compare_persons("Cicero", "Catiline", Virtue.JUSTICE)
-    print(f"  Comparison: {comparison}")
+def party_losses(forum, batch):
+    """Three objectives, one per party: the judge (with the loci) seeks truth, pro raises the verdict, con lowers it."""
+    P, h, n = forum["params"], hear(forum, batch["e"]), len(batch["y"])
+    p, e, loud_pro, loud_con = h["p"], batch["e"], forum["voice"][0], forum["voice"][1]
+    eps = 1e-12
+    out = {"judge": -float(np.mean(batch["y"] * np.log(p + eps) + (1 - batch["y"]) * np.log(1 - p + eps))),
+           "pro": -float(np.mean(np.log(p + eps))), "con": -float(np.mean(np.log(1 - p + eps)))}
+    grads = {}
+    d_logit = (p - batch["y"]) / n
+    d_margin = d_logit * P["alpha"][0]
+    d_bearing = d_margin[:, None] * loud_pro * h["pick_pro"]
+    if not h["silent"]:
+        d_bearing = d_bearing + d_margin[:, None] * loud_con * h["pick_con"]
+    grads["loci"] = np.zeros_like(P["loci"]) if ACTIVE_MUTANT == "zero_loci_gradient" else d_bearing.T @ e
+    grads["alpha"], grads["bias"] = np.array([float(d_logit @ h["margin"])]), np.array([float(d_logit.sum())])
+    up_pro = (((p - 1.0) / n) * P["alpha"][0])[:, None] * loud_pro * h["bearing"]
+    grads["pro"] = _softmax_back(h["pick_pro"], up_pro).T @ e
+    if h["silent"]:
+        grads["con"] = np.zeros_like(P["con"])
+    else:
+        up_con = ((p / n) * P["alpha"][0])[:, None] * loud_con * h["bearing"]
+        grads["con"] = _softmax_back(h["pick_con"], up_con).T @ e
+    return out, grads
 
-    print("\n9. RHETORICAL TRAINING PROGRAM")
-    print("-" * 40)
-    program = system.get_training_program()
-    print(f"  Duration: {program.duration_years} years")
-    print(f"  Stages: {', '.join(program.stages)}")
-    print(f"  Exercises: {', '.join(program.exercises)}")
-    print(f"  Models: {', '.join(program.models_studied)}")
 
-    print("\n10. ORATION BUILDER")
-    print("-" * 40)
-    builder = OrationBuilder()
-    builder.set_thesis("Rome must defend its allies")
-    builder.add_argument("Allies provide strategic support")
-    builder.add_argument("Abandoning them dishonors Rome")
-    builder.add_argument("Future allies will not trust us")
-    builder.add_device(OratoricalDevice.TRIAD)
-    builder.add_device(OratoricalDevice.ANTITHESIS)
-    built = builder.build()
-    print(built[:200])
+OWNER = {"loci": "judge", "alpha": "judge", "bias": "judge", "pro": "pro", "con": "con"}
 
-    print("\n" + "=" * 70)
-    print("CICERO SYSTEM DEMONSTRATION COMPLETE")
-    print("=" * 70)
+
+def loss_and_grads(model, batch):
+    """Interface form: the judge's loss, and every tensor's gradient taken from the objective of the party that owns it."""
+    losses, grads = party_losses(model, batch)
+    return losses["judge"], grads
+
+
+def fit(model, data, budget, rng):
+    """All three parties move at once, each down its own objective; cosine decay to 5 per cent. Nothing sampled: rng unused."""
+    moments, flip = adam_init(model["params"]), -1.0 if ACTIVE_MUTANT == "sign_flipped_update" else 1.0
+    tick = 0
+    while tick < budget:
+        losses, grads = party_losses(model, data["train"])
+        if not all(math.isfinite(v) for v in losses.values()):
+            raise FloatingPointError("a party's loss diverged at update %d" % (tick + 1))
+        grads = clip_global(grads, CLIP_NORM)[0]
+        pace = 0.0 if ACTIVE_MUTANT == "zero_learning_rate" else LR * (0.05 + 0.475 * (1.0 + math.cos(math.pi * tick / budget)))
+        adam_step(model["params"], {k: flip * g for k, g in grads.items()}, moments, pace)
+        model["history"].append(losses["judge"])
+        tick += 1
+    return model["history"]
+
+
+def predict(model, X):
+    return (hear(model, X)["p"] > 0.5).astype(int)
+
+
+def hidden_states(model, X):
+    h = hear(model, X)
+    return {"bearing": h["bearing"], "pro_topics": h["pick_pro"], "con_topics": h["pick_con"], "margin": h["margin"], "verdict": h["p"]}
+
+
+def modules(model):
+    return {"loci": {"params": ["loci"], "role": "shared linear topic bank", "signature": False},
+            "advocates": {"params": ["pro", "con"], "role": "softmax topic choice optimising opposite objectives", "signature": True},
+            "judge": {"params": ["alpha", "bias"], "role": "logistic verdict that never abstains", "signature": True},
+            "law": {"params": [], "role": "fixed external law vector revising conflicting verdicts", "signature": False}}
+
+
+def knockout(model, name, mode):
+    twin = dict(model, params=model["params"])
+    if (name, mode) == ("adversary", "silent"):
+        twin["silence"] = "adversary"
+    elif (name, mode) == ("revision", "off"):
+        twin["revise"] = False
+    else:
+        raise ValueError("no knockout %s:%s" % (name, mode))
+    return twin
+
+
+def n_params(model):
+    return int(sum(v.size for v in model["params"].values()))
+
+
+MUTANTS = {"sign_flipped_update": ("every party climbs its objective", "C3"), "zero_learning_rate": ("nobody moves", "C3"),
+           "zero_loci_gradient": ("the topic bank receives no gradient", "C1"), "dropped_softmax_centering": ("topic choice loses its centring term", "C1")}
+
+
+def data_bridge(path, seed, budget):
+    """Optional real data: CSV with a header, 8 numeric columns and a 0/1 truth last; every fifth row held out."""
+    try:
+        rows = np.loadtxt(path, delimiter=",", skiprows=1, ndmin=2)
+    except (OSError, ValueError) as exc:
+        return "skipped (" + type(exc).__name__ + ")"
+    if rows.shape[1] != FEATURES + 1:
+        return "skipped (needs 8 feature columns)"
+    late = np.arange(len(rows)) % 5 == 4
+    forum = build_model(FEATURES, 1, TASK_TYPES[0], np.random.default_rng(seed))
+    fit(forum, {"train": {"e": rows[~late, :-1], "y": rows[~late, -1]}}, budget, None)
+    return os.path.basename(path) + ": held-out accuracy " + "%.4f" % np.mean(predict(forum, rows[late, :-1]) == rows[late, -1])
+
+
+# ================================================================ one seed of hearings
+def brier(p, y):
+    return float(np.mean((p - y) ** 2))
+
+
+def suspend(p):
+    return np.where(np.abs(p - 0.5) < RIVAL_BAND, 0.5, p)
+
+
+def run_seed(seed, mode):
+    docket = world(seed)
+    law, held, shifted = docket["law"], docket["heldout"], docket["shifted"]
+    forum = build_model(FEATURES, 1, TASK_TYPES[0], np.random.default_rng(seed + 1))
+    lone = build_model(FEATURES, 1, TASK_TYPES[0], np.random.default_rng(seed + 2), one_sided=True)
+    fit(forum, docket, UPDATES[mode], None)
+    fit(lone, docket, UPDATES[mode], None)
+    final = lambda f, part: checked_by_law(f, part["e"], hear(f, part["e"])["p"], law)
+    full_h, full_s = final(forum, held), final(forum, shifted)
+    loud = dict(forum, voice=ASYMMETRIC)
+    scores = {"forum_held": brier(full_h, held["y"]), "forum_shift": brier(full_s, shifted["y"]),
+              "lone_shift": brier(final(lone, shifted), shifted["y"]), "rival": brier(suspend(full_h), held["y"]),
+              "asym": brier(final(loud, held), held["y"]), "silent": brier(final(knockout(forum, "adversary", "silent"), held), held["y"]),
+              "unrevised": brier(final(knockout(forum, "revision", "off"), held), held["y"])}
+    acc = float(np.mean((full_h > 0.5) == (held["y"] > 0.5)))
+    raw = hear(forum, held["e"])["p"]
+    revised_share = float(np.mean(((raw > 0.5) != ((held["e"] @ law) > 0))))
+    suspended = float(np.mean(np.abs(full_h - 0.5) < RIVAL_BAND))
+    return {"docket": docket, "forum": forum, "lone": lone, "scores": scores, "acc": acc, "revised": revised_share, "suspended": suspended,
+            "trivial": float(min(held["y"].mean(), 1 - held["y"].mean())),
+            "lesions": {"adversary:silent": scores["silent"] - scores["forum_held"], "revision:off": scores["unrevised"] - scores["forum_held"]},
+            "row": {"H-SIG": scores["forum_shift"] - scores["lone_shift"],
+                    "H-NEC": (scores["silent"] - scores["forum_held"]) - (scores["unrevised"] - scores["forum_held"]),
+                    "H-BLIND": scores["asym"] - scores["forum_held"], "H-RIVAL": scores["forum_held"] - scores["rival"]}}
+
+# ================================================================ the court that examines the forum
+class Court:
+    """Every method named hearing_* is one correctness test; they run in the order written and each returns (passed, note)."""
+
+    def __init__(self, first, mode):
+        self.first, self.mode, self.caught, self.gradcheck = first, mode, {}, None
+        self.limits = MIND_CARD["thresholds"]
+
+    def docket_rows(self, count=120):
+        return {k: v[:count] for k, v in self.first["docket"]["train"].items()}
+
+    def owner_gap(self, forum, rng, entries):
+        worst = 0.0
+        for party in ("judge", "pro", "con"):
+            names = [k for k, v in OWNER.items() if v == party]
+            sub = {k: forum["params"][k] for k in names}
+            batch = self.docket_rows()
+            grads = party_losses(forum, batch)[1]
+            table = finite_difference_check(sub, {k: grads[k] for k in names}, lambda f=forum, b=batch, pt=party: party_losses(f, b)[0][pt],
+                                            rng, n_entries=entries, floor=self.limits["gradcheck_floor"])
+            worst = max(worst, max(table.values()))
+        return worst
+
+    def learned(self, forum):
+        drop = 1.0 - float(np.mean(forum["history"][-20:])) / forum["history"][0]
+        held = self.first["docket"]["heldout"]
+        err = float(np.mean(predict(forum, held["e"]) != held["y"]))
+        return drop >= self.limits["loss_drop_fraction"] and err <= (1 - self.limits["margin_over_trivial"]) * self.first["trivial"], drop, err
+
+    def hearing_c1_gradient_check(self):
+        seed = self.first["seed"]
+        young = build_model(FEATURES, 1, TASK_TYPES[0], np.random.default_rng(seed + 70))
+        worst = max(self.owner_gap(young, np.random.default_rng(seed + 3), 10), self.owner_gap(self.first["forum"], np.random.default_rng(seed + 4), 10))
+        self.gradcheck = {"tensors_checked": 5, "tensors_total": 5, "max_rel_error": worst, "checked_at": ["init", "after_training_steps"],
+                          "passed": bool(worst <= self.limits["gradcheck_rel_error"])}
+        return self.gradcheck["passed"], "each tensor against its own party's objective: worst relative error " + "%.2e" % worst
+
+    def hearing_c2_determinism_finiteness(self):
+        seed_once = self.first["seed"] + 8
+        first_pass = build_model(FEATURES, 1, TASK_TYPES[0], np.random.default_rng(seed_once))
+        second_pass = build_model(FEATURES, 1, TASK_TYPES[0], np.random.default_rng(seed_once))
+        fit(first_pass, self.first["docket"], 15, None)
+        fit(second_pass, self.first["docket"], 15, None)
+        same_curve = first_pass["history"] == second_pass["history"]
+        same_brief = all(np.array_equal(first_pass["params"][k], second_pass["params"][k]) for k in first_pass["params"])
+        return bool(same_curve and same_brief), "retrying the forum from one seed repeats curve and parameters: " + str(same_curve and same_brief)
+
+    def hearing_c3_learning(self):
+        ok, drop, err = self.learned(self.first["forum"])
+        return ok, "judge loss fell " + "%.3f" % drop + " (needs 0.3); held-out error " + "%.3f" % err + " against " + "%.3f" % self.first["trivial"] + " for the commoner side"
+
+    def hearing_c4_shuffled_truth_control(self):
+        cases = self.first["docket"]["train"]
+        scrambled = np.random.default_rng(self.first["seed"] + 11).permutation(len(cases["y"]))
+        blind = build_model(FEATURES, 1, TASK_TYPES[0], np.random.default_rng(self.first["seed"] + 12))
+        fit(blind, {"train": {"e": cases["e"], "y": cases["y"][scrambled]}}, UPDATES[self.mode], None)
+        heard = self.first["docket"]["heldout"]
+        wrong = float(np.mean(predict(blind, heard["e"]) != heard["y"]))
+        need = self.limits["shuffled_ratio_min"] * self.first["trivial"]
+        return wrong >= need, "a forum taught shuffled truths errs on " + "%.3f" % wrong + " of held-out cases; it must err on at least " + "%.3f" % need
+
+    def retrial(self):
+        try:
+            forum = build_model(FEATURES, 1, TASK_TYPES[0], np.random.default_rng(self.first["seed"] + 2))
+            clean = self.owner_gap(forum, np.random.default_rng(self.first["seed"]), 3)
+            fit(forum, self.first["docket"], UPDATES[self.mode], None)
+            return bool(clean <= self.limits["gradcheck_rel_error"] and self.learned(forum)[0])
+        except FloatingPointError:
+            return False
+
+    def hearing_c5_mutant_detection(self):
+        honest = self.retrial()
+        for name in MUTANTS:
+            previous = set_mutant(name)
+            self.caught[name] = not self.retrial()
+            set_mutant(previous)
+        return honest and all(self.caught.values()), "clean retrial passes C1 and C3: " + str(honest) + "; mutants caught " + str(sum(self.caught.values())) + " of " + str(len(MUTANTS))
+
+    def hearing_c6_1_advocate_antisymmetry(self):
+        forum, e = self.first["forum"], self.first["docket"]["heldout"]["e"]
+        P = forum["params"]
+        swapped = dict(forum, params=dict(P, pro=-P["con"], con=-P["pro"]))
+        gap = float(np.abs(hear(forum, e)["margin"] + hear(swapped, -e)["margin"]).max())
+        naive = dict(forum, params=dict(P, pro=P["con"], con=P["pro"]))
+        control = float(np.abs(hear(forum, e)["margin"] + hear(naive, -e)["margin"]).max())
+        ok = gap <= self.limits["invariance_tol"] and control >= self.limits["negative_control_min_violation"]
+        return ok, "reversing the case and trading advocates' briefs reverses the margin within " + "%.1e" % gap + "; trading without reversal " + "%.1e" % control
+
+    def hearing_c6_2_locus_permutation_invariance(self):
+        forum, e = self.first["forum"], self.first["docket"]["heldout"]["e"]
+        P, order = forum["params"], np.random.default_rng(self.first["seed"] + 6).permutation(LOCI)
+        moved = dict(forum, params=dict(P, loci=P["loci"][order], pro=P["pro"][order], con=P["con"][order]))
+        gap = float(np.abs(hear(forum, e)["p"] - hear(moved, e)["p"]).max())
+        control = float(np.abs(hear(forum, e)["p"] - hear(dict(forum, params=dict(P, loci=P["loci"][order])), e)["p"]).max())
+        ok = gap <= self.limits["invariance_tol"] and control >= self.limits["negative_control_min_violation"]
+        return ok, "renumbering the loci everywhere moves verdicts " + "%.1e" % gap + "; renumbering the bank alone " + "%.1e" % control
+
+    def hearing_c6_3_no_suspension_definition(self):
+        docket = self.first["docket"]
+        p = checked_by_law(self.first["forum"], docket["heldout"]["e"], hear(self.first["forum"], docket["heldout"]["e"])["p"], docket["law"])
+        ok = bool(np.all(np.isfinite(p)) and np.all((p > 0) & (p < 1)))
+        return ok, "every case receives a graded verdict strictly between 0 and 1 (definition check)"
+
+    def hearing_c7_split_integrity(self):
+        d = self.first["docket"]
+        prints = {k: {hashlib.sha256(r.tobytes()).hexdigest() for r in d[k]["e"]} for k in CASES}
+        apart = not (prints["train"] & prints["heldout"] or prints["train"] & prints["shifted"] or prints["heldout"] & prints["shifted"])
+        return apart, "no case heard in two splits: " + str(apart)
+
+    def sit(self):
+        minutes = []
+        for name, method in vars(type(self)).items():
+            if name.startswith("hearing_"):
+                code = name.split("_")[1].upper() + ("." + name.split("_")[2] if name.split("_")[2].isdigit() else "")
+                label = "_".join(name.split("_")[3:] if name.split("_")[2].isdigit() else name.split("_")[2:])
+                passed, note = method(self)
+                minutes.append((code, label, bool(passed), note))
+        return minutes
+
+
+def set_mutant(name):
+    global ACTIVE_MUTANT
+    old, ACTIVE_MUTANT = ACTIVE_MUTANT, name
+    return old
+
+
+# ================================================================ minutes, verdicts and the command line
+def four(x):
+    return "%+.4f" % x
+
+
+def span_text(ci):
+    return "not evaluated" if ci is None else "[" + four(ci[0]) + ", " + four(ci[1]) + "]"
+
+
+def weigh(runs, first, evaluated):
+    """Hypotheses and lesions share one resampling routine; with fewer than five seeds nothing is decided."""
+    draw = np.random.default_rng(first + 9973)
+
+    def settle(key_path):
+        sample = np.array([key_path(run) for run in runs])
+        return paired_bootstrap(sample, draw) if evaluated else (float(sample.mean()), None)
+    registered = MIND_CARD["hypotheses"]
+    settled = [(spec, settle(lambda run, i=spec["id"]: run["row"][i])) for spec in registered]
+    hyps = [dict(id=spec["id"], metric=spec["metric"], mean_diff=mc[0], ci95=mc[1], mesi=spec["mesi"], n_seeds=len(runs),
+                 verdict=(verdict(mc[0], mc[1], spec["mesi"], spec["direction"]) if evaluated else "not evaluated")) for spec, mc in settled]
+    lesion_keys = list(runs[0]["lesions"])
+    lesions = []
+    for label, mc in zip(lesion_keys, [settle(lambda run, k=k: run["lesions"][k]) for k in lesion_keys]):
+        part, how = label.split(":")
+        lesions.append(dict(module=part, mode=how, signature=(part == "adversary"), metric_change=mc[0], ci95=mc[1]))
+    return hyps, lesions
+
+
+def minutes_text(mode, seeds, runs, court, sat, hyps, lesions, bridge, took, code):
+    mean = lambda f: float(np.mean([f(r) for r in runs]))
+    g, caught = court.gradcheck, court.caught
+    text = ["=== VERIFIED REPORT · chapter 0103 ===",
+            "file: " + os.path.basename(__file__) + " · card_revision " + str(MIND_CARD["card_revision"]) + " · mode " + mode + " · mutant " + str(ACTIVE_MUTANT),
+            "environment: python " + sys.version.split()[0] + " · numpy " + np.__version__,
+            "seeds: " + str(seeds) + " · runtime_s " + "%.1f" % took + " · budget_s " + "%.0f" % TIME_BUDGET[mode],
+            "n_params: forum " + str(n_params(runs[0]["forum"])) + " · one-sided forum " + str(n_params(runs[0]["lone"])),
+            "gradcheck: " + str(g["tensors_checked"]) + "/" + str(g["tensors_total"]) + " tensors at init and after training · max_rel_error " + "%.2e" % g["max_rel_error"] + " · passed " + str(g["passed"]),
+            "correctness:"]
+    text += ["  " + c.ljust(5) + " " + n.ljust(32) + " " + ("PASS" if ok else "FAIL") + "  " + note for c, n, ok, note in sat]
+    text.append("mutants: " + str(sum(caught.values())) + "/" + str(len(MUTANTS)) + " detected · score " + "%.2f" % (sum(caught.values()) / len(MUTANTS)) + " · "
+                + ", ".join(k + (" caught" if caught.get(k) else " missed") for k in MUTANTS))
+    text.append("hypotheses (paired over seeds; 95% percentile bootstrap of the mean, 2000 resamples):")
+    text += ["  " + h["id"].ljust(8) + " mean_diff " + four(h["mean_diff"]) + " ci95 " + span_text(h["ci95"]) + " mesi " + str(h["mesi"]) + " seeds " + str(h["n_seeds"]) + " -> " + h["verdict"] for h in hyps]
+    text.append("knockouts (forum, held-out Brier change):")
+    text += ["  " + k["module"].ljust(10) + " " + k["mode"].ljust(7) + " signature " + str(k["signature"]).ljust(5) + " " + four(k["metric_change"]) + " ci95 " + span_text(k["ci95"]) for k in lesions]
+    text.append("Brier (seed mean): forum held-out " + "%.4f" % mean(lambda r: r["scores"]["forum_held"]) + " · forum shifted " + "%.4f" % mean(lambda r: r["scores"]["forum_shift"])
+                + " · one-sided shifted " + "%.4f" % mean(lambda r: r["scores"]["lone_shift"]) + " · Pyrrhonist suspension " + "%.4f" % mean(lambda r: r["scores"]["rival"])
+                + " · asymmetric eloquence " + "%.4f" % mean(lambda r: r["scores"]["asym"]))
+    text.append("forum (seed mean): held-out accuracy " + "%.3f" % mean(lambda r: r["acc"]) + " · verdicts revised by the law " + "%.3f" % mean(lambda r: r["revised"])
+                + " · cases a Pyrrhonist would suspend " + "%.3f" % mean(lambda r: r["suspended"]) + " · commoner-side error " + "%.3f" % mean(lambda r: r["trivial"]))
+    text += ["real-data bridge: " + bridge, "task_types: " + ", ".join(TASK_TYPES), "exit_code: " + str(code), "=== END REPORT ==="]
+    return text
+
+
+def protocol(mode, first, count, json_path, data_path):
+    began, seeds = time.time(), list(range(first, first + count))
+    print("chapter 0103 · mode " + mode + " · seeds " + str(seeds) + " · mutant " + str(ACTIVE_MUTANT), flush=True)
+    runs = [run_seed(s, mode) for s in seeds]
+    court = Court(dict(runs[0], seed=first), mode)
+    sat = court.sit()
+    hyps, lesions = weigh(runs, first, mode == "full" and count >= 5)
+    bridge = data_bridge(data_path, first, UPDATES[mode]) if data_path else "skipped (no --data PATH given)"
+    took = time.time() - began
+    within = took <= TIME_BUDGET[mode]
+    sat.append(("C8", "budget", within, "%.1f s of %.0f s" % (took, TIME_BUDGET[mode])))
+    other_failures = any(not ok for c, _, ok, _ in sat if c != "C8")
+    code = 1 if other_failures else (0 if within else 3)
+    fields = ("schema_version", "chapter", "file", "card_revision", "environment", "seeds", "runtime_s", "n_params", "gradcheck", "correctness",
+              "mutants", "hypotheses", "knockouts", "task_types", "exit_code")
+    found = sum(court.caught.values())
+    values = ["1.0", 103, os.path.basename(__file__), MIND_CARD["card_revision"], {"python": sys.version.split()[0], "numpy": np.__version__}, seeds,
+              round(took, 2), n_params(runs[0]["forum"]), court.gradcheck, [{"id": c, "name": n, "passed": ok, "detail": d} for c, n, ok, d in sat],
+              {"detected": found, "total": len(MUTANTS), "score": found / len(MUTANTS)}, hyps, lesions, TASK_TYPES, code]
+    record = {}
+    for key, value in zip(fields, values):
+        record[key] = value
+    write_report(minutes_text(mode, seeds, runs, court, sat, hyps, lesions, bridge, took, code), record, json_path)
+    return code
+
+
+SWITCHES = "quick card"
+VALUES = "seed:int seeds:int json:str mutant:str data:str"
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(prog=os.path.basename(__file__), description="Chapter 0103: the forum of the probable.")
+    for word in SWITCHES.split():
+        parser.add_argument("--" + word, action="store_true")
+    for item in VALUES.split():
+        word, kind = item.split(":")
+        parser.add_argument("--" + word, type={"int": int, "str": str}[kind], default=(0 if word == "seed" else None))
+    args = parser.parse_args(argv)
+    if args.card:
+        print(json.dumps(MIND_CARD, indent=2, ensure_ascii=False))
+        return 0
+    how_many = args.seeds if args.seeds is not None else (1 if args.quick else 5)
+    usable = how_many >= 1 and (args.mutant is None or args.mutant in MUTANTS)
+    if not usable:
+        print("invalid --seeds or --mutant", file=sys.stderr)
+        return 2
+    set_mutant(args.mutant)
+    try:
+        outcome = protocol("quick" if args.quick else "full", args.seed, how_many, args.json, args.data)
+    except FloatingPointError as exc:
+        print("non-finite values: " + str(exc), file=sys.stderr)
+        outcome = 4
+    return outcome
 
 
 if __name__ == "__main__":
-    demo()
-
-class OratoryStyleAnalyzer:
-    """Analyze Cicero's oratory styles."""
-    def __init__(self):
-        self.styles = {
-            "deliberative": "Political advice, encouraging or discouraging action",
-            "judicial": "Legal argumentation, accusation or defense",
-            "epideictic": "Ceremonial, praise or blame"
-        }
-
-    def classify_oratory(self, text: str) -> List[str]:
-        matches = []
-        text_lower = text.lower()
-        if any(word in text_lower for word in ["should", "must", "ought", "propose"]):
-            matches.append("deliberative")
-        if any(word in text_lower for word in ["crime", "guilt", "innocent", "justice"]):
-            matches.append("judicial")
-        if any(word in text_lower for word in ["honor", "praise", "glory", "famous"]):
-            matches.append("epideictic")
-        return matches if matches else ["unknown"]
-
-    def style_description(self, style: str) -> str:
-        return self.styles.get(style, "Unknown style")
-
-
-class PoliticalAllianceTracker:
-    """Track political alliances in the Late Republic."""
-    def __init__(self):
-        self.alliances: Dict[str, Set[str]] = {}
-
-    def form_alliance(self, person1: str, person2: str) -> None:
-        if person1 not in self.alliances:
-            self.alliances[person1] = set()
-        if person2 not in self.alliances:
-            self.alliances[person2] = set()
-        self.alliances[person1].add(person2)
-        self.alliances[person2].add(person1)
-
-    def break_alliance(self, person1: str, person2: str) -> None:
-        if person1 in self.alliances:
-            self.alliances[person1].discard(person2)
-        if person2 in self.alliances:
-            self.alliances[person2].discard(person1)
-
-    def allies_of(self, person: str) -> Set[str]:
-        return self.alliances.get(person, set())
-
-    def common_allies(self, person1: str, person2: str) -> Set[str]:
-        return self.allies_of(person1) & self.allies_of(person2)
-
-
-class LegalArgumentBuilder:
-    """Build legal arguments in Roman style."""
-    def __init__(self):
-        self.arguments: List[Dict[str, Any]] = []
-
-    def build_argument(self, charge: str, evidence: List[str],
-                     witnesses: List[str], laws: List[str],
-                     precedent: Optional[str] = None) -> Dict[str, Any]:
-        argument = {
-            "charge": charge,
-            "evidence": evidence,
-            "witnesses": witnesses,
-            "laws": laws,
-            "precedent": precedent
-        }
-        self.arguments.append(argument)
-        return argument
-
-    def strongest_argument(self) -> Optional[Dict[str, Any]]:
-        if not self.arguments:
-            return None
-        return max(self.arguments, key=lambda x: len(x["evidence"]))
-
-
-class RhetoricalDeviceAnalyzer:
-    """Analyze rhetorical devices in speeches."""
-    def __init__(self):
-        self.devices = {
-            "anaphora": ["repeated_first", "repetition_at_start"],
-            "epistrophe": ["repeated_end", "repetition_at_end"],
-            "antithesis": ["contrast", "opposition"],
-            "rhetorical_question": ["question_not_answered"],
-            "tricolon": ["three_parts", "triple"]
-        }
-
-    def detect_device(self, text: str) -> List[str]:
-        found = []
-        for device, patterns in self.devices.items():
-            if any(p.replace("_", " ") in text.lower() for p in patterns):
-                found.append(device)
-        return found
-
-    def device_count(self, text: str) -> Dict[str, int]:
-        counts = {}
-        for device in self.devices:
-            if device in self.detect_device(text):
-                counts[device] = counts.get(device, 0) + 1
-        return counts
-
-
-class PhilosophicalInfluenceMapper:
-    """Map philosophical influences on Cicero."""
-    def __init__(self):
-        self.influences: Dict[str, List[str]] = {
-            "Plato": ["Academy", "dialogue_form", "theory_of_forms"],
-            "Aristotle": ["Peripatetics", "rhetoric_treatises", "ethics"],
-            "Stoics": ["duty_concept", "natural_law", "cosmopolitanism"],
-            "Epicureans": ["pleasure_ethics", "withdrawal_from_politics"]
-        }
-
-    def get_influences(self, philosopher: str) -> List[str]:
-        return self.influences.get(philosopher, [])
-
-    def all_influences(self) -> Dict[str, List[str]]:
-        return self.influences
-
-
-class CorrespondenceNetworkAnalyzer:
-    """Analyze Cicero's correspondence network."""
-    def __init__(self):
-        self.letters: List[Dict[str, Any]] = []
-
-    def add_letter(self, sender: str, recipient: str, date: str,
-                  subject: str, tone: str) -> None:
-        self.letters.append({
-            "sender": sender,
-            "recipient": recipient,
-            "date": date,
-            "subject": subject,
-            "tone": tone
-        })
-
-    def correspondence_between(self, person1: str, person2: str) -> List[Dict[str, Any]]:
-        return [l for l in self.letters
-                if {l["sender"], l["recipient"]} == {person1, person2}]
-
-    def most_frequent_correspondent(self, person: str) -> Optional[str]:
-        correspondent_counts: Dict[str, int] = {}
-        for letter in self.letters:
-            if letter["sender"] == person:
-                other = letter["recipient"]
-            elif letter["recipient"] == person:
-                other = letter["sender"]
-            else:
-                continue
-            correspondent_counts[other] = correspondent_counts.get(other, 0) + 1
-        if not correspondent_counts:
-            return None
-        return max(correspondent_counts.items(), key=lambda x: x[1])[0]
-
-
-class PoliticalCareerReconstructor:
-    """Reconstruct Cicero's political career."""
-    def __init__(self):
-        self.positions: List[Dict[str, Any]] = []
-
-    def add_position(self, office: str, year: int,
-                    achievements: List[str], challenges: List[str]) -> None:
-        self.positions.append({
-            "office": office,
-            "year": year,
-            "achievements": achievements,
-            "challenges": challenges
-        })
-
-    def career_timeline(self) -> List[Dict[str, Any]]:
-        return sorted(self.positions, key=lambda x: x["year"])
-
-    def positions_in_year_range(self, start_year: int, end_year: int) -> List[Dict[str, Any]]:
-        return [p for p in self.positions if start_year <= p["year"] <= end_year]
-
-
-class LiteraryWorkClassifier:
-    """Classify Cicero's literary works."""
-    def __init__(self):
-        self.works: Dict[str, str] = {
-            "De Oratore": "philosophical_dialogue",
-            "Orator": "rhetorical_treatise",
-            "Brutus": "historical_essay",
-            "De Re Publica": "philosophical_dialogue",
-            "De Legibus": "philosophical_dialogue",
-            "Letters to Atticus": "personal_correspondence",
-            "Philippics": "political_oratory"
-        }
-
-    def classify_work(self, title: str) -> Optional[str]:
-        return self.works.get(title)
-
-    def works_by_type(self, work_type: str) -> List[str]:
-        return [title for title, wt in self.works.items() if wt == work_type]
-
-
-if __name__ == "__main__":
-    demo()
-
-
-class LegalCaseAnalyzer:
-    """Analyze specific legal cases from Cicero's career."""
-    def __init__(self):
-        self.cases: List[Dict[str, Any]] = []
-
-    def add_case(self, case_name: str, year: int, client: str,
-                charges: List[str], verdict: str,
-                cicero_role: str) -> None:
-        self.cases.append({
-            "case_name": case_name,
-            "year": year,
-            "client": client,
-            "charges": charges,
-            "verdict": verdict,
-            "role": cicero_role
-        })
-
-    def cases_in_year(self, year: int) -> List[Dict[str, Any]]:
-        return [c for c in self.cases if c["year"] == year]
-
-    def won_cases(self) -> List[Dict[str, Any]]:
-        return [c for c in self.cases if "guilty" not in c["verdict"].lower()]
-
-
-class OratoricalTechniqueLibrary:
-    """Library of Cicero's oratorical techniques."""
-    def __init__(self):
-        self.techniques = {
-            "exordium": "Opening that gains audience attention",
-            "narratio": "Presentation of facts",
-            "argumentatio": "Proof and refutation",
-            "peroratio": "Emotional conclusion"
-        }
-
-    def get_technique(self, name: str) -> Optional[str]:
-        return self.techniques.get(name)
-
-    def all_techniques(self) -> List[str]:
-        return list(self.techniques.keys())
-
-
-class ConstitutionalPrincipleExtractor:
-    """Extract constitutional principles from Cicero's works."""
-    def __init__(self):
-        self.principles: Dict[str, List[str]] = {
-            "Separation of Powers": ["consul", "senate", "people"],
-            "Rule of Law": ["law", "legal", "justice"],
-            "Popular Sovereignty": ["people", "populus", "assembly"]
-        }
-
-    def find_principles(self, text: str) -> List[str]:
-        text_lower = text.lower()
-        found = []
-        for principle, keywords in self.principles.items():
-            if any(kw in text_lower for kw in keywords):
-                found.append(principle)
-        return found
-
-
-class HistoricalPrecedentFinder:
-    """Find historical precedents cited by Cicero."""
-    def __init__(self):
-        self.precedents: List[Dict[str, str]] = []
-
-    def add_precedent(self, era: str, figure: str, event: str,
-                     cicero_citation: str) -> None:
-        self.precedents.append({
-            "era": era,
-            "figure": figure,
-            "event": event,
-            "citation": cicero_citation
-        })
-
-    def precedents_from_era(self, era: str) -> List[Dict[str, str]]:
-        return [p for p in self.precedents if p["era"] == era]
-
-    def precedents_about_figure(self, figure: str) -> List[Dict[str, str]]:
-        return [p for p in self.precedents if p["figure"] == figure]
-
-
-class RhetoricalSituationClassifier:
-    """Classify rhetorical situations Cicero faced."""
-    def __init__(self):
-        self.situations: List[Dict[str, Any]] = []
-
-    def add_situation(self, context: str, audience: str,
-                     purpose: str, constraints: List[str],
-                     appropriate_style: str) -> None:
-        self.situations.append({
-            "context": context,
-            "audience": audience,
-            "purpose": purpose,
-            "constraints": constraints,
-            "style": appropriate_style
-        })
-
-    def situations_in_context(self, context: str) -> List[Dict[str, Any]]:
-        return [s for s in self.situations if context in s["context"]]
-
-
-class LatinPhraseCollector:
-    """Collect important Latin phrases from Cicero."""
-    def __init__(self):
-        self.phrases: Dict[str, str] = {
-            "Carthago delenda est": "The city of Carthage must be destroyed",
-            "O tempora! O mores!": "O the times! O the customs!",
-            "Veni, vidi, vici": "I came, I saw, I conquered (Caesar, not Cicero)",
-            "Dulce et decorum est": "It is sweet and honorable (Horace)",
-            "Salus populi suprema lex": "The welfare of the people is the supreme law"
-        }
-
-    def translate_phrase(self, phrase: str) -> Optional[str]:
-        return self.phrases.get(phrase)
-
-    def all_phrases(self) -> Dict[str, str]:
-        return self.phrases
-
-
-class OratoricalSuccessMetrics:
-    """Measure success of oratorical efforts."""
-    def __init__(self):
-        self.metrics_weights = {
-            "persuasion": 0.4,
-            "eloquence": 0.3,
-            "logic": 0.2,
-            "emotional_appeal": 0.1
-        }
-
-    def calculate_success(self, persuasion_score: float,
-                        eloquence_score: float,
-                        logic_score: float,
-                        emotion_score: float) -> float:
-        return (persuasion_score * 0.4 +
-                eloquence_score * 0.3 +
-                logic_score * 0.2 +
-                emotion_score * 0.1)
-
-
-if __name__ == "__main__":
-    demo()
+    sys.exit(main())

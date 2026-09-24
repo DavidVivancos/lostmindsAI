@@ -58,7 +58,8 @@ tested component (see `demo_single_neuron`).
 HOW TO RUN
 ----------
     python3 chapter_0001_gilgamesh_-2700.py            # full demo: trains, stages grief, prints plots
-    python3 chapter_0001_gilgamesh_-2700.py --test     # runs the self-test suite and exits
+    python3 chapter_0001_gilgamesh_-2700.py            # runs the verification protocol (default)
+    python3 chapter_0001_gilgamesh_-2700.py --demo     # prints the narrative demonstration
     python3 chapter_0001_gilgamesh_-2700.py --quiet    # demo without the ASCII plots
 
 Requires: numpy. No other third-party dependencies.
@@ -329,6 +330,46 @@ class TwoLayerNet:
     def load_state(self, st: dict) -> None:
         for k in ("W1", "b1", "W2", "b2"):
             setattr(self, k, np.array(st[k]))
+
+
+def gradient_check_twolayer(n_in: int = 5, n_hidden: int = 7, n: int = 40, train_steps: int = 60, seed: int = 2700,
+                            eps: float = 1e-6, tol: float = 1e-5) -> float:
+    """[A] C1: TwoLayerNet.backward against central finite differences, over every tensor (W1, b1, W2, b2),
+    at initialization and again after `train_steps` plain training steps. Returns the worst relative error."""
+    rng = np.random.default_rng(seed)
+    X, T = rng.normal(size=(n, n_in)), rng.normal(size=(n, 1))
+    net = TwoLayerNet(n_in, n_hidden, rng)
+
+    def loss_of(model):
+        y, _ = model.forward(X)
+        return 0.5 * float(np.sum((y - T) ** 2)) / n
+
+    def worst_error(model):
+        y, cache = model.forward(X)
+        analytic = model.backward(cache, (y - T) / n)
+        worst = 0.0
+        for name in ("W1", "b1", "W2", "b2"):
+            tensor = getattr(model, name)
+            for idx in np.ndindex(tensor.shape):
+                keep = tensor[idx]
+                tensor[idx] = keep + eps
+                up = loss_of(model)
+                tensor[idx] = keep - eps
+                down = loss_of(model)
+                tensor[idx] = keep
+                numeric = (up - down) / (2 * eps)
+                rel = abs(numeric - analytic[name][idx]) / max(abs(numeric) + abs(analytic[name][idx]), 1e-8)
+                worst = max(worst, rel)
+        return worst
+
+    at_init = worst_error(net)
+    for _ in range(train_steps):
+        y, cache = net.forward(X)
+        net.apply(net.backward(cache, (y - T) / n), lr=0.05)
+    after = worst_error(net)
+    worst = max(at_init, after)
+    assert worst <= tol, "TwoLayerNet.backward disagrees with finite differences (worst relative error %.2e)" % worst
+    return worst
 
 
 def mse(pred: np.ndarray, target: np.ndarray) -> float:
@@ -666,6 +707,8 @@ def _print_report(m: dict, log: TrainLog) -> None:
 # ===========================================================================
 
 def run_tests() -> int:
+    worst_grad = gradient_check_twolayer()
+    print("C1 gradient check (TwoLayerNet, every tensor, init and after 60 steps): worst relative error %.2e" % worst_grad)
     m = run_demo(quiet=True)
 
     # 1) the mind learns while companioned
@@ -708,7 +751,7 @@ def run_tests() -> int:
     # 10) deep memory was written
     assert m["archive_size"] >= 5, "gidim archive should accumulate snapshots"
 
-    print("Neuron.py self-tests: ALL PASSED.")
+    print("%s self-tests: ALL PASSED." % os.path.basename(__file__))
     print(f"  companioned_best={m['companioned_best_loss']:.4f} "
           f"spike={m['spike_loss_at_death']:.4f} "
           f"post_grief_best={m['post_grief_best_loss']:.4f}")
@@ -723,11 +766,12 @@ def run_tests() -> int:
 # ===========================================================================
 
 def main(argv: List[str]) -> int:
-    if "--test" in argv:
-        return run_tests()
-    run_demo(quiet=("--quiet" in argv))
-    print("\n(Use `--test` to run the self-test suite.)")
-    return 0
+    """The default run executes the verification protocol; --demo prints the narrative demonstration instead."""
+    if "--demo" in argv:
+        run_demo(quiet=("--quiet" in argv))
+        print("\n(Run without --demo to execute the verification protocol.)")
+        return 0
+    return run_tests()
 
 
 if __name__ == "__main__":

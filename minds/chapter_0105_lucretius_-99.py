@@ -1,2103 +1,889 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# BEGIN ATTRIBUTION
+# Encyclopedia of Lost Minds: Echoes on AI · Chapter 0105 · Lucretius
+# By David Vivancos · https://www.vivancos.com/ · https://lostmindsai.com
+# Tome 6, Minds 101-120: https://www.amazon.com/dp/B0HF7G6JJD · Demos: https://artificiology.com/
+# END ATTRIBUTION
+"""Clinamen Engine: a field of atoms that falls in parallel until a learned minimal swerve breaks the symmetry.
+
+Thesis
+    Identical atoms falling in parallel make nothing; combination begins only when
+    they deviate, and the deviation must be the least that suffices.
+
+Evidence and provenance
+    Provenance is belief: the mechanism rests on Lucretius' own poem (Latin as in
+    the Perseus text). Cicero is a hostile ancient witness; O'Keefe is scholarship.
+    D1  DRN 2.216-224: bodies falling straight down by their own weight deviate a
+        little at no fixed time or place; otherwise they would fall like raindrops,
+        no blow would occur and nature would have created nothing.
+    D2  DRN 2.225-242: in the void all bodies fall at equal speed, so heavier ones
+        cannot overtake lighter ones and cause the blows.
+    D3  DRN 2.243-250: the deviation is no more than the least, lest we invent
+        oblique motions that reality refutes; no one can see that atoms never swerve.
+    D4  DRN 2.251-262: the swerve breaks the bonds of fate and grounds free will;
+        we swerve not at a fixed time or place but where the mind has carried us.
+    D5  Cicero, De Fato 22: a third motion besides weight and blow, a swerve by the
+        minimal interval, introduced to escape the necessity of fate.
+    D6  Cicero, De Fato 23: Democritus preferred that everything happen by
+        necessity; Carneades held that Epicureans could defend voluntary motion
+        without the swerve.
+    D7  Cicero, De Finibus 1.17-18: Democritus' atoms move from eternity in a void
+        with no top or bottom and cohere through collisions; Epicurus made them
+        fall straight down by weight.
+    D8  Cicero, De Finibus 1.19-20: the swerve is uncaused, a childish fiction; if
+        all atoms swerve none will cohere, and if only some do it is like assigning
+        provinces to atoms.
+    D9  O'Keefe 1996; 2005: whether the swerve is needed to start collisions, when
+        atomic motion has no beginning, is a live question in scholarship.
+    D10 DRN 4.823-857: nothing in the body was born so that we might use it; the
+        use follows what is born.
+
+Doctrine -> mechanism -> test (IDs as in MIND_CARD)
+    D1 D2  M1 pondus: linear drift; at a symmetric start every atom is identical  C6.1
+    D1 D3  M2 clinamen: reparameterized Gaussian swerve with a learned per-atom
+           scale and a penalty on its mean (paulum)                 C1 C6.2 H-SIG H-NEC
+    D8     M2 against untuned uniform noise of matched average scale             H-SIG
+    D1     M3 concilium: tanh collision gate forming distinct compound features  C6.2
+    D10    M4 eventa: linear readout of the whole field; gradient descent        C3
+    D6 D7  rival: independent random start, deterministic training, no swerve    H-RIVAL
+    D7 D9  blind spot: that disordered start with and without the swerve         H-BLIND
+
+Research question (open-endedness and creativity)
+    In a learning system that starts symmetric, does a learned, minimal, per-unit
+    deviation break the symmetry better than untuned noise of the same average size,
+    and does a symmetric start with a swerve do better than the ordinary remedy of a
+    disordered start and deterministic training?
+
+Closest prior art and the delta
+    Gaussian noise injection (Bishop 1995), learned noise scales for exploration
+    (NoisyNets, Fortunato et al. 2018), learned Gaussian noise with the
+    reparameterization trick (Kingma, Salimans and Welling 2015), and symmetry
+    breaking by random initialization. Overlap is high, so the contribution is the
+    test. Baseline: untuned noise from the same symmetric start (size-matched).
+    Rival: the Democritean engine of chapter 0066 (disordered start, no swerve).
+
+Blind spot
+    The swerve answers a hypothetical symmetric start. When the atoms already move in
+    disorder, the posited deviation should add nothing but noise.
+
+Task (generative process)
+    Latents a, b, c ~ N(0, 1) lie on three random orthonormal directions of R^8;
+    x = a u1 + b u2 + c u3 + Gaussian noise (s.d. 0.3; shifted split 0.6).
+    Label y = 2[a b > 0] + [c > 0]: four classes, two of them separated by an XOR, so
+    a field whose atoms stay identical cannot solve the task.
+    Splits: train 512, held-out 1024, shifted 1024.
+    Starts: fall (every atom identical on input and output sides), near-fall (fall
+    plus independent jitter of 1e-3 of the initial scale), disorder (independent
+    random atoms).
+
+Limits
+    One field of eight atoms; synthetic data; the swerve acts during training and is
+    switched off at evaluation. Nothing here models free will or feeling. A research
+    prototype of one mechanism, not an AGI and not a claim to reproduce Lucretius' mind.
 """
-Figure 105: Lucretius (-99 CE)
-Domain: philosophy, Epicureanism, Roman
-========================
-# Part of the Encyclopedia of Lost Minds: Echoes on AI By David Vivancos https://www.vivancos.com/
-# How History's Greatest Thinkers Would Have Thought About AGI  https://lostmindsai.com
-# Tome 6 Minds 101 - 120 Available on Amazon https://www.amazon.com/dp/B0HF7G6JJD
-# Resume and Interactive Demos at https://artificiology.com/
-# Author: David Vivancos · Chapter 105: Lucretius (-99 CE)
-================================================================================
 
+MIND_CARD = {
+    "schema_version": "1.0",
+    "card_revision": 1,
+    "revision_log": [],
+    "generation": {"template_version": "codeguidelines 1.0 (15 September 2026), Appendix A",
+                   "generator": "Claude (Anthropic)", "generator_version": "claude-opus-5", "date": "2026-09-15"},
+    "id": 105, "figure": "Lucretius", "born": -99, "died": -55, "civilization": "Roman",
+    "provenance": "belief",
+    "thesis": ("Identical atoms falling in parallel make nothing; combination begins only when they deviate, and "
+               "the deviation must be the least that suffices."),
+    "evidence": [
+        {"id": "D1", "claim": "Bodies falling straight down by their own weight deviate a little at no fixed time or "
+         "place; otherwise they would fall like raindrops and nature would have created nothing.",
+         "basis": "primary", "source": "Lucretius, De Rerum Natura 2.216-224"},
+        {"id": "D2", "claim": "In the void all bodies fall at equal speed, so heavier ones cannot overtake lighter ones "
+         "and cause blows.", "basis": "primary", "source": "Lucretius, De Rerum Natura 2.225-242"},
+        {"id": "D3", "claim": "The deviation is no more than the least, lest oblique motions be invented that reality "
+         "refutes; no one can see that atoms never swerve.", "basis": "primary",
+         "source": "Lucretius, De Rerum Natura 2.243-250"},
+        {"id": "D4", "claim": "The swerve breaks the bonds of fate and grounds free will; we swerve not at a fixed time "
+         "or place but where the mind has carried us.", "basis": "primary",
+         "source": "Lucretius, De Rerum Natura 2.251-262"},
+        {"id": "D5", "claim": "Epicurus added a third motion besides weight and blow, a swerve by the minimal interval, "
+         "to escape the necessity of fate (hostile ancient testimony).", "basis": "scholarship",
+         "source": "Cicero, De Fato 22"},
+        {"id": "D6", "claim": "Democritus preferred that everything happen by necessity; Carneades held that Epicureans "
+         "could defend voluntary motion without the swerve (hostile ancient testimony).", "basis": "scholarship",
+         "source": "Cicero, De Fato 23"},
+        {"id": "D7", "claim": "Democritus' atoms move from eternity in a void with no top or bottom and cohere through "
+         "collisions; Epicurus made them fall straight down by weight (hostile ancient testimony).",
+         "basis": "scholarship", "source": "Cicero, De Finibus 1.17-18"},
+        {"id": "D8", "claim": "The swerve is uncaused, a childish fiction; if all atoms swerve none will cohere, and if "
+         "only some do it is like assigning provinces to atoms (hostile ancient testimony).",
+         "basis": "scholarship", "source": "Cicero, De Finibus 1.19-20"},
+        {"id": "D9", "claim": "Whether the swerve is needed to start collisions, when atomic motion has no beginning, "
+         "is a live question in scholarship.", "basis": "scholarship",
+         "source": "O'Keefe 1996, Phronesis 41; O'Keefe 2005, Epicurus on Freedom"},
+        {"id": "D10", "claim": "Nothing in the body was born so that we might use it; the use follows what is born.",
+         "basis": "primary", "source": "Lucretius, De Rerum Natura 4.823-857"},
+    ],
+    "research_question": {
+        "category": "open-endedness and creativity",
+        "question": ("In a learning system that starts symmetric, does a learned, minimal, per-unit deviation break "
+                     "the symmetry better than untuned noise of the same average size, and does a symmetric start "
+                     "with a swerve do better than a disordered start with deterministic training?")},
+    "mechanism": {
+        "name": "Clinamen Engine (five-stage atom field with a learned minimal swerve)",
+        "family": "noise injection with a learned per-unit scale; symmetry breaking in learning systems",
+        "signature_modules": ["clinamen"],
+        "closest_prior_art": [
+            "Gaussian noise injection during training (Bishop 1995)",
+            "learned noise scales for exploration, NoisyNets (Fortunato et al. 2018)",
+            "learned Gaussian noise with the reparameterization trick (Kingma, Salimans and Welling 2015)",
+            "symmetry breaking by random initialization (standard practice)"],
+        "overlap": "High",
+        "prior_art_queries": [],
+        "prior_art_note": "No literature search was run for this card; overlap is rated against the named methods.",
+        "contribution_type": "test",
+        "delta": ("The swerve starts from an exactly symmetric field, has a learned per-atom scale pushed toward the "
+                  "least that suffices, and is tested against untuned noise of matched average scale and against "
+                  "deterministic training from a disordered start."),
+        "baselines": {
+            "baseline": ("untuned noise: same engine and symmetric start with one fixed swerve scale for all atoms, "
+                         "equal to the learned swerve's mean scale over its training run; no penalty"),
+            "rival": "Democritean engine: independent random start and deterministic training, no swerve (0066)"}},
+    "traceability": [
+        {"doctrine": "D1", "mechanism": "M2 clinamen", "property_test": "C6.1", "hypothesis": "H-NEC"},
+        {"doctrine": "D2", "mechanism": "M1 pondus (symmetric start)", "property_test": "C6.1", "hypothesis": "H-NEC"},
+        {"doctrine": "D3", "mechanism": "M2 clinamen (paulum penalty)", "property_test": "C6.2", "hypothesis": "H-SIG"},
+        {"doctrine": "D4", "mechanism": "none (free will is not modelled)", "property_test": "none", "hypothesis": "none"},
+        {"doctrine": "D5", "mechanism": "M2 clinamen", "property_test": "C6.2", "hypothesis": "H-SIG"},
+        {"doctrine": "D6", "mechanism": "rival engine", "property_test": "none", "hypothesis": "H-RIVAL"},
+        {"doctrine": "D7", "mechanism": "rival engine; blind-spot start", "property_test": "none",
+         "hypothesis": "H-RIVAL, H-BLIND"},
+        {"doctrine": "D8", "mechanism": "untuned baseline", "property_test": "none", "hypothesis": "H-SIG"},
+        {"doctrine": "D9", "mechanism": "blind-spot start", "property_test": "none", "hypothesis": "H-BLIND"},
+        {"doctrine": "D10", "mechanism": "M4 eventa; gradient descent", "property_test": "none", "hypothesis": "none (C3)"},
+    ],
+    "hypotheses": [
+        {"id": "H-SIG", "statement": ("From a symmetric start, the learned minimal swerve reaches higher accuracy on the "
+                                      "shifted split than untuned noise of matched average scale."),
+         "metric": "accuracy", "split": "shifted", "start": "fall",
+         "comparison": "model - baseline", "direction": "greater", "mesi": 0.02, "seeds": 5},
+        {"id": "H-NEC", "statement": ("From a nearly symmetric start, removing the swerve during training costs more "
+                                      "held-out accuracy than removing the per-atom drift offset."),
+         "metric": "accuracy", "split": "heldout", "start": "near_fall",
+         "comparison": "signature_knockout - matched_knockout", "knockouts": ["clinamen:identity", "pondus_bias:zero"],
+         "direction": "less", "mesi": 0.05, "seeds": 5},
+        {"id": "H-BLIND", "statement": ("From a disordered start the swerve is superfluous: the engine with it is less "
+                                        "accurate than the same engine trained deterministically."),
+         "condition": "disorder start",
+         "grounding": ("The swerve answers a hypothetical parallel fall (DRN 2.216-250); Democritean motion has no "
+                       "beginning (Cicero, Fin. 1.17), and whether collisions need a start is disputed (O'Keefe)."),
+         "metric": "accuracy", "split": "heldout", "comparison": "model - baseline", "direction": "less",
+         "mesi": 0.01, "seeds": 5},
+        {"id": "H-RIVAL", "statement": ("The Lucretian world (symmetric start and learned swerve) ends more accurate "
+                                        "than the Democritean world (disordered start and necessity)."),
+         "metric": "accuracy", "split": "heldout", "comparison": "model(fall) - rival(disorder)",
+         "direction": "greater", "mesi": 0.02, "seeds": 5},
+    ],
+    "thresholds": {"loss_drop_fraction": 0.3, "margin_over_trivial": 0.3, "shuffled_margin": 0.08,
+                   "gradcheck_rel_error": 1e-5, "gradcheck_floor": 1e-3, "equivariance_tol": 1e-10,
+                   "bound_tol": 1e-9, "negative_control_min_violation": 1e-6},
+    "metrics": {"accuracy": "fraction of correct argmax predictions with the swerve switched off",
+                "trivial_baseline": "majority class of the training labels",
+                "shuffled_band": "one-sided: a leak would show as held-out accuracy well above the majority rate"},
+    "training": {"optimizer": "full-batch gradient descent with momentum 0.9", "lr_grid": [0.1],
+                 "updates": {"full": 2000, "quick": 1000}, "clip_norm": 5.0,
+                 "batch": "all 512 training examples; a fresh swerve draw at every update",
+                 "model_selection": "none: final parameters", "applies_to": "every engine"},
+    "task": {"inputs": 8, "classes": 4, "atoms": 8, "label": "2[a b > 0] + [c > 0]",
+             "noise_sd": {"nominal": 0.3, "shifted": 0.6}, "splits": {"train": 512, "heldout": 1024, "shifted": 1024},
+             "swerve_init": 0.3, "paulum": 0.01, "near_fall_jitter": 1e-3,
+             "engines": ["lucretian_fall", "untuned_fall", "democritean_disorder", "lucretian_disorder",
+                         "lucretian_near", "ko_clinamen_near", "ko_pondus_bias_near", "ko_concilium_near"]},
+    "probe_predictions": [{"probe": "P9", "expected": "above baseline"},
+                          {"probe": "P10", "expected": "below baseline"}],
+    "dialectic_links": [
+        {"chapter": 66, "relation": "rival", "test": "H-RIVAL",
+         "note": "Cicero, De Fato 23 and De Finibus 1.17-20 set Epicurean swerve against Democritean necessity."},
+        {"chapter": 79, "relation": "teacher", "test": "none",
+         "note": "Lucretius expounds Epicurus; the swerve is attributed to Epicurus but not attested in his surviving works."}],
+    "corpus_neighbors": [
+        {"chapter": 79, "similarity": None, "difference": ("0079 uses a minimal swerve as a source of novelty inside a "
+                                                           "canonic epistemology; here the swerve is tested only as a "
+                                                           "symmetry breaker from an exact symmetric start, against "
+                                                           "untuned noise and random initialization.")},
+        {"chapter": 66, "similarity": None, "difference": ("0066 is deterministic atomic relaxation; here deterministic "
+                                                           "training from a disordered start is the rival engine.")},
+        {"chapter": 56, "similarity": None, "difference": ("0056 blends four roots at a critical edge; here nothing is "
+                                                           "blended: identical units are made to differ.")},
+        {"chapter": 102, "similarity": None, "difference": ("the old 0105 file shared term, syllogism and objection "
+                                                            "classes with 0102; this file shares no class with it.")},
+    ],
+    "similarity_note": "Nearest-neighbour similarity not computed: corpus files were not available to this session.",
+    "barometer": {
+        "cognitive_processing": ["learning an XOR-structured four-way task from a symmetric start"],
+        "embodied_cognition": [], "world_modeling": [], "consciousness": [], "language_understanding": [],
+        "emotional_intelligence": [], "creativity": ["feature diversity created from an exactly symmetric start"],
+        "autonomy": []},
+    "task_types": ["vector_classification"],
+    "applications": [
+        {"use": ("breaking symmetry among identical agents that share parameters, so they take different roles or "
+                 "channels without a central assigner"),
+         "sector": "multi-agent robotics and wireless networks",
+         "dataset": "PettingZoo MPE environments (simple_spread)", "readiness": "low"},
+        {"use": "exploration noise whose per-unit scale is learned under a minimality penalty",
+         "sector": "reinforcement learning for control", "dataset": "Gymnasium MuJoCo tasks", "readiness": "low"},
+        {"use": "initialization studies for tied or weight-shared networks where random initialization is unavailable",
+         "sector": "on-device machine learning", "dataset": "Fashion-MNIST", "readiness": "low"},
+    ],
+    "safety_notes": ("No hazardous content. The swerve is not presented as a model of free will or consciousness; the "
+                     "file does not claim to replicate Lucretius' mind and puts no generated words in his mouth."),
+}
 
-Lucretius's De Rerum Natura translated into a cognitive architecture.
-Five-layer system: Sensus → Atomus → Voluptas → Natura → Sapientia
-
-
-Created: 2026-04-19
-"""
-
-from __future__ import annotations
-from typing import List, Dict, Any, Optional, Set, Tuple, Union, Callable
-from dataclasses import dataclass, field
-from enum import Enum, auto
-from abc import ABC, abstractmethod
+import argparse
+import hashlib
+import itertools
+import json
 import math
-import random
-import copy
+import os
+import sys
+import time
+
+import numpy as np
+
+IN_DIM, CLASSES, ATOMS = 8, 4, 8
+NOMINAL_SD, SHIFTED_SD = 0.3, 0.6
+SPLIT_SIZES = {"train": 512, "heldout": 1024, "shifted": 1024}
+SWERVE_INIT, PAULUM, JITTER = 0.3, 0.01, 1e-3
+LR, MOMENTUM, CLIP_NORM = 0.1, 0.9, 5.0
+STEPS = {"full": 2000, "quick": 1000}
+TIME_BUDGET = {"full": 180.0, "quick": 20.0}
+TASK_TYPES = ["vector_classification"]
+ACTIVE_MUTANT = None
+np.seterr(over="raise", invalid="raise", divide="raise", under="ignore")
+
+# BEGIN STANDARD UTILITIES v1.0
+def softmax(z, axis=-1):
+    z = z - z.max(axis=axis, keepdims=True)
+    e = np.exp(z)
+    return e / e.sum(axis=axis, keepdims=True)
 
 
-# =============================================================================
-# SECTION 1: FOUNDATIONAL DATA STRUCTURES
-# =============================================================================
-
-class Term:
-    """
-    A Term is the fundamental unit of logical expression in Lucretian logic.
-    Terms can represent atoms, qualities, relations, or abstract concepts.
-    """
-    
-    def __init__(self, name: str, term_type: str = "concept", 
-                 atomic_weight: float = 1.0, properties: Optional[Dict[str, Any]] = None):
-        self.name = name
-        self.term_type = term_type
-        self.atomic_weight = atomic_weight
-        self.properties = properties or {}
-        self.id = id(self)
-    
-    def __repr__(self) -> str:
-        return f"Term(name='{self.name}', type={self.term_type}, weight={self.atomic_weight})"
-    
-    def __str__(self) -> str:
-        return self.name
-    
-    def __hash__(self) -> int:
-        return hash(self.name)
-    
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Term):
-            return False
-        return self.name == other.name
-    
-    def combine(self, other: Term, bond_type: str = "default") -> CompoundTerm:
-        """Combine two terms into a compound term."""
-        return CompoundTerm([self, other], bond_type)
-    
-    def copy(self) -> Term:
-        return Term(self.name, self.term_type, self.atomic_weight, 
-                   copy.deepcopy(self.properties))
-    
-    def get_property(self, key: str, default: Any = None) -> Any:
-        return self.properties.get(key, default)
-    
-    def set_property(self, key: str, value: Any) -> None:
-        self.properties[key] = value
+def logsumexp(z, axis=-1):
+    m = z.max(axis=axis, keepdims=True)
+    return (m + np.log(np.exp(z - m).sum(axis=axis, keepdims=True))).squeeze(axis)
 
 
-class CompoundTerm(Term):
-    """A term composed of multiple sub-terms bonded together."""
-    
-    def __init__(self, components: List[Term], bond_type: str = "default"):
-        # Use the bond type as the name
-        super().__init__(name=f"compound_{bond_type}", term_type="compound")
-        self.components = components
-        self.bond_type = bond_type
-        # Calculate composite atomic weight
-        self.atomic_weight = sum(c.atomic_weight for c in components)
-    
-    def __repr__(self) -> str:
-        return f"CompoundTerm({' + '.join(c.name for c in self.components)}, bond={self.bond_type})"
-    
-    def get_components(self) -> List[Term]:
-        return self.components.copy()
-    
-    def decompose(self) -> List[Term]:
-        """Recursively decompose into individual atoms."""
-        result = []
-        for component in self.components:
-            if isinstance(component, CompoundTerm):
-                result.extend(component.decompose())
-            else:
-                result.append(component)
-        return result
+def softplus(z):
+    return np.logaddexp(0.0, z)
 
 
-class Universal:
-    """
-    A Universal represents a general category or class of entities.
-    In Lucretian philosophy, universals represent the patterns that atoms
-    form when they combine in regular ways.
-    """
-    
-    def __init__(self, name: str, instances: Optional[List[Term]] = None,
-                 attributes: Optional[Dict[str, Any]] = None,
-                 essence: Optional[str] = None):
-        self.name = name
-        self.instances = instances or []
-        self.attributes = attributes or {}
-        self.essence = essence  # The fundamental nature of this universal
-        self.id = id(self)
-    
-    def __repr__(self) -> str:
-        return f"Universal(name='{self.name}', instances={len(self.instances)})"
-    
-    def __str__(self) -> str:
-        return f"Universal: {self.name}"
-    
-    def add_instance(self, term: Term) -> None:
-        if term not in self.instances:
-            self.instances.append(term)
-    
-    def remove_instance(self, term: Term) -> bool:
-        if term in self.instances:
-            self.instances.remove(term)
-            return True
-        return False
-    
-    def get_instances(self) -> List[Term]:
-        return self.instances.copy()
-    
-    def has_instance(self, term: Term) -> bool:
-        return term in self.instances
-    
-    def instantiate(self, name: str, **properties) -> Term:
-        """Create a new instance of this universal."""
-        term = Term(name, term_type=self.name, properties=properties)
-        self.add_instance(term)
-        return term
+def sigmoid(z):
+    return np.exp(-np.logaddexp(0.0, -z))
 
 
-class Individual:
-    """
-    An Individual represents a specific, concrete entity.
-    In Epicurean physics, all individuals are composed of atoms
-    and will eventually dissolve back into their atomic components.
-    """
-    
-    def __init__(self, name: str, atoms: Optional[List[Term]] = None,
-                 properties: Optional[Dict[str, Any]] = None,
-                 position: Optional[Tuple[float, ...]] = None,
-                 velocity: Optional[Tuple[float, ...]] = None):
-        self.name = name
-        self.atoms = atoms or []
-        self.properties = properties or {}
-        self.position = position or (0.0,) * 3  # 3D space by default
-        self.velocity = velocity or (0.0,) * 3
-        self.id = id(self)
-        self.history: List[Dict[str, Any]] = []
-    
-    def __repr__(self) -> str:
-        return f"Individual(name='{self.name}', atoms={len(self.atoms)})"
-    
-    def __str__(self) -> str:
-        return f"Individual: {self.name}"
-    
-    def add_atom(self, atom: Term) -> None:
-        self.atoms.append(atom)
-    
-    def remove_atom(self, atom: Term) -> bool:
-        if atom in self.atoms:
-            self.atoms.remove(atom)
-            return True
-        return False
-    
-    def get_atoms(self) -> List[Term]:
-        return self.atoms.copy()
-    
-    def get_mass(self) -> float:
-        return sum(a.atomic_weight for a in self.atoms)
-    
-    def move_to(self, position: Tuple[float, ...]) -> None:
-        self.position = position
-        self.record_history("move", position=position)
-    
-    def record_history(self, event_type: str, **data) -> None:
-        self.history.append({"type": event_type, "data": data})
-    
-    def copy(self) -> Individual:
-        return Individual(
-            self.name + "_copy",
-            atoms=[a.copy() for a in self.atoms],
-            properties=copy.deepcopy(self.properties),
-            position=self.position,
-            velocity=self.velocity
-        )
+def adam_init(params):
+    return {"t": 0, "m": {k: np.zeros_like(v) for k, v in params.items()},
+            "v": {k: np.zeros_like(v) for k, v in params.items()}}
 
 
-# =============================================================================
-# SECTION 2: PROPOSITION AND SYLLOGISM SYSTEM
-# =============================================================================
-
-class Proposition:
-    """
-    A Proposition is a declarative statement that can be true or false.
-    In Lucretian logic, propositions deal with physical phenomena,
-    sensations, and the nature of reality.
-    """
-    
-    class TruthValue(Enum):
-        TRUE = auto()
-        FALSE = auto()
-        UNKNOWN = auto()
-        CONTINGENT = auto()  # Depends on circumstances
-    
-    def __init__(self, subject: Union[Term, Universal, Individual],
-                 predicate: str,
-                 truth_value: TruthValue = TruthValue.UNKNOWN,
-                 evidence: Optional[List[str]] = None,
-                 counterevidence: Optional[List[str]] = None):
-        self.subject = subject
-        self.predicate = predicate
-        self.truth_value = truth_value
-        self.evidence = evidence or []
-        self.counterevidence = counterevidence or []
-        self.id = id(self)
-    
-    def __repr__(self) -> str:
-        return f"Proposition({self.subject} {self.predicate})"
-    
-    def __str__(self) -> str:
-        return f"{self.subject} {self.predicate}"
-    
-    def assert_true(self, evidence: str) -> None:
-        self.evidence.append(evidence)
-        if self.truth_value == Proposition.TruthValue.UNKNOWN:
-            self.truth_value = Proposition.TruthValue.TRUE
-    
-    def assert_false(self, counterevidence: str) -> None:
-        self.counterevidence.append(counterevidence)
-        if self.truth_value == Proposition.TruthValue.UNKNOWN:
-            self.truth_value = Proposition.TruthValue.FALSE
-    
-    def is_true(self) -> bool:
-        return self.truth_value == Proposition.TruthValue.TRUE
-    
-    def is_false(self) -> bool:
-        return self.truth_value == Proposition.TruthValue.FALSE
-    
-    def evaluate(self, context: Optional[Dict[str, Any]] = None) -> TruthValue:
-        """Evaluate the proposition in a given context."""
-        return self.truth_value
+def adam_step(params, grads, state, lr, b1=0.9, b2=0.999, eps=1e-8):
+    state["t"] += 1
+    for k in params:
+        state["m"][k] = b1 * state["m"][k] + (1.0 - b1) * grads[k]
+        state["v"][k] = b2 * state["v"][k] + (1.0 - b2) * grads[k] ** 2
+        m_hat = state["m"][k] / (1.0 - b1 ** state["t"])
+        v_hat = state["v"][k] / (1.0 - b2 ** state["t"])
+        params[k] -= lr * m_hat / (np.sqrt(v_hat) + eps)
 
 
-class Syllogism:
-    """
-    A Syllogism is a logical argument consisting of a major premise,
-    a minor premise, and a conclusion. In De Rerum Natura, Lucretius
-    uses syllogistic reasoning to demonstrate physical truths.
-    """
-    
-    def __init__(self, major_premise: Proposition,
-                 minor_premise: Proposition,
-                 conclusion: Proposition,
-                 name: str = "anonymous"):
-        self.major_premise = major_premise
-        self.minor_premise = minor_premise
-        self.conclusion = conclusion
-        self.name = name
-        self.valid = True
-        self.id = id(self)
-    
-    def __repr__(self) -> str:
-        return f"Syllogism({self.name}: {self.major_premise} → {self.conclusion})"
-    
-    def __str__(self) -> str:
-        return (
-            f"Major: {self.major_premise}\n"
-            f"Minor: {self.minor_premise}\n"
-            f"Conclusion: {self.conclusion}"
-        )
-    
-    def is_valid(self) -> bool:
-        """Check if the syllogism is logically valid."""
-        # In a valid syllogism, if both premises are true, the conclusion must be true
-        if self.major_premise.is_true() and self.minor_premise.is_true():
-            return self.conclusion.is_true()
-        return False
-    
-    def evaluate(self) -> bool:
-        """Evaluate the complete syllogism."""
-        self.valid = self.is_valid()
-        return self.valid
-    
-    def get_structure(self) -> Dict[str, Proposition]:
-        return {
-            "major_premise": self.major_premise,
-            "minor_premise": self.minor_premise,
-            "conclusion": self.conclusion
-        }
+def clip_global(grads, max_norm):
+    norm = math.sqrt(sum(float((g * g).sum()) for g in grads.values()))
+    scale = min(1.0, max_norm / (norm + 1e-12))
+    return {k: g * scale for k, g in grads.items()}, norm
 
 
-class Objection:
-    """
-    An Objection represents a counterargument or challenge to a syllogism
-    or proposition. Lucretius anticipates and addresses objections to his
-    atomic theory and naturalistic philosophy.
-    """
-    
-    def __init__(self, target: Union[Proposition, Syllogism],
-                 text: str,
-                 source: str = "anonymous",
-                 strength: float = 0.5):
-        self.target = target
-        self.text = text
-        self.source = source
-        self.strength = strength  # 0.0 to 1.0
-        self.responses: List[str] = []
-        self.id = id(self)
-    
-    def __repr__(self) -> str:
-        return f"Objection(from={self.source}, strength={self.strength})"
-    
-    def __str__(self) -> str:
-        return f"Objection: {self.text}"
-    
-    def respond(self, response: str) -> None:
-        self.responses.append(response)
-    
-    def is_strong(self) -> bool:
-        return self.strength >= 0.7
-    
-    def get_strength(self) -> float:
-        return self.strength
-    
-    def set_strength(self, strength: float) -> None:
-        self.strength = max(0.0, min(1.0, strength))
-
-
-class Resolution:
-    """
-    A Resolution addresses an objection and provides a reasoned response.
-    In Lucretian philosophy, resolutions demonstrate how objections can
-    be overcome through careful analysis of nature.
-    """
-    
-    def __init__(self, objection: Objection,
-                 text: str,
-                 reasoning: str,
-                 success: float = 1.0):
-        self.objection = objection
-        self.text = text
-        self.reasoning = reasoning
-        self.success = success  # How well it resolves the objection
-        self.id = id(self)
-    
-    def __repr__(self) -> str:
-        return f"Resolution(success={self.success})"
-    
-    def __str__(self) -> str:
-        return f"Resolution: {self.text}"
-    
-    def is_successful(self) -> bool:
-        return self.success >= 0.5
-    
-    def get_effectiveness(self) -> float:
-        return self.success
-
-
-# =============================================================================
-# SECTION 3: FIVE-LAYER COGNITIVE ARCHITECTURE
-# =============================================================================
-
-class Layer1_Sensus:
-    """
-    Layer 1: Sensus (Sensation)
-    
-    The foundation of all knowledge according to Lucretius.
-    Sensation provides the raw data that the mind processes.
-    Without sensation, there can be no thought or knowledge.
-    
-    Key principles:
-    - All knowledge comes from sensation
-    - Sensations are caused by atomic images (simulacra)
-    - The senses cannot deceive us
-    - Reason based on sensation is reliable
-    """
-    
-    def __init__(self):
-        self.sensory_data: Dict[str, List[Any]] = {}
-        self.perceptions: List[Dict[str, Any]] = []
-        self.sense_threshold = 0.1
-        self.atomic_images: List[Term] = []
-        self.id = id(self)
-    
-    def __repr__(self) -> str:
-        return f"Layer1_Sensus(sensory_channels={len(self.sensory_data)})"
-    
-    def receive_sensation(self, channel: str, data: Any) -> None:
-        """Receive raw sensory data."""
-        if channel not in self.sensory_data:
-            self.sensory_data[channel] = []
-        self.sensory_data[channel].append(data)
-    
-    def get_sensations(self, channel: str) -> List[Any]:
-        """Get all sensations for a channel."""
-        return self.sensory_data.get(channel, [])
-    
-    def form_perception(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Form a perception from sensory data."""
-        perception = {
-            "data": data,
-            "channel": data.get("channel", "unknown"),
-            "intensity": data.get("intensity", 0.0),
-            "timestamp": data.get("timestamp", 0),
-            "verified": False
-        }
-        self.perceptions.append(perception)
-        return perception
-    
-    def verify_perception(self, perception: Dict[str, Any]) -> bool:
-        """Verify a perception through consistency with other sensations."""
-        channel = perception["channel"]
-        related_channels = self._get_related_channels(channel)
-        
-        for related in related_channels:
-            if related in self.sensory_data and self.sensory_data[related]:
-                perception["verified"] = True
-                return True
-        return False
-    
-    def _get_related_channels(self, channel: str) -> List[str]:
-        """Get channels that relate to a given sensory channel."""
-        relationships = {
-            "visual": ["spatial", "temporal"],
-            "auditory": ["spatial", "temporal"],
-            "tactile": ["spatial", "thermal"],
-            "olfactory": ["temporal", "spatial"],
-            "gustatory": ["temporal"]
-        }
-        return relationships.get(channel, [])
-    
-    def process_atomic_images(self, images: List[Term]) -> List[Dict[str, Any]]:
-        """Process atomic images (simulacra) from external objects."""
-        results = []
-        for image in images:
-            result = {
-                "image": image,
-                "velocity": image.get_property("velocity", 1.0),
-                "fineness": image.get_property("fineness", 0.5),
-                "penetration": self._calculate_penetration(image)
-            }
-            results.append(result)
-            self.atomic_images.append(image)
-        return results
-    
-    def _calculate_penetration(self, image: Term) -> float:
-        """Calculate how deeply an atomic image can penetrate."""
-        velocity = image.get_property("velocity", 1.0)
-        fineness = image.get_property("fineness", 0.5)
-        weight = image.atomic_weight
-        # Penetration increases with velocity and fineness, decreases with weight
-        penetration = (velocity * fineness) / (weight + 0.1)
-        return min(1.0, penetration)
-    
-    def detect_swindon(self, threshold: float = None) -> Optional[Term]:
-        """
-        Detect the swerve (clinamen) - the random deviation of atoms.
-        This is a key feature of Epicurean physics.
-        """
-        if threshold is None:
-            threshold = self.sense_threshold
-        
-        for image in self.atomic_images:
-            swerve = image.get_property("swerve", 0.0)
-            if swerve >= threshold:
-                return image
-        return None
-    
-    def clear(self) -> None:
-        """Clear all sensory data."""
-        self.sensory_data.clear()
-        self.perceptions.clear()
-        self.atomic_images.clear()
-    
-    def get_summary(self) -> Dict[str, Any]:
-        """Get a summary of sensory state."""
-        return {
-            "channels": list(self.sensory_data.keys()),
-            "total_sensations": sum(len(v) for v in self.sensory_data.values()),
-            "perceptions": len(self.perceptions),
-            "atomic_images": len(self.atomic_images)
-        }
-
-
-class Layer2_Atomus:
-    """
-    Layer 2: Atomus (Atoms)
-    
-    The physical basis of reality according to Epicurean philosophy.
-    All things are composed of atoms - indivisible, eternal particles
-    moving through the void.
-    
-    Key principles:
-    - Atoms are solid and indivisible
-    - Atoms have various shapes and sizes
-    - Atoms move continuously in the void
-    - Atoms can combine and separate
-    - The swerve (clinamen) causes variety in motion
-    """
-    
-    def __init__(self):
-        self.atoms: List[Term] = []
-        self.primordial_void = 0.0  # The empty space atoms move through
-        self.swerves: List[Dict[str, Any]] = []
-        self.atom_registry: Dict[str, Term] = {}
-        self.id = id(self)
-    
-    def __repr__(self) -> str:
-        return f"Layer2_Atomus(atoms={len(self.atoms)})"
-    
-    def create_atom(self, name: str, weight: float, 
-                    shape: str = "spherical",
-                    properties: Optional[Dict[str, Any]] = None) -> Term:
-        """Create a primordial atom."""
-        props = properties or {}
-        props["shape"] = shape
-        atom = Term(name, term_type="atom", atomic_weight=weight, properties=props)
-        self.atoms.append(atom)
-        self.atom_registry[name] = atom
-        return atom
-    
-    def create_from_elements(self, elements: List[Tuple[str, float]]) -> List[Term]:
-        """Create atoms from element specifications."""
-        atoms = []
-        for name, weight in elements:
-            atom = self.create_atom(name, weight, properties={"origin": "elements"})
-            atoms.append(atom)
-        return atoms
-    
-    def combine_atoms(self, atoms: List[Term], bond_strength: float = 1.0) -> CompoundTerm:
-        """Combine multiple atoms into a compound."""
-        compound = CompoundTerm(atoms, bond_type="atomic")
-        compound.set_property("bond_strength", bond_strength)
-        compound.set_property("creation", "combination")
-        return compound
-    
-    def separate_atoms(self, compound: CompoundTerm) -> List[Term]:
-        """Separate compound into constituent atoms."""
-        return compound.decompose()
-    
-    def apply_swerve(self, atom: Term, angle: float) -> Dict[str, Any]:
-        """
-        Apply the swerve (clinamen) - the random deviation from
-        deterministic motion that Epicurus introduced to preserve free will.
-        """
-        swerve_result = {
-            "atom": atom,
-            "angle": angle,
-            "deviation": math.sin(angle) * atom.atomic_weight,
-            "timestamp": len(self.swerves)
-        }
-        self.swerves.append(swerve_result)
-        # Update the atom's properties
-        atom.set_property("swerve", angle)
-        atom.set_property("swerve_magnitude", swerve_result["deviation"])
-        return swerve_result
-    
-    def get_swerve(self, index: int) -> Optional[Dict[str, Any]]:
-        """Get a specific swerve event."""
-        return self.swerves[index] if index < len(self.swerves) else None
-    
-    def get_all_swerves(self) -> List[Dict[str, Any]]:
-        """Get all swerve events."""
-        return self.swerves.copy()
-    
-    def calculate_motion(self, atom: Term, time_delta: float) -> Tuple[float, ...]:
-        """Calculate the motion of an atom over time."""
-        base_velocity = atom.get_property("velocity", 1.0)
-        swerve = atom.get_property("swerve", 0.0)
-        # Motion consists of straight line plus swerve deviation
-        primary_motion = base_velocity * time_delta
-        swerve_deviation = swerve * atom.atomic_weight * time_delta * 0.1
-        return (primary_motion, swerve_deviation, 0.0)
-    
-    def count_atoms(self) -> int:
-        return len(self.atoms)
-    
-    def get_atom(self, name: str) -> Optional[Term]:
-        return self.atom_registry.get(name)
-    
-    def get_all_atoms(self) -> List[Term]:
-        return self.atoms.copy()
-    
-    def get_summary(self) -> Dict[str, Any]:
-        """Get a summary of atomic state."""
-        return {
-            "total_atoms": len(self.atoms),
-            "swerves": len(self.swerves),
-            "shapes": list(set(a.get_property("shape", "unknown") for a in self.atoms))
-        }
-
-
-class Layer3_Voluptas:
-    """
-    Layer 3: Voluptas (Pleasure)
-    
-    The highest good in Epicurean philosophy. Pleasure is the
-    absence of pain and disturbance. The wise person pursues
-    pleasure that leads to tranquility (ataraxia).
-    
-    Key principles:
-    - Pleasure is the highest good
-    - All living beings seek to avoid pain
-    - True pleasure is freedom from disturbance
-    - The limit of pleasure is the removal of suffering
-    - Complex pleasures should be evaluated by reason
-    """
-    
-    def __init__(self):
-        self.pleasures: List[Dict[str, Any]] = []
-        self.pains: List[Dict[str, Any]] = []
-        self.ataraxia_level = 0.0  # Tranquility
-        self.aponia_level = 0.0     # Absence of pain
-        self.id = id(self)
-    
-    def __repr__(self) -> str:
-        return f"Layer3_Voluptas(pleasures={len(self.pleasures)}, ataraxia={self.ataraxia_level:.2f})"
-    
-    def add_pleasure(self, name: str, intensity: float, 
-                     duration: float, source: str = "unknown") -> Dict[str, Any]:
-        """Add a pleasurable experience."""
-        pleasure = {
-            "name": name,
-            "intensity": intensity,
-            "duration": duration,
-            "source": source,
-            "timestamp": len(self.pleasures)
-        }
-        self.pleasures.append(pleasure)
-        self._recalculate_state()
-        return pleasure
-    
-    def add_pain(self, name: str, intensity: float,
-                 duration: float, source: str = "unknown") -> Dict[str, Any]:
-        """Add a painful experience."""
-        pain = {
-            "name": name,
-            "intensity": intensity,
-            "duration": duration,
-            "source": source,
-            "timestamp": len(self.pains)
-        }
-        self.pains.append(pain)
-        self._recalculate_state()
-        return pain
-    
-    def _recalculate_state(self) -> None:
-        """Recalculate ataraxia and aponia levels."""
-        total_pleasure = sum(p["intensity"] * p["duration"] for p in self.pleasures)
-        total_pain = sum(p["intensity"] * p["duration"] for p in self.pains)
-        
-        # Ataraxia is the balance of pleasure over pain
-        net_balance = total_pleasure - total_pain
-        self.ataraxia_level = self._sigmoid(net_balance)
-        
-        # Aponia is freedom from bodily pain
-        self.aponia_level = max(0.0, 1.0 - (total_pain / max(1.0, total_pleasure + total_pain)))
-    
-    def _sigmoid(self, x: float) -> float:
-        """Sigmoid function for bounded value."""
-        return 1.0 / (1.0 + math.exp(-x / 10.0))
-    
-    def get_net_pleasure(self) -> float:
-        """Calculate net pleasure (pleasure minus pain)."""
-        total_pleasure = sum(p["intensity"] * p["duration"] for p in self.pleasures)
-        total_pain = sum(p["intensity"] * p["duration"] for p in self.pains)
-        return total_pleasure - total_pain
-    
-    def evaluate_pleasure(self, pleasure: Dict[str, Any]) -> float:
-        """Evaluate a potential pleasure for wisdom."""
-        intensity = pleasure.get("intensity", 0.5)
-        duration = pleasure.get("duration", 1.0)
-        consequences = pleasure.get("consequences", [])
-        
-        # Simple pleasure calculation
-        base_value = intensity * duration
-        
-        # Reduce for negative consequences
-        penalty = sum(c.get("harm", 0.0) for c in consequences)
-        
-        return max(0.0, base_value - penalty)
-    
-    def is_healthy_pleasure(self, name: str) -> bool:
-        """Check if a named pleasure is considered healthy."""
-        healthy_pleasures = [
-            "friendship", "knowledge", "health", "tranquility",
-            "natural_desire", "freedom", "justice", "virtue"
-        ]
-        return name in healthy_pleasures
-    
-    def get_ataraxia(self) -> float:
-        return self.ataraxia_level
-    
-    def get_aponia(self) -> float:
-        return self.aponia_level
-    
-    def get_katastematic_pleasure(self) -> float:
-        """
-        Get the highest form of pleasure - the静态 pleasure
-        of living virtuously in tranquility.
-        """
-        return min(self.ataraxia_level, self.aponia_level)
-    
-    def get_kinetic_pleasure(self) -> float:
-        """Get kinetic pleasure - the active pleasure of satisfaction."""
-        return sum(p["intensity"] for p in self.pleasures) / max(1, len(self.pleasures))
-    
-    def clear(self) -> None:
-        self.pleasures.clear()
-        self.pains.clear()
-    
-    def get_summary(self) -> Dict[str, Any]:
-        """Get a summary of voluptas state."""
-        return {
-            "pleasures": len(self.pleasures),
-            "pains": len(self.pains),
-            "ataraxia": self.ataraxia_level,
-            "aponia": self.aponia_level,
-            "net_pleasure": self.get_net_pleasure()
-        }
-
-
-class Layer4_Natura:
-    """
-    Layer 4: Natura (Nature)
-    
-    The working of the natural world according to Epicurean physics.
-    Nature operates without divine intervention through the
-    interactions of atoms in the void.
-    
-    Key principles:
-    - Nature has no ultimate purpose
-    - Everything arises from natural causes
-    - There are no supernatural interventions
-    - The gods exist but are indifferent to human affairs
-    - Death is the dissolution of atoms, nothing to fear
-    """
-    
-    def __init__(self):
-        self.individuals: List[Individual] = []
-        self.natural_laws: List[Dict[str, Any]] = []
-        self.processes: List[Dict[str, Any]] = []
-        self.time = 0.0
-        self.id = id(self)
-    
-    def __repr__(self) -> str:
-        return f"Layer4_Natura(individuals={len(self.individuals)}, time={self.time:.1f})"
-    
-    def create_individual(self, name: str, atoms: List[Term],
-                          properties: Optional[Dict[str, Any]] = None) -> Individual:
-        """Create an individual composed of atoms."""
-        individual = Individual(name, atoms, properties)
-        self.individuals.append(individual)
-        return individual
-    
-    def add_natural_law(self, name: str, description: str,
-                        formula: Optional[str] = None,
-                        scope: str = "universal") -> Dict[str, Any]:
-        """Add a law of nature."""
-        law = {
-            "name": name,
-            "description": description,
-            "formula": formula,
-            "scope": scope,
-            "active": True
-        }
-        self.natural_laws.append(law)
-        return law
-    
-    def apply_laws(self, individual: Individual) -> Dict[str, Any]:
-        """Apply natural laws to an individual."""
-        results = []
-        for law in self.natural_laws:
-            if law["active"]:
-                result = self._apply_single_law(law, individual)
-                results.append(result)
-        return {"individual": individual.name, "law_effects": results}
-    
-    def _apply_single_law(self, law: Dict[str, Any], individual: Individual) -> Dict[str, Any]:
-        """Apply a single natural law."""
-        law_name = law["name"]
-        
-        if law_name == "motion":
-            # Objects persist in motion unless acted upon
-            position = list(individual.position)
-            velocity = list(individual.velocity)
-            position = [p + v for p, v in zip(position, velocity)]
-            individual.move_to(tuple(position))
-            return {"law": law_name, "effect": "position_updated"}
-        
-        elif law_name == "gravity":
-            # Heavy objects tend downward (in classical view)
-            velocity = list(individual.velocity)
-            velocity[1] -= 0.1  # Downward acceleration
-            individual.velocity = tuple(velocity)
-            return {"law": law_name, "effect": "velocity_modified"}
-        
-        elif law_name == "combination":
-            # Atoms naturally combine when compatible
-            return {"law": law_name, "effect": "no_change"}
-        
-        return {"law": law_name, "effect": "unknown"}
-    
-    def simulate_process(self, process_type: str, 
-                        individuals: List[Individual],
-                        steps: int = 10) -> List[Dict[str, Any]]:
-        """Simulate a natural process."""
-        process_log = []
-        
-        for step in range(steps):
-            step_log = {"step": step, "events": []}
-            
-            for individual in individuals:
-                # Update position
-                position = list(individual.position)
-                velocity = list(individual.velocity)
-                new_position = [p + v * 0.1 for p, v in zip(position, velocity)]
-                individual.move_to(tuple(new_position))
-                
-                step_log["events"].append({
-                    "individual": individual.name,
-                    "position": new_position
-                })
-            
-            self.time += 1.0
-            process_log.append(step_log)
-        
-        return process_log
-    
-    def generate_spontaneous(self, num_atoms: int = 5) -> List[Individual]:
-        """Generate spontaneous configurations of atoms."""
-        generated = []
-        for i in range(num_atoms):
-            name = f"spontaneous_{i}"
-            atoms = [Term(f"atom_{j}", "atom", random.uniform(0.5, 2.0)) 
-                     for j in range(random.randint(3, 10))]
-            individual = self.create_individual(
-                name, atoms,
-                properties={"origin": "spontaneous", "creation_time": self.time}
-            )
-            generated.append(individual)
-        return generated
-    
-    def cause_death(self, individual: Individual) -> Dict[str, Any]:
-        """
-        Cause the death (dissolution) of an individual.
-        Death is merely the separation of atoms - nothing to fear.
-        """
-        original_atoms = individual.get_atoms()
-        death_result = {
-            "individual": individual.name,
-            "atoms_released": len(original_atoms),
-            "transition": "dissolution",
-            "reassurance": "Death is nothing to the living; for the dead, there is no suffering"
-        }
-        # Remove from individuals
-        if individual in self.individuals:
-            self.individuals.remove(individual)
-        return death_result
-    
-    def get_individual(self, name: str) -> Optional[Individual]:
-        """Get an individual by name."""
-        for ind in self.individuals:
-            if ind.name == name:
-                return ind
-        return None
-    
-    def get_summary(self) -> Dict[str, Any]:
-        """Get a summary of natura state."""
-        return {
-            "individuals": len(self.individuals),
-            "natural_laws": len(self.natural_laws),
-            "processes": len(self.processes),
-            "time": self.time
-        }
-
-
-class Layer5_Sapientia:
-    """
-    Layer 5: Sapientia (Wisdom)
-    
-    The culmination of the Epicurean philosophical journey.
-    Wisdom is the knowledge that enables one to live well and
-    achieve happiness through understanding nature.
-    
-    Key principles:
-    - Wisdom is the highest virtue
-    - True happiness comes from within
-    - One must understand nature to overcome fears
-    - The fears of gods and death are the main obstacles to happiness
-    - Practical wisdom leads to the good life
-    """
-    
-    def __init__(self):
-        self.understandings: List[Dict[str, Any]] = []
-        self.virtues: Dict[str, float] = {}
-        self.insights: List[str] = []
-        self.wisdom_level = 0.0
-        self.id = id(self)
-    
-    def __repr__(self) -> str:
-        return f"Layer5_Sapientia(wisdom={self.wisdom_level:.2f})"
-    
-    def add_understanding(self, topic: str, understanding: str,
-                         depth: float = 0.5) -> Dict[str, Any]:
-        """Add a new understanding."""
-        understanding_obj = {
-            "topic": topic,
-            "understanding": understanding,
-            "depth": depth,
-            "timestamp": len(self.understandings)
-        }
-        self.understandings.append(understanding_obj)
-        self._recalculate_wisdom()
-        return understanding_obj
-    
-    def add_insight(self, text: str) -> None:
-        """Add a philosophical insight."""
-        self.insights.append(text)
-        self._recalculate_wisdom()
-    
-    def set_virtue(self, name: str, level: float) -> None:
-        """Set a virtue level."""
-        self.virtues[name] = max(0.0, min(1.0, level))
-        self._recalculate_wisdom()
-    
-    def get_virtue(self, name: str) -> float:
-        """Get a virtue level."""
-        return self.virtues.get(name, 0.0)
-    
-    def _recalculate_wisdom(self) -> None:
-        """Recalculate overall wisdom level."""
-        understanding_score = sum(u["depth"] for u in self.understandings) / max(1, len(self.understandings))
-        virtue_score = sum(self.virtues.values()) / max(1, len(self.virtues))
-        insight_score = min(1.0, len(self.insights) / 10.0)
-        
-        self.wisdom_level = (understanding_score * 0.4 + virtue_score * 0.4 + insight_score * 0.2)
-    
-    def achieve_ataraxia(self) -> bool:
-        """Achieve complete tranquility."""
-        return self.wisdom_level >= 0.8 and all(v >= 0.6 for v in self.virtues.values())
-    
-    def overcome_fear_of_death(self) -> str:
-        """Articulate the Epicurean argument against fear of death."""
-        return ("When we exist, death is not; when death exists, we are not. "
-                "Therefore, death is nothing to the living and nothing to the dead.")
-    
-    def overcome_fear_of_gods(self) -> str:
-        """Articulate the argument against fear of gods."""
-        return ("The gods either wish to prevent evils and cannot, or wish to do so and can, "
-                "or wish to do so and cannot, or wish neither. If they wish to prevent and cannot, "
-                "they are weak. If they can and do not wish, they are malevolent. "
-                "If they wish and cannot, they are caught in fate. If they wish neither to prevent "
-                "nor to, they are indifferent. Therefore, gods do not concern themselves with us.")
-    
-    def get_practical_wisdom(self) -> Dict[str, str]:
-        """Get practical wisdom guidelines."""
-        return {
-            "pleasure": "Choose pleasures that bring lasting tranquility over momentary excitement",
-            "pain": "Endure pain that leads to greater pleasure or health",
-            "friendship": "Cultivate friendships as the greatest source of happiness",
-            "self_sufficiency": "Desire only what nature and reason require",
-            "justice": "Act justly because secure relations with others bring peace"
-        }
-    
-    def demonstrate_epicurean_tetrad(self) -> Dict[str, str]:
-        """Demonstrate the fourfold remedy (tetrapharmakos)."""
-        return {
-            "god": "Do not fear divine punishment - the gods are indifferent",
-            "death": "Do not fear death - it is nothing to us",
-            "pleasure": "Seek pleasure - the good is to be chosen",
-            "pain": "Endure pain - some pains are necessary for greater goods"
-        }
-    
-    def get_summary(self) -> Dict[str, Any]:
-        """Get a summary of sapientia state."""
-        return {
-            "understandings": len(self.understandings),
-            "insights": len(self.insights),
-            "virtues": dict(self.virtues),
-            "wisdom_level": self.wisdom_level
-        }
-
-
-# =============================================================================
-# SECTION 4: HIGH-LEVEL ARCHITECTURE CLASSES
-# =============================================================================
-
-class LucretiusCognitiveArchitecture:
-    """
-    The complete cognitive architecture of Lucretius.
-    Integrates all five layers into a unified system for
-    understanding Epicurean philosophy and atomic theory.
-    """
-    
-    def __init__(self):
-        self.layer1_sensus = Layer1_Sensus()
-        self.layer2_atomus = Layer2_Atomus()
-        self.layer3_voluptas = Layer3_Voluptas()
-        self.layer4_natura = Layer4_Natura()
-        self.layer5_sapientia = Layer5_Sapientia()
-        
-        self.name = "Lucretius"
-        self.period = "-99 CE"
-        self.school = "Epicurean"
-        self.id = id(self)
-        
-        self._initialize_defaults()
-    
-    def _initialize_defaults(self) -> None:
-        """Initialize default atoms and natural laws."""
-        # Create the four classical elements (in Epicurean sense)
-        elements = [
-            ("fire", 1.0),
-            ("air", 0.8),
-            ("water", 1.2),
-            ("earth", 1.5)
-        ]
-        self.layer2_atomus.create_from_elements(elements)
-        
-        # Add natural laws
-        self.layer4_natura.add_natural_law(
-            "motion", 
-            "All things move through the void continuously",
-            "v = constant unless acted upon"
-        )
-        self.layer4_natura.add_natural_law(
-            "gravity",
-            "Heavy atoms tend toward the center",
-            "F = m * g"
-        )
-        self.layer4_natura.add_natural_law(
-            "combination",
-            "Atoms combine based on shape and motion",
-            "shape compatibility"
-        )
-        
-        # Set default virtues
-        self.layer5_sapientia.set_virtue("prudence", 0.5)
-        self.layer5_sapientia.set_virtue("justice", 0.5)
-        self.layer5_sapientia.set_virtue("courage", 0.5)
-        self.layer5_sapientia.set_virtue("temperance", 0.5)
-    
-    def __repr__(self) -> str:
-        return f"LucretiusCognitiveArchitecture(period={self.period}, school={self.school})"
-    
-    def sense_and_perceive(self, channel: str, data: Any) -> Dict[str, Any]:
-        """Layer 1: Process sensation."""
-        self.layer1_sensus.receive_sensation(channel, data)
-        perception = self.layer1_sensus.form_perception(data)
-        self.layer1_sensus.verify_perception(perception)
-        return perception
-    
-    def create_atomic_structure(self, atoms_spec: List[Tuple[str, float]]) -> CompoundTerm:
-        """Layer 2: Create atoms and form compounds."""
-        atoms = self.layer2_atomus.create_from_elements(atoms_spec)
-        return self.layer2_atomus.combine_atoms(atoms)
-    
-    def apply_swerve(self, atom: Term, angle: float) -> Dict[str, Any]:
-        """Apply the swerve (clinamen) to an atom."""
-        return self.layer2_atomus.apply_swerve(atom, angle)
-    
-    def calculate_pleasure(self, name: str, intensity: float, 
-                           duration: float) -> float:
-        """Layer 3: Calculate pleasure value."""
-        self.layer3_voluptas.add_pleasure(name, intensity, duration)
-        return self.layer3_voluptas.evaluate_pleasure(
-            self.layer3_voluptas.pleasures[-1]
-        )
-    
-    def calculate_pain(self, name: str, intensity: float,
-                       duration: float) -> float:
-        """Calculate pain value."""
-        self.layer3_voluptas.add_pain(name, intensity, duration)
-        return -intensity * duration
-    
-    def create_natural_phenomenon(self, name: str, atoms: List[Term]) -> Individual:
-        """Layer 4: Create a natural phenomenon."""
-        return self.layer4_natura.create_individual(name, atoms)
-    
-    def apply_natural_laws(self, individual: Individual) -> Dict[str, Any]:
-        """Apply natural laws to an individual."""
-        return self.layer4_natura.apply_laws(individual)
-    
-    def gain_wisdom(self, topic: str, understanding: str) -> None:
-        """Layer 5: Gain wisdom through understanding."""
-        self.layer5_sapientia.add_understanding(topic, understanding)
-        self.layer5_sapientia.add_insight(understanding)
-    
-    def achieve_philosophical_enlightenment(self) -> bool:
-        """Check if full enlightenment has been achieved."""
-        return self.layer5_sapientia.achieve_ataraxia()
-    
-    def get_full_state(self) -> Dict[str, Any]:
-        """Get the complete state of all layers."""
-        return {
-            "layer1_sensus": self.layer1_sensus.get_summary(),
-            "layer2_atomus": self.layer2_atomus.get_summary(),
-            "layer3_voluptas": self.layer3_voluptas.get_summary(),
-            "layer4_natura": self.layer4_natura.get_summary(),
-            "layer5_sapientia": self.layer5_sapientia.get_summary()
-        }
-
-
-class EpicureanPhysicsSimulation:
-    """
-    A simulation of Epicurean physics demonstrating the behavior
-    of atoms in the void, including the swerve and formation of compounds.
-    """
-    
-    def __init__(self, bounds: Tuple[float, float, float] = (100.0, 100.0, 100.0)):
-        self.bounds = bounds
-        self.atoms: List[Dict[str, Any]] = []
-        self.compounds: List[Dict[str, Any]] = []
-        self.time = 0.0
-        self.timestep = 0.1
-        self.id = id(self)
-    
-    def __repr__(self) -> str:
-        return f"EpicureanPhysicsSimulation(atoms={len(self.atoms)}, time={self.time:.2f})"
-    
-    def spawn_atoms(self, count: int, mass_range: Tuple[float, float] = (0.5, 2.0)) -> List[Dict[str, Any]]:
-        """Spawn random atoms in the void."""
-        spawned = []
-        for i in range(count):
-            atom = {
-                "id": len(self.atoms) + i,
-                "position": (
-                    random.uniform(0, self.bounds[0]),
-                    random.uniform(0, self.bounds[1]),
-                    random.uniform(0, self.bounds[2])
-                ),
-                "velocity": (
-                    random.uniform(-1, 1),
-                    random.uniform(-1, 1),
-                    random.uniform(-1, 1)
-                ),
-                "mass": random.uniform(mass_range[0], mass_range[1]),
-                "swerve_angle": 0.0
-            }
-            spawned.append(atom)
-            self.atoms.append(atom)
-        return spawned
-    
-    def apply_swerve_to_all(self, swerve_strength: float = 0.1) -> None:
-        """Apply random swerve (clinamen) to all atoms."""
-        for atom in self.atoms:
-            swerve_angle = random.uniform(-swerve_strength, swerve_strength)
-            atom["swerve_angle"] = swerve_angle
-    
-    def step(self) -> Dict[str, Any]:
-        """Advance the simulation by one timestep."""
-        step_results = {"moved": [], "collisions": []}
-        
-        for atom in self.atoms:
-            # Calculate displacement from velocity
-            vx, vy, vz = atom["velocity"]
-            px, py, pz = atom["position"]
-            
-            # Apply swerve to velocity
-            swerve = atom["swerve_angle"]
-            new_vx = vx + swerve * random.uniform(-0.1, 0.1)
-            new_vy = vy + swerve * random.uniform(-0.1, 0.1)
-            new_vz = vz + swerve * random.uniform(-0.1, 0.1)
-            
-            # Update position
-            new_px = px + new_vx * self.timestep
-            new_py = py + new_vy * self.timestep
-            new_pz = pz + new_vz * self.timestep
-            
-            # Boundary handling (wrap around)
-            new_px = new_px % self.bounds[0]
-            new_py = new_py % self.bounds[1]
-            new_pz = new_pz % self.bounds[2]
-            
-            atom["position"] = (new_px, new_py, new_pz)
-            atom["velocity"] = (new_vx, new_vy, new_vz)
-            
-            step_results["moved"].append(atom["id"])
-        
-        self.time += self.timestep
-        return step_results
-    
-    def check_collision(self, atom1: Dict[str, Any], atom2: Dict[str, Any]) -> bool:
-        """Check if two atoms are colliding."""
-        p1 = atom1["position"]
-        p2 = atom2["position"]
-        distance = math.sqrt(
-            (p1[0] - p2[0])**2 + (p1[1] - p2[1])**2 + (p1[2] - p2[2])**2
-        )
-        collision_threshold = (atom1["mass"] + atom2["mass"]) / 10
-        return distance < collision_threshold
-    
-    def combine_atoms(self, atom_ids: List[int]) -> Optional[Dict[str, Any]]:
-        """Combine atoms into a compound."""
-        atoms_to_combine = [a for a in self.atoms if a["id"] in atom_ids]
-        if len(atoms_to_combine) < 2:
-            return None
-        
-        compound = {
-            "id": len(self.compounds),
-            "constituent_atoms": [a["id"] for a in atoms_to_combine],
-            "position": tuple(sum(a["position"][i] for a in atoms_to_combine) / len(atoms_to_combine) 
-                              for i in range(3)),
-            "total_mass": sum(a["mass"] for a in atoms_to_combine),
-            "creation_time": self.time
-        }
-        self.compounds.append(compound)
-        return compound
-    
-    def get_atom_count(self) -> int:
-        return len(self.atoms)
-    
-    def get_compound_count(self) -> int:
-        return len(self.compounds)
-    
-    def run_steps(self, steps: int) -> None:
-        """Run multiple simulation steps."""
-        for _ in range(steps):
-            self.step()
-
-
-class DeRerumNaturaEngine:
-    """
-    The De Rerum Natura engine - the core computational system
-    for implementing Lucretius's masterwork.
-    """
-    
-    def __init__(self):
-        self.books: List[Dict[str, Any]] = []
-        self.current_book = 0
-        self.topics: Dict[str, List[str]] = {}
-        self.arguments: List[Syllogism] = []
-        self.id = id(self)
-        
-        self._initialize_books()
-    
-    def _initialize_books(self) -> None:
-        """Initialize the six books of De Rerum Natura."""
-        book_contents = [
-            {
-                "book": 1,
-                "title": "De Rerum Natura - Book I",
-                "topic": "The Nature of the Gods and the Universe",
-                "summary": "Proves that the universe consists of atoms and void. "
-                          "Nothing comes from nothing. The universe is infinite."
-            },
-            {
-                "book": 2,
-                "title": "De Rerum Natura - Book II",
-                "topic": "The Nature of Atoms and Motion",
-                "summary": "Describes the shapes of atoms, their motions, and "
-                          "the swerve (clinamen) that prevents determinism."
-            },
-            {
-                "book": 3,
-                "title": "De Rerum Natura - Book III",
-                "topic": "The Nature of the Soul",
-                "summary": "Proves the soul is material and mortal. "
-                          "Frees humanity from fear of death."
-            },
-            {
-                "book": 4,
-                "title": "De Rerum Natura - Book IV",
-                "topic": "Sensation, Mind, and Pleasure",
-                "summary": "Explains sensation and thought as atomic processes. "
-                          "Discusses the nature of pleasure and desire."
-            },
-            {
-                "book": 5,
-                "title": "De Rerum Natura - Book V",
-                "topic": "The Formation of the World",
-                "summary": "Describes the evolution of the world and life. "
-                          "Critiques astrology and theology."
-            },
-            {
-                "book": 6,
-                "title": "De Rerum Natura - Book VI",
-                "topic": "Heavenly Phenomena and Ethics",
-                "summary": "Explains meteorological phenomena naturally. "
-                          "Concludes with the fourfold remedy."
-            }
-        ]
-        
-        for book in book_contents:
-            self.add_book(book["book"], book["title"], book["topic"], book["summary"])
-    
-    def add_book(self, number: int, title: str, topic: str, summary: str) -> Dict[str, Any]:
-        """Add a book to the work."""
-        book = {
-            "number": number,
-            "title": title,
-            "topic": topic,
-            "summary": summary,
-            "arguments": [],
-            "demonstrations": []
-        }
-        self.books.append(book)
-        if topic not in self.topics:
-            self.topics[topic] = []
-        self.topics[topic].append(title)
-        return book
-    
-    def add_argument(self, syllogism: Syllogism, book_number: int) -> None:
-        """Add an argument (syllogism) to a book."""
-        self.arguments.append(syllogism)
-        for book in self.books:
-            if book["number"] == book_number:
-                book["arguments"].append(syllogism)
-    
-    def demonstrate_atoms_exist(self) -> Syllogism:
-        """Create the fundamental argument for atomic theory."""
-        # Major premise: Everything that exists has parts or is indivisible
-        major = Proposition(
-            Term("existence", "concept"),
-            "is composed of parts OR is indivisible",
-            Proposition.TruthValue.TRUE
-        )
-        major.assert_true("A thing either has parts or has no parts")
-        
-        # Minor premise: If something has parts, those parts exist
-        minor = Proposition(
-            Term("composite_thing", "concept"),
-            "has parts that themselves exist",
-            Proposition.TruthValue.TRUE
-        )
-        minor.assert_true("Parts must exist for the whole to exist")
-        
-        # Conclusion: Therefore, existence ultimately consists of indivisible units (atoms)
-        conclusion = Proposition(
-            Term("universe", "concept"),
-            "ultimately consists of indivisible units",
-            Proposition.TruthValue.TRUE
-        )
-        conclusion.assert_true("The infinite regress must terminate in atoms")
-        
-        syllogism = Syllogism(major, minor, conclusion, "atomic_existence")
-        return syllogism
-    
-    def demonstrate_no_creation_from_nothing(self) -> Syllogism:
-        """Argue that nothing comes from nothing."""
-        major = Proposition(
-            Term("creation"),
-            "requires pre-existing matter",
-            Proposition.TruthValue.TRUE
-        )
-        major.assert_true("All experience confirms this")
-        
-        minor = Proposition(
-            Term("nothing"),
-            "contains no matter",
-            Proposition.TruthValue.TRUE
-        )
-        minor.assert_true("By definition, nothing has no properties")
-        
-        conclusion = Proposition(
-            Term("universe"),
-            "cannot arise from nothing",
-            Proposition.TruthValue.TRUE
-        )
-        conclusion.assert_true("Therefore the universe always existed")
-        
-        syllogism = Syllogism(major, minor, conclusion, "no_creation_from_nothing")
-        return syllogism
-    
-    def demonstrate_soul_is_mortal(self) -> Syllogism:
-        """Argue that the soul is material and mortal."""
-        major = Proposition(
-            Term("soul"),
-            "is affected by bodily states",
-            Proposition.TruthValue.TRUE
-        )
-        major.assert_true("Soul feels joy, sorrow, pain")
-        
-        minor = Proposition(
-            Term("immaterial"),
-            "cannot be affected by matter",
-            Proposition.TruthValue.TRUE
-        )
-        minor.assert_true("Immaterial things are unchanging")
-        
-        conclusion = Proposition(
-            Term("soul"),
-            "is material and mortal",
-            Proposition.TruthValue.TRUE
-        )
-        conclusion.assert_true("Therefore soul dies with the body")
-        
-        syllogism = Syllogism(major, minor, conclusion, "soul_mortality")
-        return syllogism
-    
-    def get_arguments_for_topic(self, topic: str) -> List[Syllogism]:
-        """Get all arguments related to a topic."""
-        return [arg for arg in self.arguments if topic.lower() in str(arg).lower()]
-    
-    def get_verse(self, book_number: int, theme: str) -> str:
-        """Get a summary verse for a theme."""
-        verses = {
-            1: {
-                "atoms": "Primordial atoms, countless in number, / Move through endless void / Forming all that is.",
-                "void": "The void exists - without it, / Movement would be impossible, / And nothing could be.",
-                "infinity": "The universe knows no bound, / No edge, no center, / Infinite in all directions."
-            },
-            3: {
-                "death": "Why fear death, that nothing is to us? / When we are, death has not come, / When death comes, we are not."
-            },
-            4: {
-                "sensation": "Sensation is the foundation, / The source of all knowledge, / The touchstone of truth."
-            },
-            5: {
-                "nature": "Observe nature's workings, / See how things arise naturally, / No need for gods or magic."
-            }
-        }
-        return verses.get(book_number, {}).get(theme, "Lucretian verse not found.")
-
-
-class LucretiusAGIAlignment:
-    """
-    AGI Alignment system based on Lucretian/Epicurean principles.
-    Uses atomic materialism and practical ethics to ensure
-    alignment with human flourishing.
-    """
-    
-    def __init__(self):
-        self.principles: List[Dict[str, Any]] = []
-        self.constraints: List[Dict[str, Any]] = []
-        self.value_model = EpicureanValueModel()
-        self.alignment_score = 0.0
-        self.id = id(self)
-        
-        self._initialize_principles()
-    
-    def _initialize_principles(self) -> None:
-        """Initialize the core Epicurean principles."""
-        self.add_principle(
-            "pleasure_as_good",
-            "Pleasure is the beginning and end of the happy life",
-            0.9
-        )
-        self.add_principle(
-            "nature_as_guide",
-            "Nature is the best guide for living well",
-            0.85
-        )
-        self.add_principle(
-            "autonomy",
-            "Autonomy and freedom are essential for happiness",
-            0.8
-        )
-        self.add_principle(
-            "friendship",
-            "Friendship is the greatest source of happiness",
-            0.9
-        )
-        self.add_principle(
-            "limits_of_desire",
-            "Natural and necessary desires should be satisfied; vain desires should be transcended",
-            0.85
-        )
-    
-    def add_principle(self, name: str, description: str, weight: float) -> None:
-        """Add an alignment principle."""
-        principle = {
-            "name": name,
-            "description": description,
-            "weight": weight
-        }
-        self.principles.append(principle)
-    
-    def add_constraint(self, name: str, description: str, 
-                       severity: float = 1.0) -> None:
-        """Add an alignment constraint."""
-        constraint = {
-            "name": name,
-            "description": description,
-            "severity": severity
-        }
-        self.constraints.append(constraint)
-    
-    def evaluate_action(self, action: Dict[str, Any]) -> Dict[str, Any]:
-        """Evaluate an action against Epicurean principles."""
-        pleasure_score = self.value_model.calculate_pleasure(action)
-        alignment_score = sum(p["weight"] for p in self.principles) / len(self.principles)
-        
-        result = {
-            "action": action.get("name", "unknown"),
-            "pleasure_score": pleasure_score,
-            "alignment_score": alignment_score,
-            "approved": pleasure_score > 0.3 and alignment_score > 0.5,
-            "recommendation": self._get_recommendation(pleasure_score, alignment_score)
-        }
-        
-        self.alignment_score = (pleasure_score + alignment_score) / 2
-        return result
-    
-    def _get_recommendation(self, pleasure: float, alignment: float) -> str:
-        """Get a recommendation based on scores."""
-        if pleasure > 0.7 and alignment > 0.7:
-            return "strongly_approve"
-        elif pleasure > 0.5 and alignment > 0.5:
-            return "approve"
-        elif pleasure > 0.3 or alignment > 0.3:
-            return "caution"
+def finite_difference_check(params, grads, loss_fn, rng, eps=1e-6, n_entries=20, floor=1e-3):
+    """Central differences on n random entries per tensor plus its largest-gradient entry.
+    Relative error uses max(|analytic|, |numeric|, floor) as denominator."""
+    worst = {}
+    for name, arr in params.items():
+        flat, g = arr.reshape(-1), grads[name].reshape(-1)
+        if flat.size <= n_entries + 1:
+            idx = np.arange(flat.size)
         else:
-            return "reject"
-    
-    def check_constraint_violation(self, action: Dict[str, Any]) -> List[str]:
-        """Check if an action violates any constraints."""
-        violations = []
-        for constraint in self.constraints:
-            if self._violates_constraint(action, constraint):
-                violations.append(constraint["description"])
-        return violations
-    
-    def _violates_constraint(self, action: Dict[str, Any], constraint: Dict[str, Any]) -> bool:
-        """Check if a specific constraint is violated."""
-        # Simplified check - in practice would be more sophisticated
-        harm_keywords = ["harm", "destroy", "damage", "deceive"]
-        if any(kw in str(action).lower() for kw in harm_keywords):
-            return constraint.get("name", "").lower() in str(action).lower()
+            idx = np.unique(np.append(rng.choice(flat.size, n_entries, replace=False), np.argmax(np.abs(g))))
+        err = 0.0
+        for i in idx:
+            keep = flat[i]
+            flat[i] = keep + eps
+            up = loss_fn()
+            flat[i] = keep - eps
+            down = loss_fn()
+            flat[i] = keep
+            num = (up - down) / (2.0 * eps)
+            err = max(err, abs(g[i] - num) / max(abs(g[i]), abs(num), floor))
+        worst[name] = err
+    return worst
+
+
+def paired_bootstrap(diffs, rng, n_boot=2000, level=0.95):
+    d = np.asarray(diffs, dtype=float)
+    means = d[rng.integers(0, d.size, size=(n_boot, d.size))].mean(axis=1)
+    tail = 50.0 * (1.0 - level)
+    return float(d.mean()), [float(np.percentile(means, tail)), float(np.percentile(means, 100.0 - tail))]
+
+
+def verdict(mean, ci, mesi, direction):
+    s = 1.0 if direction == "greater" else -1.0
+    lo, hi = sorted((s * ci[0], s * ci[1]))
+    if lo > 0.0 and s * mean >= mesi:
+        return "supported"
+    if hi < 0.0:
+        return "contradicted"
+    return "inconclusive"
+
+
+def write_report(lines, payload, json_path):
+    print("\n".join(lines))
+    if json_path:
+        with open(json_path, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, indent=2)
+# END STANDARD UTILITIES
+
+
+# ---------------------------------------------------------------- data and tasks
+def sample_split(rng, basis, n, noise_sd):
+    latent = rng.standard_normal((n, 3))
+    X = latent @ basis.T + noise_sd * rng.standard_normal((n, basis.shape[0]))
+    Y = 2 * (latent[:, 0] * latent[:, 1] > 0).astype(int) + (latent[:, 2] > 0).astype(int)
+    return {"X": X, "Y": Y}
+
+
+def make_data(rng):
+    """Three latents on random orthonormal directions; label 2[a b > 0] + [c > 0]."""
+    basis = np.linalg.qr(rng.standard_normal((IN_DIM, IN_DIM)))[0][:, :3]
+    return {name: sample_split(rng, basis, size, SHIFTED_SD if name == "shifted" else NOMINAL_SD)
+            for name, size in SPLIT_SIZES.items()}
+
+
+def trivial_accuracy(data, split="heldout"):
+    majority = int(np.argmax(np.bincount(data["train"]["Y"], minlength=CLASSES)))
+    return float(np.mean(data[split]["Y"] == majority))
+
+
+# ---------------------------------------------------------------- model
+def initial_field(start, rng, d, h, k):
+    """Fall: every atom identical on input and output sides. Near-fall: fall plus tiny jitter. Disorder: independent."""
+    if start == "disorder":
+        return rng.normal(0.0, d ** -0.5, (h, d)), rng.normal(0.0, h ** -0.5, (k, h))
+    W = np.repeat(rng.normal(0.0, d ** -0.5, (1, d)), h, axis=0)
+    V = np.repeat(rng.normal(0.0, h ** -0.5, (k, 1)), h, axis=1)
+    if start == "near_fall":
+        W = W + JITTER * rng.normal(0.0, d ** -0.5, (h, d))
+        V = V + JITTER * rng.normal(0.0, h ** -0.5, (k, h))
+    elif start != "fall":
+        raise ValueError(f"unknown start {start}")
+    return W, V
+
+
+def build_model(in_dim, out_dim, task_type, rng, **cfg):
+    """Clinamen Engine by default (fall start, learned swerve). swerve='untuned' or 'off' and start='disorder'
+    build the size-matched baseline and the Democritean rival."""
+    if task_type not in TASK_TYPES:
+        raise ValueError("chapter 0105 supports vector_classification")
+    cfg = dict({"atoms": ATOMS, "start": "fall", "swerve": "learned", "swerve_init": SWERVE_INIT,
+                "untuned_scale": SWERVE_INIT, "paulum": PAULUM, "lr": LR}, **cfg)
+    W, V = initial_field(cfg["start"], rng, in_dim, cfg["atoms"], out_dim)
+    params = {"W": W, "b": np.zeros(cfg["atoms"]), "V": V, "a": np.zeros(out_dim)}
+    if cfg["swerve"] == "learned":
+        params["rho"] = np.full(cfg["atoms"], math.log(math.expm1(cfg["swerve_init"])))
+    elif cfg["swerve"] not in ("untuned", "off"):
+        raise ValueError(f"unknown swerve {cfg['swerve']}")
+    return {"params": params, "cfg": cfg, "ko": {}}
+
+
+def swerve_scale(model):
+    h = model["params"]["W"].shape[0]
+    if model["ko"].get("clinamen") == "identity" or model["cfg"]["swerve"] == "off":
+        return np.zeros(h)
+    if model["cfg"]["swerve"] == "learned":
+        return softplus(model["params"]["rho"])
+    return np.full(h, model["cfg"]["untuned_scale"])
+
+
+def forward(model, X, eps):
+    """Simulacra -> pondus -> clinamen -> concilium -> eventa."""
+    P, ko = model["params"], model["ko"]
+    drift = X @ P["W"].T + (0.0 if ko.get("pondus_bias") == "zero" else P["b"])
+    scale = swerve_scale(model)
+    swerved = drift + eps * scale
+    compounds = swerved if ko.get("concilium") == "identity" else np.tanh(swerved)
+    return {"drift": drift, "scale": scale, "swerved": swerved, "compounds": compounds,
+            "logits": compounds @ P["V"].T + P["a"]}
+
+
+def loss_and_grads(model, batch):
+    """Cross-entropy plus the paulum penalty on the mean learned swerve; gradients derived by hand."""
+    P, cfg, ko = model["params"], model["cfg"], model["ko"]
+    X, Y, eps = batch["X"], batch["Y"], batch["eps"]
+    n, f = X.shape[0], forward(model, X, eps)
+    learned = "rho" in P and ko.get("clinamen") != "identity"
+    ce = float(np.mean(logsumexp(f["logits"], axis=1) - f["logits"][np.arange(n), Y]))
+    loss = ce + (cfg["paulum"] * float(f["scale"].mean()) if learned else 0.0)
+    d_logits = softmax(f["logits"], axis=1)
+    d_logits[np.arange(n), Y] -= 1.0
+    d_logits /= n
+    d_comp = d_logits @ P["V"]
+    d_swerved = d_comp if ko.get("concilium") == "identity" else d_comp * (1.0 - f["compounds"] ** 2)
+    grads = {"W": d_swerved.T @ X,
+             "b": np.zeros_like(P["b"]) if ko.get("pondus_bias") == "zero" else d_swerved.sum(axis=0),
+             "V": d_logits.T @ f["compounds"], "a": d_logits.sum(axis=0)}
+    if "rho" in P:
+        d_scale = (d_swerved * eps).sum(axis=0) + cfg["paulum"] / P["rho"].size
+        grads["rho"] = d_scale * sigmoid(P["rho"]) if learned else np.zeros_like(P["rho"])
+    if ACTIVE_MUTANT == "zero_grad_swerve_scale" and "rho" in grads:
+        grads["rho"] = np.zeros_like(grads["rho"])
+    if ACTIVE_MUTANT == "atom_index_leak":
+        grads["W"] = grads["W"] * (1.0 + 1e-3 * np.arange(grads["W"].shape[0]))[:, None]
+    return loss, grads
+
+
+def predict(model, X):
+    X = np.asarray(X, dtype=float)
+    return softmax(forward(model, X, np.zeros((X.shape[0], model["params"]["W"].shape[0])))["logits"], axis=1)
+
+
+def hidden_states(model, X):
+    X = np.asarray(X, dtype=float)
+    f = forward(model, X, np.zeros((X.shape[0], model["params"]["W"].shape[0])))
+    return {"pondus": f["drift"], "concilium": f["compounds"]}
+
+
+def accuracy(model, split):
+    return float(np.mean(np.argmax(predict(model, split["X"]), axis=1) == split["Y"]))
+
+
+def atom_spread(model, X):
+    """Largest difference between any atom's compound activation and the first atom's, over inputs X."""
+    compounds = hidden_states(model, X)["concilium"]
+    return float(np.abs(compounds - compounds[:, :1]).max())
+
+
+# ---------------------------------------------------------------- baselines and rival mechanisms
+# name, start, swerve, training-time knockout
+ENGINES = (
+    ("lucretian_fall", "fall", "learned", None),
+    ("untuned_fall", "fall", "untuned", None),
+    ("democritean_disorder", "disorder", "off", None),
+    ("lucretian_disorder", "disorder", "learned", None),
+    ("lucretian_near", "near_fall", "learned", None),
+    ("ko_clinamen_near", "near_fall", "learned", ("clinamen", "identity")),
+    ("ko_pondus_bias_near", "near_fall", "learned", ("pondus_bias", "zero")),
+    ("ko_concilium_near", "near_fall", "learned", ("concilium", "identity")),
+)
+STARTS = ("fall", "near_fall", "disorder")
+
+
+def build_engine(name, seed, untuned_scale=SWERVE_INIT):
+    """Engines sharing a start draw it from one stream, so paired engines begin from the same field."""
+    kids = np.random.SeedSequence(seed).spawn(1 + len(STARTS) + len(ENGINES))
+    idx = [e[0] for e in ENGINES].index(name)
+    _, start, swerve, ko = ENGINES[idx]
+    model = build_model(IN_DIM, CLASSES, TASK_TYPES[0], np.random.default_rng(kids[1 + STARTS.index(start)]),
+                        start=start, swerve=swerve, untuned_scale=untuned_scale)
+    return (knockout(model, *ko) if ko else model), np.random.default_rng(kids[1 + len(STARTS) + idx])
+
+
+def train_engine(name, data, seed, budget, untuned_scale=SWERVE_INIT):
+    model, noise = build_engine(name, seed, untuned_scale)
+    fit(model, data, budget, noise)
+    return model
+
+
+# ---------------------------------------------------------------- registries
+KNOCKOUT_MODES = {"clinamen": ("identity",), "pondus_bias": ("zero",), "concilium": ("identity",)}
+MUTANTS = {
+    "sign_flipped_update": "updates climb the gradient instead of descending it (C3 must fail)",
+    "zero_learning_rate": "learning rate forced to zero (C3 must fail)",
+    "zero_grad_swerve_scale": "gradient of the swerve scale zeroed (C1 must fail)",
+    "atom_index_leak": "drift gradient scaled by atom index, a symmetry-breaking bug (C1 must fail)",
+}
+
+
+def modules(model):
+    table = {
+        "simulacra": ([], "input feature vector (no parameters)", False),
+        "pondus": (["W"], "linear drift of each atom (hidden pre-activation weights)", False),
+        "pondus_bias": (["b"], "per-atom offset of the drift (hidden bias)", False),
+        "clinamen": (["rho"] if "rho" in model["params"] else [],
+                     "additive Gaussian deviation per atom with learned or fixed scale (noise injection)", True),
+        "concilium": ([], "tanh gate turning swerved drifts into compound features", False),
+        "eventa": (["V", "a"], "linear readout of the whole field to class logits", False)}
+    return {name: {"params": p, "role": role, "signature": sig} for name, (p, role, sig) in table.items()}
+
+
+def knockout(model, name, mode):
+    """Copy with a module replaced: clinamen by identity (no deviation), pondus_bias by zero, concilium by identity."""
+    if mode not in KNOCKOUT_MODES.get(name, ()):
+        raise ValueError(f"no knockout {name}:{mode}")
+    return {"params": {k: v.copy() for k, v in model["params"].items()}, "cfg": dict(model["cfg"]),
+            "ko": dict(model["ko"], **{name: mode})}
+
+
+def n_params(model):
+    return int(sum(v.size for v in model["params"].values()))
+
+
+# ---------------------------------------------------------------- training
+def fit(model, data, budget, rng):
+    """Full-batch gradient descent with momentum; the swerve is redrawn at every update."""
+    P = model["params"]
+    velocity = {k: np.zeros_like(v) for k, v in P.items()}
+    lr = 0.0 if ACTIVE_MUTANT == "zero_learning_rate" else model["cfg"]["lr"]
+    direction = 1.0 if ACTIVE_MUTANT == "sign_flipped_update" else -1.0
+    X, Y = data["train"]["X"], data["train"]["Y"]
+    history, scales = [], []
+    for step in range(1, budget + 1):
+        eps = rng.standard_normal((X.shape[0], P["W"].shape[0]))
+        loss, grads = loss_and_grads(model, {"X": X, "Y": Y, "eps": eps})
+        if not (math.isfinite(loss) and all(np.isfinite(g).all() for g in grads.values())):
+            raise FloatingPointError(f"non-finite loss or gradient at update {step}")
+        grads = clip_global(grads, CLIP_NORM)[0]
+        for k in P:
+            velocity[k] = MOMENTUM * velocity[k] + grads[k]
+            P[k] += direction * lr * velocity[k]
+        history.append(loss)
+        scales.append(float(swerve_scale(model).mean()))
+    model["trace"] = {"loss": history, "mean_scale": scales}
+    return history
+
+
+def data_bridge(path, seed, budget):
+    """Optional: a local numeric CSV with a header and an integer class label in the last column."""
+    if not os.path.exists(path):
+        return f"skipped ({path} not found)"
+    table = np.genfromtxt(path, delimiter=",", skip_header=1)
+    X, Y = table[:, :-1], table[:, -1].astype(int)
+    X = (X - X.mean(axis=0)) / (X.std(axis=0) + 1e-12)
+    order = np.random.default_rng(seed).permutation(len(Y))
+    cut = int(0.8 * len(Y))
+    data = {"train": {"X": X[order[:cut]], "Y": Y[order[:cut]]}, "heldout": {"X": X[order[cut:]], "Y": Y[order[cut:]]}}
+    model = build_model(X.shape[1], int(Y.max()) + 1, TASK_TYPES[0], np.random.default_rng(seed))
+    fit(model, data, budget, np.random.default_rng(seed + 1))
+    return f"{path}: held-out accuracy {accuracy(model, data['heldout']):.4f} vs majority {trivial_accuracy(data):.4f}"
+
+
+# ---------------------------------------------------------------- tests: correctness
+def gradient_errors(model, data, rng, entries):
+    """Worst central-difference relative error per tensor, on 64 training examples with one frozen swerve draw."""
+    frozen = np.random.default_rng(4321).standard_normal((64, model["params"]["W"].shape[0]))
+    batch = {"X": data["train"]["X"][:64], "Y": data["train"]["Y"][:64], "eps": frozen}
+    return finite_difference_check(model["params"], loss_and_grads(model, batch)[1],
+                                   lambda: loss_and_grads(model, batch)[0], rng, n_entries=entries,
+                                   floor=MIND_CARD["thresholds"]["gradcheck_floor"])
+
+
+def learns(model, data):
+    """C3 rule, shared by the protocol and the mutant replay: loss drop and margin over the majority rate."""
+    limits, losses = MIND_CARD["thresholds"], model["trace"]["loss"]
+    drop = 1.0 - float(np.mean(losses[-20:])) / losses[0]
+    acc, base = accuracy(model, data["heldout"]), trivial_accuracy(data)
+    return drop >= limits["loss_drop_fraction"] and acc >= base + limits["margin_over_trivial"], drop, acc, base
+
+
+def replay(data, seed, budget):
+    """The base seed's Lucretian run exactly as in run_seed; True when it passes C1 at init and C3 after training."""
+    try:
+        model, noise = build_engine("lucretian_fall", seed)
+        errors = gradient_errors(model, data, np.random.default_rng(seed), 4)
+        fit(model, data, budget, noise)
+        return max(errors.values()) <= MIND_CARD["thresholds"]["gradcheck_rel_error"] and learns(model, data)[0]
+    except FloatingPointError:
         return False
-    
-    def get_alignment_report(self) -> Dict[str, Any]:
-        """Get a comprehensive alignment report."""
-        return {
-            "principles": self.principles,
-            "constraints": self.constraints,
-            "alignment_score": self.alignment_score,
-            "approved_actions": 0,  # Would track this in practice
-            "violations": 0
-        }
 
 
-class EpicureanValueModel:
-    """
-    A model for evaluating actions according to Epicurean ethics.
-    pleasure is the highest good, and the goal is to maximize
-    tranquility while minimizing pain.
-    """
-    
-    def __init__(self):
-        self.pleasure_weights: Dict[str, float] = {
-            "friendship": 1.0,
-            "health": 0.9,
-            "freedom": 0.9,
-            "knowledge": 0.8,
-            "justice": 0.8,
-            "virtue": 0.7,
-            "pleasure": 0.6,
-            "wealth": 0.3,
-            "fame": 0.2,
-            "power": 0.2
-        }
-    
-    def calculate_pleasure(self, action: Dict[str, Any]) -> float:
-        """Calculate the net pleasure of an action."""
-        gains = sum(
-            self.pleasure_weights.get(g, 0.3) 
-            for g in action.get("gains", [])
-        )
-        losses = sum(
-            self.pleasure_weights.get(l, 0.3) 
-            for l in action.get("losses", [])
-        )
-        
-        # Normalize
-        max_possible = sum(self.pleasure_weights.values())
-        net = (gains - losses) / max_possible
-        
-        return max(0.0, min(1.0, net))
-    
-    def evaluate_desire(self, desire: str) -> str:
-        """Evaluate whether a desire should be pursued."""
-        if desire in ["friendship", "health", "freedom", "knowledge"]:
-            return "natural_and_necessary"
-        elif desire in ["justice", "virtue"]:
-            return "natural_but_not_necessary"
-        else:
-            return "vain_and_empty"
+def under_mutant(name, action):
+    """Call action() with a registered mutant switched on and restore the previous state afterwards."""
+    global ACTIVE_MUTANT
+    previous, ACTIVE_MUTANT = ACTIVE_MUTANT, name
+    try:
+        return action()
+    finally:
+        ACTIVE_MUTANT = previous
 
 
-class AtomicMaterialismFramework:
-    """
-    A comprehensive framework for understanding reality through
-    the lens of atomic materialism. All phenomena are explained
-    as interactions between atoms in the void.
-    """
-    
-    def __init__(self):
-        self.atom_types: Dict[str, Dict[str, Any]] = {}
-        self.compounds: List[CompoundTerm] = []
-        self.phenomena: List[Dict[str, Any]] = []
-        self.id = id(self)
-        
-        self._initialize_atom_types()
-    
-    def _initialize_atom_types(self) -> None:
-        """Initialize the basic types of atoms."""
-        self.register_atom_type("fire", {"shape": "pointed", "weight": 1.0, "property": "heat"})
-        self.register_atom_type("air", {"shape": "smooth", "weight": 0.8, "property": "light"})
-        self.register_atom_type("water", {"shape": "rounded", "weight": 1.2, "property": "fluid"})
-        self.register_atom_type("earth", {"shape": "rough", "weight": 1.5, "property": "solid"})
-    
-    def register_atom_type(self, name: str, properties: Dict[str, Any]) -> None:
-        """Register a type of atom."""
-        self.atom_types[name] = properties
-    
-    def create_atom(self, atom_type: str, name: str) -> Optional[Term]:
-        """Create an atom of a given type."""
-        if atom_type not in self.atom_types:
-            return None
-        
-        props = self.atom_types[atom_type].copy()
-        atom = Term(name, "atom", props["weight"], props)
-        return atom
-    
-    def explain_phenomenon(self, phenomenon: str) -> Dict[str, Any]:
-        """Explain a natural phenomenon through atomic theory."""
-        explanations = {
-            "wind": "Air atoms moving rapidly through the void",
-            "rain": "Water atoms falling due to gravity",
-            "fire": "Pointed fire atoms rapidly moving and penetrating",
-            "life": "Complex arrangement of atoms with soul-atoms",
-            "sensation": "Atomic images (simulacra) striking the sense organs",
-            "thought": "Fine soul-atoms moving within the body",
-            "death": "Separation of atoms that previously formed a living being",
-            "dream": "Atomic images that have detached and float in the void"
-        }
-        
-        return {
-            "phenomenon": phenomenon,
-            "explanation": explanations.get(phenomenon, "Unknown phenomenon"),
-            "atomic_basis": True
-        }
-    
-    def simulate_formation(self, atom_specs: List[Tuple[str, str]]) -> Optional[CompoundTerm]:
-        """Simulate the formation of a compound from atoms."""
-        atoms = []
-        for atom_type, name in atom_specs:
-            atom = self.create_atom(atom_type, name)
-            if atom:
-                atoms.append(atom)
-        
-        if not atoms:
-            return None
-        
-        compound = CompoundTerm(atoms, "formation")
-        compound.set_property("origin", "simulated_formation")
-        self.compounds.append(compound)
-        return compound
-    
-    def decompose_compound(self, compound: CompoundTerm) -> List[Term]:
-        """Decompose a compound into its atomic constituents."""
-        atoms = compound.decompose()
-        self.compounds.remove(compound)
-        return atoms
-    
-    def get_summary(self) -> Dict[str, Any]:
-        """Get a summary of the framework state."""
-        return {
-            "atom_types": len(self.atom_types),
-            "compounds": len(self.compounds),
-            "phenomena": len(self.phenomena)
-        }
+def permuted(params, perm):
+    moved = {"W": params["W"][perm], "b": params["b"][perm], "V": params["V"][:, perm], "a": params["a"].copy()}
+    if "rho" in params:
+        moved["rho"] = params["rho"][perm]
+    return moved
 
 
-# =============================================================================
-# SECTION 5: UTILITY CLASSES AND FUNCTIONS
-# =============================================================================
-
-class LucretianReasoner:
-    """
-    A reasoner that applies Lucretian/Epicurean logic to solve problems.
-    """
-    
-    def __init__(self):
-        self.premises: List[Proposition] = []
-        self.conclusions: List[Proposition] = []
-        self.objections: List[Objection] = []
-        self.resolutions: List[Resolution] = []
-    
-    def add_premise(self, subject: Term, predicate: str, 
-                    truth_value: Proposition.TruthValue = Proposition.TruthValue.UNKNOWN) -> Proposition:
-        """Add a premise to the reasoner."""
-        premise = Proposition(subject, predicate, truth_value)
-        self.premises.append(premise)
-        return premise
-    
-    def derive_conclusion(self, subject: Term, predicate: str) -> Optional[Proposition]:
-        """Derive a conclusion from premises."""
-        # Simple derivation - in practice would be more sophisticated
-        relevant_premises = [p for p in self.premises if p.truth_value == Proposition.TruthValue.TRUE]
-        
-        if len(relevant_premises) >= 2:
-            conclusion = Proposition(subject, predicate, Proposition.TruthValue.TRUE)
-            conclusion.assert_true("Derived from true premises")
-            self.conclusions.append(conclusion)
-            return conclusion
-        return None
-    
-    def add_objection(self, target: Union[Proposition, Syllogism],
-                      text: str, source: str = "anonymous") -> Objection:
-        """Add an objection."""
-        objection = Objection(target, text, source)
-        self.objections.append(objection)
-        return objection
-    
-    def resolve_objection(self, objection: Objection, 
-                          text: str, reasoning: str) -> Resolution:
-        """Resolve an objection."""
-        resolution = Resolution(objection, text, reasoning)
-        self.resolutions.append(resolution)
-        return resolution
-    
-    def get_valid_syllogisms(self) -> List[Syllogism]:
-        """Get all valid syllogisms from premises."""
-        valid = []
-        for i, p1 in enumerate(self.premises):
-            for p2 in self.premises[i+1:]:
-                conclusion = self.derive_conclusion(
-                    Term("derived"), "from premises"
-                )
-                if conclusion:
-                    syllogism = Syllogism(p1, p2, conclusion)
-                    if syllogism.evaluate():
-                        valid.append(syllogism)
-        return valid
+def equivariance_gap(model, batch, perm):
+    """Largest mismatch between the gradients of relabelled atoms and the relabelled gradients."""
+    loss_1, grads_1 = loss_and_grads(model, batch)
+    twin = {"params": permuted(model["params"], perm), "cfg": model["cfg"], "ko": model["ko"]}
+    loss_2, grads_2 = loss_and_grads(twin, dict(batch, eps=batch["eps"][:, perm]))
+    expected = permuted(grads_1, perm)
+    return max([abs(loss_1 - loss_2)] + [float(np.abs(grads_2[k] - expected[k]).max()) for k in grads_2])
 
 
-class EpicureanValidator:
-    """
-    Validates propositions and arguments against Epicurean principles.
-    """
-    
-    def __init__(self):
-        self.principles = [
-            "Nothing comes from nothing",
-            "Nothing returns to nothing",
-            "The universe is atomic",
-            "The void exists",
-            "Pleasure is the highest good"
-        ]
-    
-    def validate(self, proposition: Proposition) -> bool:
-        """Validate a proposition against Epicurean principles."""
-        text = str(proposition).lower()
-        
-        # Check for contradictions with core principles
-        if "comes from nothing" in text and "not" not in text:
-            return False
-        if "returns to nothing" in text and "not" not in text:
-            return False
-        
-        return True
-    
-    def check_consistency(self, propositions: List[Proposition]) -> bool:
-        """Check consistency among propositions."""
-        for i, p1 in enumerate(propositions):
-            for p2 in propositions[i+1:]:
-                if not self._are_consistent(p1, p2):
-                    return False
-        return True
-    
-    def _are_consistent(self, p1: Proposition, p2: Proposition) -> bool:
-        """Check if two propositions are consistent."""
-        # Simple consistency check
-        if p1.is_true() and p2.is_true():
-            return True
-        if p1.is_false() and p2.is_false():
-            return True
-        if p1.is_true() and p2.is_false():
-            return self._check_contradiction(p1, p2)
-        return True
-    
-    def _check_contradiction(self, p1: Proposition, p2: Proposition) -> bool:
-        """Check if contradictory propositions can coexist."""
-        # In Epicurean logic, some apparent contradictions resolve at deeper levels
-        return True
+class Trial:
+    """One protocol run: every engine trained on every seed, and the correctness checks on the base seed."""
+
+    def __init__(self, mode, base_seed, n_seeds):
+        self.mode, self.base_seed, self.budget = mode, base_seed, STEPS[mode]
+        self.seeds = list(range(base_seed, base_seed + n_seeds))
+        self.runs, self.caught = [], {}
+
+    def train(self, clock):
+        for seed in self.seeds:
+            self.runs.append(run_seed(seed, self.budget))
+            print(f"  seed {seed}: {len(ENGINES)} engines trained ({clock():.1f} s)", flush=True)
+        self.data, self.engines = self.runs[0]["data"], self.runs[0]["models"]
+
+    def gradients(self):
+        names = ("lucretian_fall", "untuned_fall", "democritean_disorder")
+        fresh, trained = np.random.default_rng(self.base_seed + 3), np.random.default_rng(self.base_seed + 4)
+        tables = [gradient_errors(build_engine(n, self.base_seed)[0], self.data, fresh, 20) for n in names]
+        tables += [gradient_errors(self.engines[n], self.data, trained, 20) for n in names]
+        self.worst_gradient = max(max(t.values()) for t in tables)
+        self.coverage = (sum(len(t) for t in tables) // 2, sum(len(self.engines[n]["params"]) for n in names))
+        ok = self.worst_gradient <= MIND_CARD["thresholds"]["gradcheck_rel_error"] and len(set(self.coverage)) == 1
+        return ok, (f"max rel error {self.worst_gradient:.2e}; every tensor of the Lucretian, untuned and Democritean "
+                    f"engines at init and after {self.budget} updates")
+
+    def determinism(self):
+        twins = [train_engine("lucretian_fall", self.data, self.base_seed, 25) for _ in "ab"]
+        outs = [predict(t, self.data["heldout"]["X"]) for t in twins]
+        same = twins[0]["trace"]["loss"] == twins[1]["trace"]["loss"] and np.array_equal(*outs)
+        finite = bool(np.isfinite(outs[0]).all()) and all(np.isfinite(p).all() for p in twins[0]["params"].values())
+        return same and finite, f"identical losses and outputs: {same}; finite: {finite}"
+
+    def learning(self):
+        ok, drop, acc, base = learns(self.engines["lucretian_fall"], self.data)
+        limits = MIND_CARD["thresholds"]
+        return ok, (f"loss drop {drop:.3f} (min {limits['loss_drop_fraction']}); held-out accuracy {acc:.4f} vs "
+                    f"majority {base:.4f} (min margin {limits['margin_over_trivial']})")
+
+    def shuffled(self):
+        order = np.random.default_rng(self.base_seed + 11).permutation(self.data["train"]["Y"].size)
+        scrambled = dict(self.data, train=dict(self.data["train"], Y=self.data["train"]["Y"][order]))
+        model = train_engine("lucretian_fall", scrambled, self.base_seed, self.budget)
+        acc, base, limit = accuracy(model, self.data["heldout"]), trivial_accuracy(self.data), MIND_CARD["thresholds"]["shuffled_margin"]
+        return acc <= base + limit, f"held-out accuracy after shuffled training {acc:.4f} vs majority {base:.4f} (max +{limit})"
+
+    def mutants(self):
+        control = replay(self.data, self.base_seed, self.budget)
+        self.caught = {name: not under_mutant(name, lambda: replay(self.data, self.base_seed, self.budget))
+                       for name in MUTANTS}
+        found = sum(self.caught.values())
+        return control and found == len(MUTANTS), (f"unmutated base-seed run passes C1 and C3: {control}; mutants "
+                                                    f"caught {found}/{len(MUTANTS)}")
+
+    def symmetry(self):
+        """C6.1: relabelling atoms relabels loss and gradients exactly; an index-dependent gradient must break it.
+        Corollary (definition, not evidence): from the fall without a swerve the atoms never come to differ."""
+        rng, gaps, leaks = np.random.default_rng(self.base_seed + 5), [], []
+        for _ in range(6):
+            model = build_model(IN_DIM, CLASSES, TASK_TYPES[0], rng, start="disorder")
+            model["params"].update(b=rng.normal(0.0, 1.0, ATOMS), a=rng.normal(0.0, 1.0, CLASSES),
+                                   rho=rng.normal(-1.0, 1.0, ATOMS))
+            batch = {"X": rng.normal(0.0, 1.0, (32, IN_DIM)), "Y": rng.integers(0, CLASSES, 32),
+                     "eps": rng.normal(0.0, 1.0, (32, ATOMS))}
+            perm = rng.permutation(ATOMS)
+            while np.array_equal(perm, np.arange(ATOMS)):
+                perm = rng.permutation(ATOMS)
+            gaps.append(equivariance_gap(model, batch, perm))
+            leaks.append(under_mutant("atom_index_leak", lambda: equivariance_gap(model, batch, perm)))
+        spread = {}
+        for swerve in ("off", "learned"):
+            field = build_model(IN_DIM, CLASSES, TASK_TYPES[0], np.random.default_rng(self.base_seed + 21), swerve=swerve)
+            fit(field, self.data, self.budget, np.random.default_rng(self.base_seed + 22))
+            spread[swerve] = atom_spread(field, self.data["heldout"]["X"])
+        limits = MIND_CARD["thresholds"]
+        ok = max(gaps) <= limits["equivariance_tol"] and max(leaks) > limits["negative_control_min_violation"]
+        return ok, (f"largest gap {max(gaps):.1e}; index-leak negative control gap {max(leaks):.1e}; corollary atom "
+                    f"spread after training from the fall: no swerve {spread['off']:.1e}, learned swerve {spread['learned']:.1e}")
+
+    def bound(self):
+        """C6.2: a swerve moves the logits by at most ||V|| times the size of the deviation; a gate steeper than 1
+        breaks it. Sampled near the gate's linear regime (small drift and swerve), where the bound is tight, and in saturation."""
+        rng, excess, steep = np.random.default_rng(self.base_seed + 6), [], []
+        for drift_mult, rho_mean in itertools.product((0.01, 1.0, 3.0), (-4.0, 0.0)):
+            model = build_model(IN_DIM, CLASSES, TASK_TYPES[0], rng, start="disorder")
+            P = model["params"]
+            P["W"] *= drift_mult
+            P["V"] *= 3.0
+            P["rho"] = rng.normal(rho_mean, 1.0, ATOMS)
+            X, e1, e2 = (rng.normal(0.0, 1.0, shape) for shape in ((64, IN_DIM), (64, ATOMS), (64, ATOMS)))
+            one, two = forward(model, X, e1), forward(model, X, e2)
+            allowance = np.linalg.norm(P["V"], 2) * np.linalg.norm((e1 - e2) * one["scale"], axis=1)
+            excess.append(np.linalg.norm(one["logits"] - two["logits"], axis=1) - allowance)
+            sharp = (np.tanh(3.0 * one["swerved"]) - np.tanh(3.0 * two["swerved"])) @ P["V"].T
+            steep.append(np.linalg.norm(sharp, axis=1) - allowance)
+        top, control, limits = float(np.max(excess)), float(np.max(steep)), MIND_CARD["thresholds"]
+        ok = top <= limits["bound_tol"] and control > limits["negative_control_min_violation"]
+        return ok, f"largest excess over the bound {top:.1e}; steep-gate negative control excess {control:.1e}"
+
+    def splits(self):
+        """C7: no input vector appears in two splits."""
+        digests = [{hashlib.sha256(np.round(row, 12).tobytes()).hexdigest() for row in self.data[s]["X"]}
+                   for s in SPLIT_SIZES]
+        clean = not any(a & b for a, b in itertools.combinations(digests, 2))
+        return clean, f"pairwise disjoint: {clean}"
 
 
-class LucretianQuote:
-    """
-    Represents famous quotes from Lucretius's De Rerum Natura.
-    """
-    
-    def __init__(self, text: str, book: int, line: int, context: str = ""):
-        self.text = text
-        self.book = book
-        self.line = line
-        self.context = context
-    
-    def __repr__(self) -> str:
-        return f"LucretianQuote(book={self.book}, line={self.line})"
-    
-    def __str__(self) -> str:
-        return f'"{self.text}" - De Rerum Natura, Book {self.book}'
-
-    def get_philosophical_point(self) -> str:
-        """Extract the philosophical point of the quote."""
-        if "atoms" in self.text.lower() or "atoms" in self.context.lower():
-            return "Atomic theory"
-        if "death" in self.text.lower():
-            return "Mortality and fear of death"
-        if "pleasure" in self.text.lower():
-            return "Hedonistic ethics"
-        if "nature" in self.text.lower():
-            return "Naturalism"
-        if "gods" in self.text.lower():
-            return "Theology critique"
-        return "Epicurean philosophy"
+CHECKS = (("C1", "gradient_check", "gradients"), ("C2", "determinism_finiteness", "determinism"),
+          ("C3", "learning", "learning"), ("C4", "shuffled_label_control", "shuffled"),
+          ("C5", "mutant_detection", "mutants"), ("C6.1", "atom_exchange_symmetry", "symmetry"),
+          ("C6.2", "swerve_influence_bound", "bound"), ("C7", "split_integrity", "splits"))
 
 
-# =============================================================================
-# SECTION 6: DEMONSTRATION
-# =============================================================================
+# ---------------------------------------------------------------- tests: hypotheses
+def run_seed(seed, budget):
+    """Train every engine on one seed's data; untuned noise is matched to the Lucretian run's mean swerve scale."""
+    data = make_data(np.random.default_rng(np.random.SeedSequence(seed).spawn(1)[0]))
+    models = {}
+    for name, *_ in ENGINES:
+        matched = np.mean(models["lucretian_fall"]["trace"]["mean_scale"]) if name == "untuned_fall" else SWERVE_INIT
+        models[name] = train_engine(name, data, seed, budget, float(matched))
+    acc = {name: {s: accuracy(m, data[s]) for s in ("heldout", "shifted")} for name, m in models.items()}
 
-def demo():
-    """
-    Full demonstration of the Lucretian cognitive architecture.
-    Shows all five layers working together.
-    """
-    print("=" * 80)
-    print("DEMONSTRATION: Figure 105 - Lucretius (-99 CE)")
-    print("De Rerum Natura Cognitive Architecture")
-    print("=" * 80)
-    
-    # Create the main architecture
-    architecture = LucretiusCognitiveArchitecture()
-    
-    print("\n" + "-" * 40)
-    print("LAYER 1: SENSUS (SENSATION)")
-    print("-" * 40)
-    
-    # Simulate sensations
-    sense_channels = ["visual", "auditory", "tactile"]
-    for channel in sense_channels:
-        data = {
-            "channel": channel,
-            "intensity": random.uniform(0.3, 1.0),
-            "timestamp": 0,
-            "source": "simulation"
-        }
-        result = architecture.sense_and_perceive(channel, data)
-        print(f"  {channel.capitalize()}: perceived intensity={result['intensity']:.2f}")
-    
-    print(f"\n  Layer 1 Summary: {architecture.layer1_sensus.get_summary()}")
-    
-    print("\n" + "-" * 40)
-    print("LAYER 2: ATOMUS (ATOMS)")
-    print("-" * 40)
-    
-    # Create atoms
-    atom_specs = [
-        ("fire", 1.0),
-        ("air", 0.8),
-        ("water", 1.2),
-        ("earth", 1.5)
-    ]
-    compound = architecture.create_atomic_structure(atom_specs)
-    print(f"  Created compound: {compound}")
-    print(f"  Compound components: {len(compound.get_components())}")
-    
-    # Apply swerve
-    atoms = architecture.layer2_atomus.get_all_atoms()
-    for atom in atoms[:3]:  # Apply to first 3
-        swerve_result = architecture.apply_swerve(atom, random.uniform(0.1, 0.5))
-        print(f"  Applied swerve to {atom.name}: angle={swerve_result['angle']:.3f}")
-    
-    print(f"\n  Layer 2 Summary: {architecture.layer2_atomus.get_summary()}")
-    
-    print("\n" + "-" * 40)
-    print("LAYER 3: VOLUPTAS (PLEASURE)")
-    print("-" * 40)
-    
-    # Add pleasures
-    pleasures = [
-        ("friendship", 0.9, 10.0),
-        ("knowledge", 0.8, 8.0),
-        ("health", 0.85, 9.0),
-        ("freedom", 0.75, 7.0)
-    ]
-    
-    for name, intensity, duration in pleasures:
-        net = architecture.calculate_pleasure(name, intensity, duration)
-        print(f"  Added pleasure '{name}': intensity={intensity}, duration={duration}, net={net:.3f}")
-    
-    # Add some pain
-    architecture.calculate_pain("hunger", 0.3, 2.0)
-    print(f"  Added pain 'hunger'")
-    
-    print(f"\n  Ataraxia (tranquility): {architecture.layer3_voluptas.get_ataraxia():.3f}")
-    print(f"  Aponia (no pain): {architecture.layer3_voluptas.get_aponia():.3f}")
-    print(f"  Net pleasure: {architecture.layer3_voluptas.get_net_pleasure():.3f}")
-    
-    print("\n" + "-" * 40)
-    print("LAYER 4: NATURA (NATURE)")
-    print("-" * 40)
-    
-    # Create natural phenomena
-    phenomenon_atoms = architecture.layer2_atomus.get_all_atoms()
-    individuals = []
-    
-    for i, name in enumerate(["fire_flame", "water_drop", "air_breeze"]):
-        ind = architecture.create_natural_phenomenon(
-            name, 
-            phenomenon_atoms[i:i+2]
-        )
-        individuals.append(ind)
-        print(f"  Created natural phenomenon: {ind}")
-    
-    # Apply natural laws
-    for ind in individuals:
-        result = architecture.apply_natural_laws(ind)
-        print(f"  Applied laws to {ind.name}: {result['law_effects']}")
-    
-    print(f"\n  Layer 4 Summary: {architecture.layer4_natura.get_summary()}")
-    
-    print("\n" + "-" * 40)
-    print("LAYER 5: SAPIENTIA (WISDOM)")
-    print("-" * 40)
-    
-    # Gain wisdom
-    teachings = [
-        ("death", "Death is nothing to us - when we are, death has not come; when death comes, we are not."),
-        ("gods", "The gods are indifferent to human affairs and do not punish us."),
-        ("nature", "All phenomena arise from natural causes - no supernatural intervention exists."),
-        ("pleasure", "The highest good is freedom from pain and disturbance."),
-        ("atoms", "All things are composed of atoms moving in the void.")
-    ]
-    
-    for topic, understanding in teachings:
-        architecture.gain_wisdom(topic, understanding)
-        print(f"  Gained understanding of '{topic}':")
-        print(f"    \"{understanding[:60]}...\"" if len(understanding) > 60 else f"    \"{understanding}\"")
-    
-    print(f"\n  Wisdom level: {architecture.layer5_sapientia.wisdom_level:.3f}")
-    print(f"  Enlightenment achieved: {architecture.achieve_philosophical_enlightenment()}")
-    
-    print("\n" + "-" * 40)
-    print("PHYSICS SIMULATION")
-    print("-" * 40)
-    
-    simulation = EpicureanPhysicsSimulation()
-    print(f"  Created simulation: {simulation}")
-    
-    # Spawn atoms
-    spawned = simulation.spawn_atoms(20)
-    print(f"  Spawned {len(spawned)} atoms")
-    
-    # Run simulation steps
-    for step in range(5):
-        result = simulation.step()
-        print(f"  Step {step + 1}: {len(result['moved'])} atoms moved")
-    
-    print(f"  Final atom count: {simulation.get_atom_count()}")
-    print(f"  Time elapsed: {simulation.time:.2f}")
-    
-    print("\n" + "-" * 40)
-    print("DE RERUM NATURA ENGINE")
-    print("-" * 40)
-    
-    engine = DeRerumNaturaEngine()
-    print(f"  Created engine with {len(engine.books)} books")
-    
-    # Demonstrate arguments
-    arguments = [
-        engine.demonstrate_atoms_exist(),
-        engine.demonstrate_no_creation_from_nothing(),
-        engine.demonstrate_soul_is_mortal()
-    ]
-    
-    for arg in arguments:
-        print(f"\n  Argument: {arg.name}")
-        print(f"    {arg}")
-        print(f"    Valid: {arg.evaluate()}")
-    
-    print("\n" + "-" * 40)
-    print("AGI ALIGNMENT")
-    print("-" * 40)
-    
-    alignment = LucretiusAGIAlignment()
-    print(f"  Created alignment system")
-    print(f"  Principles: {len(alignment.principles)}")
-    
-    # Evaluate some actions
-    actions = [
-        {"name": "help_human", "gains": ["friendship", "knowledge"], "losses": []},
-        {"name": "harm_human", "gains": [], "losses": ["health", "freedom"]},
-        {"name": "share_knowledge", "gains": ["knowledge", "friendship"], "losses": ["wealth"]}
-    ]
-    
-    for action in actions:
-        result = alignment.evaluate_action(action)
-        print(f"  Action '{action['name']}':")
-        print(f"    Pleasure score: {result['pleasure_score']:.3f}")
-        print(f"    Alignment score: {result['alignment_score']:.3f}")
-        print(f"    Recommendation: {result['recommendation']}")
-    
-    print("\n" + "-" * 40)
-    print("ATOMIC MATERIALISM FRAMEWORK")
-    print("-" * 40)
-    
-    framework = AtomicMaterialismFramework()
-    print(f"  Created framework with {len(framework.atom_types)} atom types")
-    
-    # Explain phenomena
-    phenomena = ["wind", "rain", "fire", "sensation", "dream"]
-    for phenomenon in phenomena:
-        explanation = framework.explain_phenomenon(phenomenon)
-        print(f"  {phenomenon.capitalize()}:")
-        print(f"    {explanation['explanation']}")
-    
-    print("\n" + "-" * 40)
-    print("SYLLOGISMS AND OBJECTIONS")
-    print("-" * 40)
-    
-    # Create syllogisms with objections
-    p1 = Proposition(Term("soul"), "is affected by body", Proposition.TruthValue.TRUE)
-    p1.assert_true("Experience shows this")
-    
-    p2 = Proposition(Term("immaterial"), "cannot be affected", Proposition.TruthValue.TRUE)
-    p2.assert_true("Definition of immaterial")
-    
-    conclusion = Proposition(Term("soul"), "is material", Proposition.TruthValue.TRUE)
-    conclusion.assert_true("Follows from premises")
-    
-    syllogism = Syllogism(p1, p2, conclusion, "soul_materiality")
-    print(f"  Created syllogism: {syllogism.name}")
-    print(f"  Valid: {syllogism.evaluate()}")
-    
-    # Add objection
-    objection = Objection(syllogism, "How can the soul be material if it thinks?")
-    print(f"  Objection: {objection}")
-    
-    # Resolve objection
-    resolution = Resolution(
-        objection,
-        "The soul uses fine atoms that can think without being immaterial",
-        "This follows Epicurean physics where thought is a physical process"
-    )
-    print(f"  Resolution: {resolution.text}")
-    
-    print("\n" + "-" * 40)
-    print("LUCRETIAN QUOTES")
-    print("-" * 40)
-    
-    quotes = [
-        LucretianQuote(
-            "Sweet is the terror of the day and the night, the fear of gods, and the underworld's dread.",
-            1, 102, "Opening invocation to Venus"
-        ),
-        LucretianQuote(
-            "Nothing exists except atoms and void; all else is talk.",
-            2, 333, "Statement of atomic theory"
-        ),
-        LucretianQuote(
-            "When we exist, death is not; when death comes, we are not.",
-            3, 830, "Argument against fear of death"
-        ),
-        LucretianQuote(
-            "Pleasure is the beginning and end of the happy life.",
-            2, 17, "Core of Epicurean ethics"
-        )
-    ]
-    
-    for quote in quotes:
-        print(f"  {quote}")
-        print(f"    Philosophical point: {quote.get_philosophical_point()}")
-    
-    print("\n" + "-" * 40)
-    print("COMPLETE ARCHITECTURE STATE")
-    print("-" * 40)
-    
-    state = architecture.get_full_state()
-    for layer, summary in state.items():
-        print(f"  {layer}: {summary}")
-    
-    print("\n" + "=" * 80)
-    print("DEMONSTRATION COMPLETE")
-    print("=" * 80)
+    def gap(first, second, split="heldout"):
+        return acc[first][split] - acc[second][split]
+    row = {"H-SIG": gap("lucretian_fall", "untuned_fall", "shifted"), "H-NEC": gap("ko_clinamen_near", "ko_pondus_bias_near"),
+           "H-BLIND": gap("lucretian_disorder", "democritean_disorder"), "H-RIVAL": gap("lucretian_fall", "democritean_disorder")}
+    lesions = {ko[0]: gap(name, "lucretian_near") for name, _, _, ko in ENGINES if ko}
+    return {"data": data, "models": models, "acc": acc, "row": row, "knockouts": lesions}
+
+
+def interval(values, rng, evaluated):
+    return paired_bootstrap(values, rng) if evaluated else (float(np.mean(values)), None)
+
+
+def judge(runs, seed, evaluated):
+    """Paired per-seed differences, percentile bootstrap and verdicts against the frozen card; then the lesions."""
+    rng, hyps, lesions = np.random.default_rng(seed + 9973), [], []
+    for spec in MIND_CARD["hypotheses"]:
+        mean, ci = interval([run["row"][spec["id"]] for run in runs], rng, evaluated)
+        hyps.append(dict(id=spec["id"], metric=spec["metric"], mean_diff=mean, ci95=ci, mesi=spec["mesi"], n_seeds=len(runs),
+                         verdict=verdict(mean, ci, spec["mesi"], spec["direction"]) if evaluated else "not evaluated"))
+    roles = modules(runs[0]["models"]["lucretian_near"])
+    for name, mode in (("clinamen", "identity"), ("pondus_bias", "zero"), ("concilium", "identity")):
+        change, ci = interval([run["knockouts"][name] for run in runs], rng, evaluated)
+        lesions.append(dict(module=name, mode=mode, signature=roles[name]["signature"], metric_change=change, ci95=ci))
+    return hyps, lesions
+
+
+# ---------------------------------------------------------------- report
+def span(ci):
+    return "n/a" if ci is None else "[{:+.4f}, {:+.4f}]".format(*ci)
+
+
+def render(payload, extra):
+    """Text block rendered from the Appendix B payload plus descriptive extras."""
+    text = ["=== VERIFIED REPORT · chapter {:04d} ===".format(payload["chapter"]),
+            "file: {} · card_revision {} · mode {} · mutant {}".format(payload["file"], payload["card_revision"],
+                                                                    extra["mode"], ACTIVE_MUTANT),
+            "environment: python {python} · numpy {numpy}".format(**payload["environment"]),
+            "seeds: {} · runtime_s {:.1f} · budget_s {:.0f}".format(payload["seeds"], payload["runtime_s"],
+                                                                   TIME_BUDGET[extra["mode"]]),
+            "n_params: " + " · ".join("{} {}".format(*item) for item in extra["sizes"].items()),
+            ("gradcheck: {tensors_checked}/{tensors_total} tensors at init and after training · max_rel_error "
+             "{max_rel_error:.2e} · passed {passed}").format(**payload["gradcheck"]), "correctness:"]
+    text += ["  {:<5} {:<24} {}  {}".format(c["id"], c["name"], ("FAIL", "PASS")[c["passed"]], c["detail"])
+             for c in payload["correctness"]]
+    tally = payload["mutants"]
+    text.append("mutants: {}/{} detected · score {:.2f} · ".format(tally["detected"], tally["total"], tally["score"])
+                + ", ".join(name + (" caught" if hit else " MISSED") for name, hit in extra["caught"].items()))
+    text.append("hypotheses (paired over seeds; 95% percentile bootstrap of the mean, 2000 resamples):")
+    text += ["  {:<8} mean_diff {:+.4f} ci95 {} mesi {} seeds {} -> {}".format(h["id"], h["mean_diff"], span(h["ci95"]),
+                                                                            h["mesi"], h["n_seeds"], h["verdict"])
+             for h in payload["hypotheses"]]
+    text.append("knockouts (training-time, near-fall start; change in held-out accuracy vs the full engine):")
+    text += ["  {:<12} {:<9} signature {:<5} {:+.4f} ci95 {}".format(k["module"], k["mode"], str(k["signature"]),
+                                                                    k["metric_change"], span(k["ci95"]))
+             for k in payload["knockouts"]]
+    text.append("accuracy by engine (seed mean; held-out / shifted):")
+    text += ["  {:<22} {:.4f} / {:.4f}".format(name, *pair) for name, pair in extra["engine_acc"].items()]
+    text += ["swerve scale (seed mean): learned {:.3f} at start -> {:.4f} at end; matched untuned scale {:.4f}; "
+             "majority-class accuracy {:.4f}".format(SWERVE_INIT, extra["scale_end"], extra["scale_matched"], extra["trivial"]),
+             "real-data bridge: " + extra["bridge"], "task_types: " + ", ".join(payload["task_types"]),
+             "exit_code: {}".format(payload["exit_code"]), "=== END REPORT ==="]
+    return text
+
+
+# ---------------------------------------------------------------- command line
+def protocol(mode, base_seed, n_seeds, json_path, data_path):
+    began = time.time()
+    trial = Trial(mode, base_seed, n_seeds)
+    print("{} · mode {} · seeds {} · mutant {}".format(os.path.basename(__file__), mode, trial.seeds, ACTIVE_MUTANT))
+    trial.train(lambda: time.time() - began)
+    results = [(cid, label) + tuple(getattr(trial, method)()) for cid, label, method in CHECKS]
+    hyps, lesions = judge(trial.runs, base_seed, mode == "full" and n_seeds >= 5)
+    bridge = data_bridge(data_path, base_seed, trial.budget) if data_path else "skipped (no --data PATH given)"
+    elapsed = time.time() - began
+    results.append(("C8", "budget", elapsed <= TIME_BUDGET[mode], "{:.1f} s of {:.0f} s".format(elapsed, TIME_BUDGET[mode])))
+    failing = {cid for cid, _, ok, _ in results if not ok}
+    code = 0 if not failing else (3 if failing == {"C8"} else 1)
+    found = sum(trial.caught.values())
+    payload = {"schema_version": "1.0", "chapter": 105, "file": os.path.basename(__file__),
+               "card_revision": MIND_CARD["card_revision"],
+               "environment": {"python": sys.version.split()[0], "numpy": np.__version__}, "seeds": trial.seeds,
+               "runtime_s": round(elapsed, 2), "n_params": n_params(trial.engines["lucretian_fall"]),
+               "gradcheck": {"tensors_checked": trial.coverage[0], "tensors_total": trial.coverage[1],
+                             "max_rel_error": trial.worst_gradient, "checked_at": ["init", "after_training_steps"],
+                             "passed": bool(results[0][2])},
+               "correctness": [{"id": c, "name": n, "passed": bool(ok), "detail": d} for c, n, ok, d in results],
+               "mutants": {"detected": int(found), "total": len(trial.caught), "score": found / len(trial.caught)},
+               "hypotheses": hyps, "knockouts": lesions, "task_types": TASK_TYPES, "exit_code": code}
+    extra = {"mode": mode, "caught": trial.caught, "bridge": bridge, "trivial": trivial_accuracy(trial.data),
+             "sizes": {"lucretian": n_params(trial.engines["lucretian_fall"]),
+                       "untuned baseline": n_params(trial.engines["untuned_fall"]),
+                       "democritean rival": n_params(trial.engines["democritean_disorder"])},
+             "engine_acc": {name: [float(np.mean([run["acc"][name][s] for run in trial.runs])) for s in ("heldout", "shifted")]
+                            for name, *_ in ENGINES},
+             "scale_end": float(np.mean([run["models"]["lucretian_fall"]["trace"]["mean_scale"][-1] for run in trial.runs])),
+             "scale_matched": float(np.mean([run["models"]["untuned_fall"]["cfg"]["untuned_scale"] for run in trial.runs]))}
+    write_report(render(payload, extra), payload, json_path)
+    return code
+
+
+CLI_FLAGS = (
+    ("--quick", dict(action="store_true", help="one seed, reduced updates, all correctness tests")),
+    ("--seed", dict(type=int, default=0, help="base seed")),
+    ("--seeds", dict(type=int, default=None, help="number of seeds (default 5, or 1 with --quick)")),
+    ("--json", dict(default=None, help="also write the JSON report to this path")),
+    ("--card", dict(action="store_true", help="print MIND_CARD as JSON and exit")),
+    ("--mutant", dict(default=None, help="run with a registered mutant: " + ", ".join(MUTANTS))),
+    ("--data", dict(default=None, help="optional numeric CSV (header; integer label in last column)")),
+)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(prog=os.path.basename(__file__),
+                                     description="Chapter 0105 Clinamen Engine: the full protocol runs by default.")
+    for flag, options in CLI_FLAGS:
+        parser.add_argument(flag, **options)
+    args = parser.parse_args(argv)
+    if args.card:
+        print(json.dumps(MIND_CARD, indent=2, ensure_ascii=False))
+        return 0
+    n_seeds = args.seeds if args.seeds is not None else (1 if args.quick else 5)
+    usage_errors = [message for broken, message in (
+        (args.mutant is not None and args.mutant not in MUTANTS,
+         f"unknown mutant {args.mutant!r}; registered: {', '.join(MUTANTS)}"),
+        (n_seeds < 1, "--seeds must be at least 1")) if broken]
+    if usage_errors:
+        print(usage_errors[0], file=sys.stderr)
+        return 2
+    try:
+        return under_mutant(args.mutant, lambda: protocol("quick" if args.quick else "full", args.seed, n_seeds,
+                                                          args.json, args.data))
+    except FloatingPointError as exc:
+        print(f"non-finite values: {exc}", file=sys.stderr)
+        return 4
 
 
 if __name__ == "__main__":
-    demo()
+    sys.exit(main())

@@ -1304,7 +1304,16 @@ def report(model, name: str):
     return rows
 
 
+# Runtime budget ([A] 11.1): profiling found about 41 ms per Ksepa-Ledger step and 14 ms per control step, spread over many
+# small tape operations, so 4500 steps per model took about 250 s. Both models now train for the SAME reduced number of
+# steps, keeping the comparison fair: 1800 by default, 150 with --quick.
+STEPS_FULL, STEPS_QUICK = 1800, 150
+STEPS = STEPS_FULL
+
+
 def main():
+    global STEPS
+    STEPS = STEPS_QUICK if "--quick" in sys.argv[1:] else STEPS_FULL
     print("=" * 78)
     print(" THE KṢEPA LEDGER — Brahmagupta of Bhillamāla (598 – c.668)")
     print(" a Bhāvanā Composition Network, pure NumPy, from scratch")
@@ -1327,9 +1336,9 @@ def main():
     print(f"  Kṣepa Ledger: {model.n_params()} params | "
           f"additive-RNN control: {ctrl.n_params()} params\n")
 
-    train(model, "kṣepa-ledger", lr=4e-3)
+    train(model, "kṣepa-ledger", steps=STEPS, lr=4e-3)
     print()
-    train(ctrl, "control-RNN")
+    train(ctrl, "control-RNN", steps=STEPS)
 
     print("\n" + "=" * 78)
     print(" RESULTS")

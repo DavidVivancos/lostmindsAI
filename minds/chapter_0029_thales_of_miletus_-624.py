@@ -261,7 +261,7 @@ class ArcheFlow:
 # =============================================================================
 # 3. GRADIENT CHECK (mandatory) — analytic BPTT vs central finite differences
 # =============================================================================
-def gradient_check(verbose=True):
+def gradient_check(verbose=True, train_steps=60):
     """Compare analytic gradients to central finite differences on a small
     model + short sequence. Returns the worst relative error over all params.
     """
@@ -271,6 +271,16 @@ def gradient_check(verbose=True):
     x_seq = sig[:T]
     target_seq = sig[1:T + 1]
 
+    worst_over_stages = 0.0
+    for stage in ("init", "trained"):
+        if stage == "trained":
+            # [A] 9.2 C1: repeat the check after at least 50 training steps, where tanh units are no longer near zero.
+            train(model, x_seq, target_seq, epochs=train_steps, verbose=False)
+        worst_over_stages = max(worst_over_stages, _gradient_check_once(model, x_seq, target_seq, verbose, stage))
+    return worst_over_stages
+
+
+def _gradient_check_once(model, x_seq, target_seq, verbose, stage):
     loss, cache, _ = model.forward(x_seq, target_seq)
     grads = model.backward(cache, target_seq)
 
@@ -299,7 +309,7 @@ def gradient_check(verbose=True):
         report.append((name, rel))
     if verbose:
         for name, rel in report:
-            print(f"    grad-check {name:>4s}: max rel err = {rel:.2e}")
+            print(f"    grad-check [{stage}] {name:>4s}: max rel err = {rel:.2e}")
     return worst
 
 

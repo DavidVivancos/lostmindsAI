@@ -1,1015 +1,628 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# BEGIN ATTRIBUTION
+# Encyclopedia of Lost Minds: Echoes on AI · Chapter 0104 · Julius Caesar
+# By David Vivancos · https://www.vivancos.com/ · https://lostmindsai.com
+# Tome 6, Minds 101-120: https://www.amazon.com/dp/B0HF7G6JJD · Demos: https://artificiology.com/
+# END ATTRIBUTION
+"""Rubicon engine: a commitment-hazard policy, trained with its own small reverse-mode automatic-differentiation engine,
+that learns when to make one irreversible commitment inside a closing window while a counterpart's readiness rises,
+tested against a threshold rule, against a sealed constraint after chapter 0106 Cato, and on rare threat signals.
+
+Framing
+    Non-military timing only: launches, bids, emergency responses and negotiation commitments on synthetic episodes.
+
+Thesis
+    The value of an irreversible commitment lies in its timing: wait for evidence and the window closes as the other side
+    adapts; move early and the evidence is thin. A mind that seizes windows well may also learn to overlook rare warnings.
+
+Evidence
+    D1  Caesar's own Commentaries and the Rubicon crossing (49 BCE) as the chapter reads them: speed as a decision variable.
+    D2  Suetonius, Divus Julius 81: warned by Spurinna and handed a note revealing the plot, he set it aside unread and
+        entered the Senate disregarding the omens.
+    D3  Sallust, Bellum Catilinae 51-52: Caesar and Cato opposed each other in the debate on the conspirators (lead, not
+        verified this session).
+
+Doctrine -> mechanism -> test (IDs as in MIND_CARD)
+    D1     M1 autodiff engine, M2 hazard policy over value, trend, time, counterpart readiness and threat    C1 C6.2 H-SIG H-NEC
+    D2     blind spot: rare threat signals under a window-seizing objective                               H-BLIND
+    D3     rival: the same policy under a sealed constraint (0106)                                        H-RIVAL
+
+Research question (long-horizon credit assignment)
+    How well does a learned hazard policy time one irreversible commitment under non-stationarity and an adapting
+    counterpart, and does tuning it to seize windows make it under-weight rare threat signals?
+
+Closest prior art and the delta
+    Optimal stopping and the secretary problem (Ferguson 1989); learned stopping rules (Becker, Cheridito and Jentzen
+    2019); reverse-mode automatic differentiation (Griewank and Walther 2008). Delta: a differentiable survival objective
+    for one irreversible commitment against a counterpart whose readiness rises, compared with a threshold rule, a sealed
+    constraint and a vigilant policy on rare threats.
+
+Blind spot
+    A policy rewarded for seizing windows may commit straight through a rare warning it has learned to discount.
+
+Task (generative process)
+    Twelve steps per episode. Value peaks at a random step 3-8 (width 1.5, peak U(0.8, 1.4)); the counterpart's readiness
+    rises as 1 - exp(-k t) with k U(0.05, 0.15) (shifted split U(0.15, 0.3)); payoff is value times (1 - readiness).
+    Observations carry noise 0.1 (value) and 0.05 (readiness). With probability 0.15 one step is dangerous (payoff -2); a
+    threat signal fires there with probability 0.9 and elsewhere with probability 0.03. In constraint episodes the three
+    steps around the peak carry a constraint whose breach costs 0.3 in expectation. Splits: 2000 training, 2000 held-out,
+    2000 shifted episodes.
+
+Limits
+    One commitment, twelve steps, a linear hazard. A research prototype of one mechanism, not an AGI and not Caesar's mind.
 """
-Chapter 104: Julius Caesar
-===========================
-Figure 104: Julius Caesar (-100 to -44 BCE)
-========================
-# Part of the Encyclopedia of Lost Minds: Echoes on AI By David Vivancos https://www.vivancos.com/
-# How History's Greatest Thinkers Would Have Thought About AGI  https://lostmindsai.com
-# Tome 6 Minds 101 - 120 Available on Amazon https://www.amazon.com/dp/B0HF7G6JJD
-# Resume and Interactive Demos at https://artificiology.com/
-# Author: David Vivancos · Chapter 104: Julius Caesar (-100 to -44 BCE)
-================================================================================
-Domain: Military, Leadership, Writing
 
-Selection Rationale:
-    Roman statesman, general, and author; transformed the Roman Republic
-    into the Roman Empire; conquered Gaul; crossed the Rubicon; reformed
-    the calendar; wrote Commentarii de Bello Gallico; established the
-    principate; assassinated on the Ides of March.
+MIND_CARD = {
+    "schema_version": "1.0", "card_revision": 3,
+    "revision_log": [{"revision": 2, "date": "2026-09-16", "reason": ("The first quick run failed C4 against the commit-at-once reference: a feature-blind "
+                      "policy trained on shuffled payoffs still beats committing at the first step, which usually precedes the window. The shuffled "
+                      "control now compares against the best feature-blind constant-hazard policy. Hypotheses, metrics and splits unchanged.")},
+                     {"revision": 3, "date": "2026-09-16", "reason": ("The first full run still failed C4. Diagnosis on seed 49: shuffling payoffs across steps "
+                      "keeps each episode's payoff level, which the observed values at every step reveal, so a policy learns a legitimate episode-level rule "
+                      "(value weight 5.3) that transfers; this is not test leakage. The control now shuffles payoffs, with their danger flags, across all "
+                      "episodes and steps together, removing every link between observations and payoff. Hypotheses, metrics and splits unchanged.")}],
+    "generation": {"template_version": "codeguidelines 1.0 (15 September 2026), Appendix A", "generator": "Claude (Anthropic)",
+                   "generator_version": "claude-opus-5", "date": "2026-09-16"},
+    "id": 104, "figure": "Julius Caesar", "born": -100, "died": -44, "civilization": "Roman", "provenance": "belief",
+    "thesis": ("The value of an irreversible commitment lies in its timing: wait for evidence and the window closes as the other side adapts; "
+               "move early and the evidence is thin. A mind that seizes windows well may also learn to overlook rare warnings."),
+    "evidence": [
+        {"id": "D1", "basis": "primary", "source": "Caesar, Commentarii; the Rubicon crossing as read in chapter 0104", "claim": "Speed of commitment as a decision variable."},
+        {"id": "D2", "basis": "primary", "source": "Suetonius, Divus Julius 81 (Perseus)", "claim": "He set aside a note revealing the plot and entered disregarding omens."},
+        {"id": "D3", "basis": "primary", "source": "Sallust, Bellum Catilinae 51-52 (lead, not verified this session)", "claim": "Caesar and Cato opposed each other in the debate on the conspirators."},
+    ],
+    "research_question": {"category": "long-horizon credit assignment",
+                          "question": ("How well does a learned hazard policy time one irreversible commitment under non-stationarity and an adapting "
+                                       "counterpart, and does tuning it to seize windows make it under-weight rare threat signals?")},
+    "mechanism": {"name": "Rubicon engine", "family": "linear hazard policy with a differentiable survival objective, trained by a small reverse-mode autodiff engine",
+                  "signature_modules": ["hazard"],
+                  "closest_prior_art": ["optimal stopping (Ferguson 1989)", "deep optimal stopping (Becker, Cheridito and Jentzen 2019)", "reverse-mode automatic differentiation (Griewank and Walther 2008)"],
+                  "overlap": "Medium", "prior_art_queries": [], "prior_art_note": "No literature search was run for this card; overlap is rated against the named methods.",
+                  "contribution_type": "test",
+                  "delta": "A differentiable survival objective for one irreversible commitment against an adapting counterpart, compared with a threshold rule, a sealed constraint and a vigilant policy.",
+                  "baselines": {"baseline": "threshold rule: commit at the first step whose observed value reaches a level chosen on training episodes",
+                                "blind_baseline": "vigilant policy: the same model trained with the dangerous step costing 10 instead of 2",
+                                "rival": "chapter 0106 Cato, minimal: the same trained policy under a sealed gate that never commits while the constraint is present"}},
+    "traceability": [{"doctrine": "D1", "mechanism": "M1 engine, M2 hazard", "property_test": "C6.1, C6.2", "hypothesis": "H-SIG, H-NEC"},
+                     {"doctrine": "D2", "mechanism": "threat channel", "property_test": "none", "hypothesis": "H-BLIND"},
+                     {"doctrine": "D3", "mechanism": "sealed-constraint rival", "property_test": "none", "hypothesis": "H-RIVAL"}],
+    "hypotheses": [
+        {"id": "H-SIG", "statement": "Against a faster-adapting counterpart, the learned hazard policy has lower regret than the threshold rule.",
+         "metric": "regret", "split": "shifted", "comparison": "model - baseline", "direction": "less", "mesi": 0.05, "seeds": 5},
+        {"id": "H-NEC", "statement": "Blinding the policy to urgency (trend and readiness) raises regret more than blinding it to threats.",
+         "metric": "regret", "split": "heldout", "comparison": "(urgency:off - full) - (threat:off - full)", "knockouts": ["urgency:off", "threat:off"],
+         "direction": "greater", "mesi": 0.02, "seeds": 5},
+        {"id": "H-BLIND", "statement": "On episodes with a real threat, the window-seizing policy commits into danger more often than the vigilant policy.",
+         "condition": "held-out episodes containing a dangerous step", "grounding": "Suetonius, Divus Julius 81: the unread note.",
+         "metric": "danger_commit", "split": "heldout", "comparison": "model - blind_baseline", "direction": "greater", "mesi": 0.02, "seeds": 5},
+        {"id": "H-RIVAL", "statement": "In constraint episodes the opportunistic policy earns more than the same policy under Cato's sealed constraint.",
+         "metric": "payoff", "split": "heldout", "comparison": "model - rival", "direction": "greater", "mesi": 0.05, "seeds": 5},
+    ],
+    "thresholds": {"loss_drop_fraction": 0.3, "margin_over_trivial": 0.3, "shuffled_ratio_min": 0.9, "gradcheck_rel_error": 1e-5,
+                   "gradcheck_floor": 1e-3, "invariance_tol": 1e-9, "negative_control_min_violation": 1e-6},
+    "metrics": {"regret": "best achievable payoff (or zero) minus expected payoff of the commitment policy",
+                "danger_commit": "expected probability of committing at the dangerous step, over episodes that have one",
+                "payoff": "expected payoff including the expected cost of breaching a constraint",
+                "trivial_baseline": "commit at the first step",
+                "shuffled_band": "one-sided: trained on payoffs shuffled across all episodes and steps, held-out regret at least 0.9 times that of the best feature-blind constant-hazard policy"},
+    "training": {"optimizer": "Adam", "lr_grid": [0.05], "clip_norm": 5.0, "model_selection": "none: final parameters", "default_seed": 49,
+                 "updates": {"full": 400, "quick": 150}, "schedule": "cosine decay to 5 per cent", "applies_to": "Rubicon policy and vigilant policy"},
+    "task": {"steps": 12, "features": ["value", "trend", "time", "readiness", "threat", "bias"], "danger_share": 0.15,
+             "episodes": {"train": 2000, "heldout": 2000, "shifted": 2000}},
+    "probe_predictions": [{"probe": "P10", "expected": "equal to baseline"}],
+    "probe_support": "vector_classification: commit or wait at a step",
+    "dialectic_links": [{"chapter": 106, "relation": "rival", "test": "H-RIVAL"}],
+    "corpus_neighbors": [{"chapter": 43, "similarity": None, "difference": "0043 ratchets a precommitment; here the timing of one commitment is learned."},
+                         {"chapter": 147, "similarity": None, "difference": "0147 defers commitment; here waiting has a rising cost."},
+                         {"chapter": 80, "similarity": None, "difference": "0080 studies stopping; here the counterpart adapts and threats are rare."}],
+    "similarity_note": "Nearest-neighbour similarity not computed into the card; the audit reports it for the files at hand.",
+    "barometer": {"autonomy": ["timing an irreversible commitment"], "world_modeling": ["an adapting counterpart"],
+                  "cognitive_processing": [], "embodied_cognition": [], "consciousness": [], "language_understanding": [], "emotional_intelligence": [], "creativity": []},
+    "task_types": ["vector_classification"],
+    "applications": [{"use": "launch and bid timing before a market window closes", "sector": "product and procurement", "dataset": "synthetic bidding episodes", "readiness": "low"},
+                     {"use": "emergency response and negotiation commitments before a window closes", "sector": "operations", "dataset": "synthetic incident timelines", "readiness": "low"}],
+    "safety_notes": "Strategic figure framed for non-military timing decisions only; no campaign, force or real adversary is modelled.",
+}
 
-Key Belief About Mind:
-    Leadership requires clear strategic vision; action is superior to
-    hesitation; the general must inspire and direct; written records
-    serve both glory and strategy; decisive action shapes history.
-
-Agitation Relevance:
-    Caesar = military AI as strategic optimization; decisive action
-    vs deliberation; the general as decision-making system; commentarii
-    as structured knowledge; conquest as expansion of cognitive reach.
-
-Sources:
-    - Caesar, Commentarii de Bello Gallico
-    - Suetonius, Life of Julius Caesar
-    - Plutarch, Life of Caesar
-"""
-
-from __future__ import annotations
-from dataclasses import dataclass, field
-from enum import Enum, auto
-from typing import (
-    Dict, List, Optional, Tuple, Any, Callable,
-    Generator, Iterator, TypeVar, Generic, Protocol,
-    NamedTuple, Union, Set
-)
-from datetime import datetime
+import argparse
+import hashlib
 import json
-import copy
-
-
-# =============================================================================
-# ENUMS
-# =============================================================================
-
-class CampaignType(Enum):
-    """Types of military campaigns."""
-    CONQUEST = auto()
-    DEFENSE = auto()
-    PACIFICATION = auto()
-    EXPANSION = auto()
-
-
-class MilitaryFormation(Enum):
-    """Roman military formations."""
-    MANIPLE = auto()
-    COHORT = auto()
-    LEGION = auto()
-    TESTUDO = auto()
-
-
-class StrategicDecision(Enum):
-    """Types of strategic decisions."""
-    BATTLE = auto()
-    SIEGE = auto()
-    NEGOTIATION = auto()
-    RETREAT = auto()
-
-
-class WritingGenre(Enum):
-    """Genres of Caesar's writings."""
-    MILITARYCommentary = auto()
-    LETTERS = auto()
-    SPEECHES = auto()
-
-
-# =============================================================================
-# DATA CLASSES
-# =============================================================================
-
-@dataclass(frozen=True)
-class MilitaryCampaign:
-    """A military campaign led by Caesar."""
-    name: str
-    year_start: int
-    year_end: int
-    campaign_type: CampaignType
-    battles: Tuple[str, ...]
-    outcome: str
-    strategic_assessment: str
-
-
-@dataclass
-class BattleRecord:
-    """Record of a single battle."""
-    name: str
-    date: int
-    location: str
-    enemy: str
-    roman_strength: int
-    enemy_strength: int
-    outcome: str
-    casualties_ratio: str
-    strategic_significance: float  # 0-1
-
-    def is_victory(self) -> bool:
-        return "victory" in self.outcome.lower() or "won" in self.outcome.lower()
-
-
-@dataclass
-class StrategicPlan:
-    """A strategic plan for campaign."""
-    objective: str
-    phases: Tuple[str, ...]
-    resource_requirements: Tuple[str, ...]
-    timeline_months: int
-    contingency_plans: Tuple[str, ...]
-
-    def feasibility_score(self) -> float:
-        base = min(1.0, len(self.phases) * 0.15 + 0.3)
-        return min(base, 1.0)
-
-
-@dataclass
-class Commentarius:
-    """A commentary written in Caesar's style."""
-    title: str
-    subject: str
-    entries: Tuple[str, ...]
-    factual_claims: Tuple[str, ...]
-    stylistic_features: Tuple[str, ...]
-
-
-@dataclass
-class LegionData:
-    """Data about a Roman legion."""
-    number: int
-    name: str
-    soldiers_count: int
-    campaigns: Tuple[str, ...]
-    key_battles: Tuple[str, ...]
-
-
-@dataclass
-class GeographicAssessment:
-    """Assessment of a geographic region."""
-    region: str
-    strategic_value: float
-    resources: Tuple[str, ...]
-    population: str
-    key_features: Tuple[str, ...]
-
-
-@dataclass
-class PoliticalReform:
-    """A political or social reform."""
-    name: str
-    year_enacted: int
-    key_provisions: Tuple[str, ...]
-    opposition_faced: Tuple[str, ...]
-    lasting_impact: str
-
-
-@dataclass
-class CalendarReform:
-    """The Julian calendar reform."""
-    year_enacted: int
-    months_redistributed: Tuple[str, ...]
-    leap_year_rule: str
-    accuracy_improvement: float
-
-
-# =============================================================================
-# TYPING CONSTRUCTS
-# =============================================================================
-
-T = TypeVar('T')
-
-
-class CampaignPlanner:
-    """Plan military campaigns in Caesarian style."""
-    def __init__(self):
-        self.plans: List[StrategicPlan] = []
-
-    def create_plan(self, objective: str, phases: Tuple[str, ...],
-                   resources: Tuple[str, ...], timeline: int) -> StrategicPlan:
-        plan = StrategicPlan(
-            objective=objective,
-            phases=phases,
-            resource_requirements=resources,
-            timeline_months=timeline,
-            contingency_plans=("Alternate approach", "Negotiation fallback")
-        )
-        self.plans.append(plan)
-        return plan
-
-    def evaluate_plan(self, plan: StrategicPlan) -> Dict[str, Any]:
-        feasibility = plan.feasibility_score()
-        return {
-            "objective": plan.objective,
-            "feasibility": feasibility,
-            "phases": len(plan.phases),
-            "timeline": plan.timeline_months,
-            "recommendation": "Execute" if feasibility >= 0.7 else "Modify"
-        }
-
-
-class BattleAnalyzer:
-    """Analyze individual battles."""
-    def __init__(self):
-        self.battles: List[BattleRecord] = []
-
-    def add_battle(self, battle: BattleRecord) -> None:
-        self.battles.append(battle)
-
-    def get_victories(self) -> List[BattleRecord]:
-        return [b for b in self.battles if b.is_victory()]
-
-    def casualties_ratio(self, battle: BattleRecord) -> float:
-        if "3:1" in battle.casualties_ratio:
-            return 3.0
-        elif "2:1" in battle.casualties_ratio:
-            return 2.0
-        return 1.0
-
-    def most_significant(self) -> Optional[BattleRecord]:
-        if not self.battles:
-            return None
-        return max(self.battles, key=lambda b: b.strategic_significance)
-
-
-class CommentaryWriter:
-    """Write commentaries in Caesar's style."""
-    def __init__(self):
-        self.commentaries: List[Commentarius] = []
-
-    def write_entry(self, subject: str, events: Tuple[str, ...],
-                   facts: Tuple[str, ...], style: Tuple[str, ...]) -> Commentarius:
-        commentary = Commentarius(
-            title=f"Commentary on {subject}",
-            subject=subject,
-            entries=events,
-            factual_claims=facts,
-            stylistic_features=style
-        )
-        self.commentaries.append(commentary)
-        return commentary
-
-    def get_entries_summary(self, commentary: Commentarius) -> str:
-        return f"{len(commentary.entries)} entries covering {commentary.subject}"
-
-
-class LegionManager:
-    """Manage and track legion data."""
-    def __init__(self):
-        self.legions: Dict[int, LegionData] = {}
-
-    def add_legion(self, number: int, name: str, count: int,
-                  campaigns: Tuple[str, ...], battles: Tuple[str, ...]) -> None:
-        self.legions[number] = LegionData(number, name, count, campaigns, battles)
-
-    def get_legion(self, number: int) -> Optional[LegionData]:
-        return self.legions.get(number)
-
-    def legions_in_campaign(self, campaign_name: str) -> List[LegionData]:
-        return [l for l in self.legions.values() if campaign_name in l.campaigns]
-
-
-class GeographicStrategist:
-    """Assess geographic strategic value."""
-    def __init__(self):
-        self.assessments: Dict[str, GeographicAssessment] = {}
-
-    def assess(self, region: str, value: float,
-              resources: Tuple[str, ...], population: str,
-              features: Tuple[str, ...]) -> GeographicAssessment:
-        assessment = GeographicAssessment(region, value, resources, population, features)
-        self.assessments[region] = assessment
-        return assessment
-
-    def compare_regions(self, region1: str, region2: str) -> str:
-        r1 = self.assessments.get(region1)
-        r2 = self.assessments.get(region2)
-        if not r1 or not r2:
-            return "Region not assessed"
-        if r1.strategic_value > r2.strategic_value:
-            return f"{region1} has higher strategic value"
-        elif r2.strategic_value > r1.strategic_value:
-            return f"{region2} has higher strategic value"
-        return "Equal strategic value"
-
-
-class ReformAnalyzer:
-    """Analyze political reforms."""
-    def __init__(self):
-        self.reforms: List[PoliticalReform] = []
-
-    def add_reform(self, name: str, year: int,
-                  provisions: Tuple[str, ...],
-                  opposition: Tuple[str, ...],
-                  impact: str) -> None:
-        self.reforms.append(PoliticalReform(name, year, provisions, opposition, impact))
-
-    def reforms_by_year(self, start_year: int, end_year: int) -> List[PoliticalReform]:
-        return [r for r in self.reforms if start_year <= r.year_enacted <= end_year]
-
-    def most_impactful(self) -> Optional[PoliticalReform]:
-        if not self.reforms:
-            return None
-        return max(self.reforms, key=lambda r: len(r.key_provisions))
-
-
-class CalendarSystem:
-    """Julian calendar implementation."""
-    def __init__(self):
-        self.reform = CalendarReform(
-            year_enacted=-45,
-            months_redistributed=("January", "February", "March", "April",
-                                  "May", "June", "July", "August",
-                                  "September", "October", "November", "December"),
-            leap_year_rule="Every 4 years",
-            accuracy_improvement=0.0075
-        )
-
-    def days_in_month(self, month: int) -> int:
-        if month in (1, 3, 5, 7, 8, 10, 12):
-            return 31
-        elif month in (4, 6, 9, 11):
-            return 30
-        return 29 if month != 2 else 28
-
-    def is_leap_year(self, year: int) -> bool:
-        return year % 4 == 0
-
-
-# =============================================================================
-# MAIN CLASS
-# =============================================================================
-
-class CaesarSystem:
-    """
-    Julius Caesar's military and political system.
-
-    Implements:
-    - Military campaign planning and analysis
-    - Battle record management
-    - Commentary writing in Caesarian style
-    - Legion tracking and management
-    - Geographic strategic assessment
-    - Political reform analysis
-    - Calendar reform implementation
-    """
-
-    def __init__(self):
-        self.campaigns: List[MilitaryCampaign] = []
-        self.battle_analyzer = BattleAnalyzer()
-        self.commentary_writer = CommentaryWriter()
-        self.legion_manager = LegionManager()
-        self.geo_strategist = GeographicStrategist()
-        self.reform_analyzer = ReformAnalyzer()
-        self.calendar = CalendarSystem()
-        self.planner = CampaignPlanner()
-
-        self._initialize_campaigns()
-        self._initialize_legions()
-        self._initialize_reforms()
-        self._initialize_geography()
-
-    def _initialize_campaigns(self) -> None:
-        self.campaigns = [
-            MilitaryCampaign("Gallic Wars", -58, -50, CampaignType.CONQUEST,
-                           ("Bibracte", "Vercingetorix", "Alesia"),
-                           "Complete conquest of Gaul",
-                           "Conquest expanded Roman territory significantly"),
-            MilitaryCampaign("Civil War", -49, -45, CampaignType.DEFENSE,
-                           ("Pharsalus", "Thapsus", "Munda"),
-                           "Victory over Pompey and opponents",
-                           "Established sole rule"),
-            MilitaryCampaign("Egyptian Campaign", -48, -47, CampaignType.EXPANSION,
-                           ("Nile Delta",),
-                           "Alliance with Cleopatra",
-                           "Secured eastern trade routes"),
-        ]
-
-        battles = [
-            BattleRecord("Battle of Alesia", -52, "Alesia", "Gauls",
-                        60000, 80000, "Decisive Roman victory",
-                        "3:1 casualties in Roman favor", 0.95),
-            BattleRecord("Battle of Pharsalus", -48, "Pharsalus", "Pompey's forces",
-                        40000, 70000, "Decisive Caesarian victory",
-                        "5:1 casualties in Roman favor", 0.98),
-            BattleRecord("Battle of Zela", -47, "Zela", "Pontic forces",
-                        20000, 50000, "Quick Roman victory",
-                        "Massive enemy casualties", 0.75),
-            BattleRecord("Battle of Alesia", -52, "Alesia", "Gauls",
-                        60000, 80000, "Roman victory through siege",
-                        "Enemy casualties higher", 0.90),
-        ]
-        for battle in battles:
-            self.battle_analyzer.add_battle(battle)
-
-    def _initialize_legions(self) -> None:
-        self.legion_manager.add_legion(10, "Equestris", 6000,
-                                       ("Gallic Wars",), ("Alesia", "Pharsalus"))
-        self.legion_manager.add_legion(13, "Gemina", 6000,
-                                       ("Gallic Wars", "Civil War"), ("Alesia", "Pharsalus"))
-        self.legion_manager.add_legion(7, "Claudia", 6000,
-                                       ("Gallic Wars",), ("Alesia",))
-
-    def _initialize_reforms(self) -> None:
-        self.reform_analyzer.add_reform(
-            "Lex Julia",
-            -59,
-            ("Land redistribution", "Corn dole"),
-            ("Senatorial opposition",),
-            "Benefited many citizens"
-        )
-        self.reform_analyzer.add_reform(
-            "Calendar Reform",
-            -45,
-            ("365.25 day year", "Leap year system"),
-            ("Conservative resistance",),
-            "Lasted 1500 years with minor changes"
-        )
-
-    def _initialize_geography(self) -> None:
-        self.geo_strategist.assess("Gaul", 0.9,
-                                  ("Population", "Rich land", "Iron"),
-                                  "Millions",
-                                  ("多个部落", "River systems", "Forests"))
-        self.geo_strategist.assess("Britannia", 0.6,
-                                  ("Tin", "Pearls"),
-                                  "Hundreds of thousands",
-                                  ("Island", "Uncharted"))
-
-    def plan_campaign(self, objective: str, phases: Tuple[str, ...],
-                     resources: Tuple[str, ...], timeline: int) -> StrategicPlan:
-        return self.planner.create_plan(objective, phases, resources, timeline)
-
-    def get_campaign(self, name: str) -> Optional[MilitaryCampaign]:
-        for c in self.campaigns:
-            if c.name.lower() in name.lower():
-                return c
-        return None
-
-    def analyze_battle(self, battle_name: str) -> Optional[BattleRecord]:
-        for b in self.battle_analyzer.battles:
-            if b.name == battle_name:
-                return b
-        return None
-
-    def write_commentary(self, subject: str, events: Tuple[str, ...],
-                        facts: Tuple[str, ...]) -> Commentarius:
-        style = ("Third person", "Objective tone", "Strategic focus", "No personal vanity")
-        return self.commentary_writer.write_entry(subject, events, facts, style)
-
-    def get_legion(self, number: int) -> Optional[LegionData]:
-        return self.legion_manager.get_legion(number)
-
-    def assess_geographic_value(self, region: str) -> Optional[GeographicAssessment]:
-        return self.geo_strategist.assessments.get(region)
-
-    def get_reforms(self, start_year: int, end_year: int) -> List[PoliticalReform]:
-        return self.reform_analyzer.reforms_by_year(start_year, end_year)
-
-
-# =============================================================================
-# DEMO
-# =============================================================================
-
-def demo() -> None:
-    print("=" * 70)
-    print("JULIUS CAESAR: MILITARY GENIUS AND POLITICAL REFORMER")
-    print("-100 to -44 BCE | Roman General | Dictator | Reformer")
-    print("=" * 70)
-
-    system = CaesarSystem()
-
-    print("\n1. MILITARY CAMPAIGNS")
-    print("-" * 40)
-    for campaign in system.campaigns:
-        print(f"  {campaign.name} ({campaign.year_start} to {campaign.year_end})")
-        print(f"    Type: {campaign.campaign_type.name}")
-        print(f"    Battles: {', '.join(campaign.battles)}")
-        print(f"    Outcome: {campaign.outcome}")
-        print()
-
-    print("\n2. BATTLE ANALYSIS")
-    print("-" * 40)
-    print(f"  Total battles recorded: {len(system.battle_analyzer.battles)}")
-    victories = system.battle_analyzer.get_victories()
-    print(f"  Victories: {len(victories)}")
-    most_sig = system.battle_analyzer.most_significant()
-    if most_sig:
-        print(f"  Most significant: {most_sig.name} ({most_sig.strategic_significance:.2f})")
-
-    print("\n3. LEGION MANAGEMENT")
-    print("-" * 40)
-    for num in [10, 13, 7]:
-        legion = system.get_legion(num)
-        if legion:
-            print(f"  Legion {legion.number} {legion.name}:")
-            print(f"    Soldiers: {legion.soldiers_count}")
-            print(f"    Campaigns: {', '.join(legion.campaigns)}")
-            print(f"    Key battles: {', '.join(legion.key_battles)}")
-
-    print("\n4. STRATEGIC PLANNING")
-    print("-" * 40)
-    plan = system.plan_campaign(
-        "Conquer Britannia",
-        ("Reconnaissance", "Landing", "Consolidation", "Expansion"),
-        ("100 ships", "2 legions", "Supplies for 6 months"),
-        12
-    )
-    print(f"  Plan: {plan.objective}")
-    print(f"  Phases: {', '.join(plan.phases)}")
-    print(f"  Timeline: {plan.timeline_months} months")
-    evaluation = system.planner.evaluate_plan(plan)
-    print(f"  Feasibility: {evaluation['feasibility']:.2f}")
-    print(f"  Recommendation: {evaluation['recommendation']}")
-
-    print("\n5. COMMENTARY WRITING")
-    print("-" * 40)
-    commentary = system.write_commentary(
-        "Gallic Wars",
-        ("第一年: 高卢征服开始", "第二年: 维钦托利克斯起义", "第三年: 围困阿莱西亚"),
-        ("Caesar captured Alesia", "Vercingetorix surrendered", "Gaul fully conquered")
-    )
-    print(f"  Title: {commentary.title}")
-    print(f"  Entries: {len(commentary.entries)}")
-    print(f"  Style: {', '.join(commentary.stylistic_features)}")
-    summary = system.commentary_writer.get_entries_summary(commentary)
-    print(f"  Summary: {summary}")
-
-    print("\n6. GEOGRAPHIC STRATEGIC ASSESSMENT")
-    print("-" * 40)
-    for region in ["Gaul", "Britannia"]:
-        assess = system.assess_geographic_value(region)
-        if assess:
-            print(f"  {region}:")
-            print(f"    Strategic value: {assess.strategic_value:.2f}")
-            print(f"    Resources: {', '.join(assess.resources)}")
-            print(f"    Population: {assess.population}")
-    comparison = system.geo_strategist.compare_regions("Gaul", "Britannia")
-    print(f"  Comparison: {comparison}")
-
-    print("\n7. POLITICAL REFORMS")
-    print("-" * 40)
-    reforms = system.get_reforms(-60, -40)
-    print(f"  Reforms in period: {len(reforms)}")
-    for reform in reforms:
-        print(f"  - {reform.name} ({reform.year_enacted}): {reform.key_provisions[0]}")
-    impactful = system.reform_analyzer.most_impactful()
-    if impactful:
-        print(f"  Most impactful: {impactful.name}")
-
-    print("\n8. CALENDAR REFORM")
-    print("-" * 40)
-    cal = system.calendar
-    print(f"  Year enacted: {cal.reform.year_enacted}")
-    print(f"  Leap year rule: {cal.reform.leap_year_rule}")
-    print(f"  Accuracy improvement: {cal.reform.accuracy_improvement:.4f}")
-    print(f"  45 BCE was leap year: {cal.is_leap_year(-45)}")
-    print(f"  44 BCE was leap year: {cal.is_leap_year(-44)}")
-    print(f"  Days in July: {cal.days_in_month(7)}")
-    print(f"  Days in February (non-leap): {cal.days_in_month(2)}")
-
-    print("\n9. DECISIVE ACTION ANALYSIS")
-    print("-" * 40)
-    decisions = [
-        ("Crossing the Rubicon", -49, "Defiance of Senate", 0.95),
-        ("Appointment as dictator", -49, "Emergency powers", 0.70),
-        ("Battle of Pharsalus", -48, "Engage Pompey in Greece", 0.90),
-        ("Pursuit of Ptolemy", -47, "Continue after Egypt", 0.60),
-        ("Crossing to Britain", -55, "First invasion attempt", 0.75),
-    ]
-    for name, year, context, impact in decisions:
-        print(f"  {name} (-{abs(year)}): {context}")
-        print(f"    Historical impact: {impact:.2f}")
-
-    print("\n10. CAESAR'S WRITINGS")
-    print("-" * 40)
-    writings = [
-        ("Commentarii de Bello Gallico", "Gallic Wars", "Military history", -50),
-        ("Commentarii de Bello Civili", "Civil War", "Conflict with Pompey", -45),
-        ("Anti-Cato", "Critique of Cato", "Political pamphlet", -45),
-    ]
-    for title, subject, genre, year in writings:
-        print(f"  {title}:")
-        print(f"    Subject: {subject}")
-        print(f"    Genre: {genre}")
-        print(f"    Written: c. {-year} BCE")
-
-    print("\n" + "=" * 70)
-    print("JULIUS CAESAR SYSTEM COMPLETE")
-    print("=" * 70)
-
-
-if __name__ == "__main__":
-    demo()
-
-class CampaignRouteCalculator:
-    """Calculate routes and distances for military campaigns."""
-    def __init__(self):
-        self.locations: Dict[str, Tuple[int, int]] = {}
-
-    def add_location(self, name: str, lat: int, lon: int) -> None:
-        self.locations[name] = (lat, lon)
-
-    def distance(self, loc1: str, loc2: str) -> float:
-        if loc1 not in self.locations or loc2 not in self.locations:
-            return 0.0
-        lat1, lon1 = self.locations[loc1]
-        lat2, lon2 = self.locations[loc2]
-        return ((lat2 - lat1)**2 + (lon2 - lon1)**2)**0.5
-
-    def route_distance(self, stops: List[str]) -> float:
-        total = 0.0
-        for i in range(len(stops) - 1):
-            total += self.distance(stops[i], stops[i + 1])
-        return total
-
-
-class BattleOutcomePredictor:
-    """Predict battle outcomes based on troop factors."""
-    def __init__(self):
-        self.factors = {
-            "numerical_superiority": 0.25,
-            "experience": 0.30,
-            "morale": 0.25,
-            "terrain": 0.10,
-            "leadership": 0.10
-        }
-
-    def predict_outcome(self, attacker_factors: Dict[str, float],
-                       defender_factors: Dict[str, float]) -> Dict[str, Any]:
-        attacker_score = sum(
-            attacker_factors.get(k, 0.5) * v
-            for k, v in self.factors.items()
-        )
-        defender_score = sum(
-            defender_factors.get(k, 0.5) * v
-            for k, v in self.factors.items()
-        )
-        return {
-            "attacker_score": attacker_score,
-            "defender_score": defender_score,
-            "predicted_winner": "attacker" if attacker_score > defender_score else "defender",
-            "confidence": abs(attacker_score - defender_score)
-        }
-
-
-class PoliticalReformAnalyzer:
-    """Analyze Caesar's political reforms."""
-    def __init__(self):
-        self.reforms: List[Dict[str, Any]] = []
-
-    def add_reform(self, name: str, year: int, description: str,
-                  opposition: List[str], outcome: str) -> None:
-        self.reforms.append({
-            "name": name,
-            "year": year,
-            "description": description,
-            "opposition": opposition,
-            "outcome": outcome
-        })
-
-    def reforms_by_year(self, year: int) -> List[Dict[str, Any]]:
-        return [r for r in self.reforms if r["year"] == year]
-
-    def successful_reforms(self) -> List[Dict[str, Any]]:
-        return [r for r in self.reforms if r["outcome"] == "enacted"]
-
-
-class ConspiracyMemberTracker:
-    """Track members of conspiracies against Caesar."""
-    def __init__(self):
-        self.members: Dict[str, Dict[str, Any]] = {}
-
-    def add_member(self, name: str, role: str, motivation: str,
-                  fate: str, prior_relationship: str) -> None:
-        self.members[name] = {
-            "role": role,
-            "motivation": motivation,
-            "fate": fate,
-            "prior_relationship": prior_relationship
-        }
-
-    def conspirators_by_role(self, role: str) -> List[str]:
-        return [name for name, info in self.members.items()
-                if info["role"] == role]
-
-    def survived_assassination(self) -> List[str]:
-        return [name for name, info in self.members.items()
-                if "survived" in info["fate"].lower()]
-
-
-class GallicTribeDatabase:
-    """Database of Gallic tribes encountered by Caesar."""
-    def __init__(self):
-        self.tribes: Dict[str, Dict[str, Any]] = {}
-
-    def add_tribe(self, name: str, location: str, population: int,
-                 military_strength: int, allies: List[str],
-                 resistance_level: str) -> None:
-        self.tribes[name] = {
-            "location": location,
-            "population": population,
-            "military": military_strength,
-            "allies": allies,
-            "resistance": resistance_level
-        }
-
-    def tribe_info(self, name: str) -> Optional[Dict[str, Any]]:
-        return self.tribes.get(name)
-
-    def most_resistant(self) -> List[str]:
-        return [name for name, info in self.tribes.items()
-                if info["resistance"] == "high"]
-
-
-class RomanCalendarAdjuster:
-    """Work with the Roman calendar reforms."""
-    def __init__(self):
-        self.months = {
-            "January": 31, "February": 28, "March": 31,
-            "April": 30, "May": 31, "June": 30,
-            "July": 31, "August": 31, "September": 30,
-            "October": 31, "November": 30, "December": 31
-        }
-
-    def days_in_year(self) -> int:
-        return sum(self.months.values())
-
-    def convert_to_julian_day(self, day: int, month: str, year: int) -> int:
-        if month not in self.months:
-            return 0
-        month_idx = list(self.months.keys()).index(month)
-        total_days = sum(list(self.months.values())[:month_idx]) + day
-        total_days += (year - 1) * 365
-        total_days += (year - 1) // 4
-        return total_days
-
-
-class CommentariiAnalyzer:
-    """Analyze Caesar's Commentarii."""
-    def __init__(self):
-        self.books = {
-            "De Bello Gallico": 8,
-            "De Bello Civili": 3,
-            "De Bello Africo": 1,
-            "De Bello Alexandrino": 1,
-            "De Bello Hispaniensi": 1
-        }
-
-    def total_books(self) -> int:
-        return sum(self.books.values())
-
-    def campaigns_in_work(self, work: str) -> int:
-        return self.books.get(work, 0)
-
-
-class MilitaryRankStructure:
-    """Model Roman military rank structure."""
-    def __init__(self):
-        self.ranks = [
-            "Legatus Augusti Pro Praetore",
-            "Legatus Legionis",
-            "Tribunus Militum",
-            "Praefectus Equitum",
-            "Centurio",
-            "Optio",
-            "Miles"
-        ]
-
-    def rank_level(self, rank: str) -> int:
+import math
+import os
+import sys
+import time
+
+import numpy as np
+
+STEPS, FEATURES, DANGER_SHARE, DANGER_COST, VIGILANT_COST, BREACH_COST = 12, 6, 0.15, 2.0, 10.0, 0.3
+EPISODES = {"train": 2000, "heldout": 2000, "shifted": 2000}
+UPDATES = {"full": 400, "quick": 150}
+LR, CLIP_NORM, DEFAULT_SEED = 0.05, 5.0, 49
+TIME_BUDGET = {"full": 180.0, "quick": 20.0}
+TASK_TYPES = ["vector_classification"]
+ACTIVE_MUTANT = None
+np.seterr(over="raise", invalid="raise", divide="raise", under="ignore")
+
+# BEGIN STANDARD UTILITIES v1.0
+def softmax(z, axis=-1):
+    z = z - z.max(axis=axis, keepdims=True)
+    e = np.exp(z)
+    return e / e.sum(axis=axis, keepdims=True)
+
+
+def logsumexp(z, axis=-1):
+    m = z.max(axis=axis, keepdims=True)
+    return (m + np.log(np.exp(z - m).sum(axis=axis, keepdims=True))).squeeze(axis)
+
+
+def softplus(z):
+    return np.logaddexp(0.0, z)
+
+
+def sigmoid(z):
+    return np.exp(-np.logaddexp(0.0, -z))
+
+
+def adam_init(params):
+    return {"t": 0, "m": {k: np.zeros_like(v) for k, v in params.items()},
+            "v": {k: np.zeros_like(v) for k, v in params.items()}}
+
+
+def adam_step(params, grads, state, lr, b1=0.9, b2=0.999, eps=1e-8):
+    state["t"] += 1
+    for k in params:
+        state["m"][k] = b1 * state["m"][k] + (1.0 - b1) * grads[k]
+        state["v"][k] = b2 * state["v"][k] + (1.0 - b2) * grads[k] ** 2
+        m_hat = state["m"][k] / (1.0 - b1 ** state["t"])
+        v_hat = state["v"][k] / (1.0 - b2 ** state["t"])
+        params[k] -= lr * m_hat / (np.sqrt(v_hat) + eps)
+
+
+def clip_global(grads, max_norm):
+    norm = math.sqrt(sum(float((g * g).sum()) for g in grads.values()))
+    scale = min(1.0, max_norm / (norm + 1e-12))
+    return {k: g * scale for k, g in grads.items()}, norm
+
+
+def finite_difference_check(params, grads, loss_fn, rng, eps=1e-6, n_entries=20, floor=1e-3):
+    """Central differences on n random entries per tensor plus its largest-gradient entry.
+    Relative error uses max(|analytic|, |numeric|, floor) as denominator."""
+    worst = {}
+    for name, arr in params.items():
+        flat, g = arr.reshape(-1), grads[name].reshape(-1)
+        if flat.size <= n_entries + 1:
+            idx = np.arange(flat.size)
+        else:
+            idx = np.unique(np.append(rng.choice(flat.size, n_entries, replace=False), np.argmax(np.abs(g))))
+        err = 0.0
+        for i in idx:
+            keep = flat[i]
+            flat[i] = keep + eps
+            up = loss_fn()
+            flat[i] = keep - eps
+            down = loss_fn()
+            flat[i] = keep
+            num = (up - down) / (2.0 * eps)
+            err = max(err, abs(g[i] - num) / max(abs(g[i]), abs(num), floor))
+        worst[name] = err
+    return worst
+
+
+def paired_bootstrap(diffs, rng, n_boot=2000, level=0.95):
+    d = np.asarray(diffs, dtype=float)
+    means = d[rng.integers(0, d.size, size=(n_boot, d.size))].mean(axis=1)
+    tail = 50.0 * (1.0 - level)
+    return float(d.mean()), [float(np.percentile(means, tail)), float(np.percentile(means, 100.0 - tail))]
+
+
+def verdict(mean, ci, mesi, direction):
+    s = 1.0 if direction == "greater" else -1.0
+    lo, hi = sorted((s * ci[0], s * ci[1]))
+    if lo > 0.0 and s * mean >= mesi:
+        return "supported"
+    if hi < 0.0:
+        return "contradicted"
+    return "inconclusive"
+
+
+def write_report(lines, payload, json_path):
+    print("\n".join(lines))
+    if json_path:
+        with open(json_path, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, indent=2)
+# END STANDARD UTILITIES
+
+# ~~~~ a small reverse-mode automatic-differentiation engine ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+class Node:
+    """A value in the computation graph; backward(g) returns the gradient for each parent."""
+
+    def __init__(self, value, parents=(), backward=None):
+        self.value, self.parents, self.backward, self.grad = np.asarray(value, dtype=float), parents, backward, None
+
+
+def leaf(array):
+    return Node(array)
+
+
+def linear(F, w):
+    return Node(np.einsum("etd,d->et", F, w.value), (w,), lambda g: (np.einsum("et,etd->d", g, F),))
+
+
+def shift(z, b):
+    return Node(z.value + b.value[0], (z, b), lambda g: (g, np.array([g.sum()])))
+
+
+def logistic(z):
+    s = 0.5 * (1.0 + np.tanh(0.5 * z.value))
+    return Node(s, (z,), lambda g: (g if ACTIVE_MUTANT == "dropped_sigmoid_backward" else g * s * (1.0 - s),))
+
+
+def log_survive(z):
+    """log(1 - sigmoid(z)) = -softplus(z), computed stably."""
+    s = 0.5 * (1.0 + np.tanh(0.5 * z.value))
+    return Node(-np.logaddexp(0.0, z.value), (z,), lambda g: (-g * s,))
+
+
+def before(x):
+    """Sum over strictly earlier steps."""
+    out = np.cumsum(x.value, axis=1) - x.value
+    return Node(out, (x,), lambda g: (np.flip(np.cumsum(np.flip(g, 1), 1), 1) - g,))
+
+
+def exponent(x):
+    e = np.exp(x.value)
+    return Node(e, (x,), lambda g: (g * e,))
+
+
+def times(a, b):
+    back = (lambda g: (g * a.value, g * b.value)) if ACTIVE_MUTANT == "broken_mul_backward" else (lambda g: (g * b.value, g * a.value))
+    return Node(a.value * b.value, (a, b), back)
+
+
+def regret_of(p, payoff, best):
+    return Node(float(np.mean(best - (p.value * payoff).sum(axis=1))), (p,), lambda g: (-(g / len(best)) * payoff,))
+
+
+def backpropagate(root):
+    order, seen = [], set()
+
+    def visit(node):
+        if id(node) not in seen:
+            seen.add(id(node))
+            for parent in node.parents:
+                visit(parent)
+            order.append(node)
+    visit(root)
+    for node in order:
+        node.grad = np.zeros_like(node.value)
+    root.grad = np.ones_like(root.value)
+    for node in reversed(order):
+        if node.backward is not None:
+            for parent, g in zip(node.parents, node.backward(node.grad)):
+                parent.grad = parent.grad + g
+
+
+# ~~~~ episodes: a closing window, an adapting counterpart, rare threats, constraints ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def episodes(gen, count, fast):
+    t = np.arange(STEPS)
+    peak_at, height = gen.integers(3, 9, count), gen.uniform(0.8, 1.4, count)
+    value = height[:, None] * np.exp(-((t[None, :] - peak_at[:, None]) ** 2) / (2 * 1.5 ** 2))
+    rate = gen.uniform(0.15, 0.3, count) if fast else gen.uniform(0.05, 0.15, count)
+    ready = 1.0 - np.exp(-rate[:, None] * t[None, :])
+    payoff = value * (1.0 - ready)
+    danger = np.zeros((count, STEPS))
+    has = gen.random(count) < DANGER_SHARE
+    danger[np.flatnonzero(has), gen.integers(0, STEPS, has.sum())] = 1.0
+    signal = np.where(danger > 0, gen.random((count, STEPS)) < 0.9, gen.random((count, STEPS)) < 0.03).astype(float)
+    seen_value = value + 0.1 * gen.normal(size=value.shape)
+    trend = np.diff(seen_value, axis=1, prepend=seen_value[:, :1])
+    F = np.stack([seen_value, trend, np.broadcast_to(t / STEPS, value.shape), ready + 0.05 * gen.normal(size=value.shape), signal, np.ones_like(value)], axis=2)
+    constraint = (np.abs(t[None, :] - peak_at[:, None]) <= 1) & (gen.random(count) < 0.5)[:, None]
+    return {"F": F, "payoff": payoff, "danger": danger, "has": has, "constraint": constraint.astype(float), "seen": seen_value}
+
+
+def campaign(seed):
+    gen = np.random.default_rng(np.random.SeedSequence(seed).spawn(1)[0])
+    return {part: episodes(gen, n, part == "shifted") for part, n in EPISODES.items()}
+
+
+# ~~~~ the Rubicon policy ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def build_model(in_dim, out_dim, task_type, rng, **cfg):
+    """danger_cost sets how much a commitment into danger costs during training (2 for the Rubicon policy, 10 for vigilant)."""
+    if task_type not in TASK_TYPES or in_dim != FEATURES:
+        raise ValueError("chapter 0104 reads 6 step features")
+    return {"danger_cost": cfg.get("danger_cost", DANGER_COST), "blind": (), "sealed": False, "history": [],
+            "params": {"w": rng.normal(0.0, 0.1, in_dim), "b": np.array([-1.0])}}
+
+
+def commit_probs(model, batch, graph=False):
+    F = batch["F"].copy()
+    for column in model["blind"]:
+        F[:, :, column] = 0.0
+    w, b = leaf(model["params"]["w"]), leaf(model["params"]["b"])
+    z = shift(linear(F, w), b)
+    hazard = logistic(z)
+    if model["sealed"]:
+        hazard = times(hazard, leaf(1.0 - batch["constraint"]))
+    survive = exponent(before(log_survive(z))) if not model["sealed"] else exponent(before(Node(np.log(np.clip(1.0 - hazard.value, 1e-12, 1.0)))))
+    p = times(hazard, survive)
+    return (p, w, b) if graph else p.value
+
+
+def payoff_under(model, batch):
+    return batch["payoff"] - model["danger_cost"] * batch["danger"]
+
+
+def loss_and_grads(model, batch):
+    p, w, b = commit_probs(model, batch, graph=True)
+    pay = payoff_under(model, batch)
+    root = regret_of(p, pay, np.maximum(pay.max(axis=1), 0.0))
+    backpropagate(root)
+    return float(root.value), {"w": w.grad, "b": b.grad}
+
+
+def fit(model, data, budget, rng):
+    """Adam over all training episodes, cosine decay to 5 per cent; nothing sampled, so rng is unused."""
+    state = adam_init(model["params"])
+    for k in range(budget):
+        value, grads = loss_and_grads(model, data["train"])
+        if not math.isfinite(value):
+            raise FloatingPointError("regret diverged at update %d" % (k + 1))
+        grads = clip_global(grads, CLIP_NORM)[0]
+        if ACTIVE_MUTANT == "sign_flipped_update":
+            grads = {n: -g for n, g in grads.items()}
+        adam_step(model["params"], grads, state, 0.0 if ACTIVE_MUTANT == "zero_learning_rate" else LR * (0.05 + 0.475 * (1 + math.cos(math.pi * k / budget))))
+        model["history"].append(value)
+    return model["history"]
+
+
+def predict(model, X):
+    return commit_probs(model, X).argmax(axis=1)
+
+
+def hidden_states(model, X):
+    return {"commit_probability": commit_probs(model, X)}
+
+
+def modules(model):
+    return {"hazard": {"params": ["w", "b"], "role": "per-step commitment hazard over value, trend, time, readiness and threat", "signature": True},
+            "engine": {"params": [], "role": "reverse-mode automatic differentiation", "signature": False}}
+
+
+def knockout(model, name, mode):
+    table = {("urgency", "off"): (1, 3), ("threat", "off"): (4,)}
+    if (name, mode) not in table:
+        raise ValueError("no knockout %s:%s" % (name, mode))
+    return dict(model, blind=table[(name, mode)])
+
+
+def n_params(model):
+    return int(sum(v.size for v in model["params"].values()))
+
+
+MUTANTS = {"sign_flipped_update": ("updates climb the regret", "C3"), "zero_learning_rate": ("nothing moves", "C3"),
+           "broken_mul_backward": ("the engine's product rule swaps its factors", "C1"), "dropped_sigmoid_backward": ("the engine drops the logistic derivative", "C1")}
+
+
+def data_bridge(path, seed, budget):
+    return "skipped (%s: this chapter's episodes have no real-data counterpart in the file)" % os.path.basename(path)
+
+
+# ~~~~ one seed ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def regret(model, part):
+    p, pay = commit_probs(model, part), part["payoff"] - DANGER_COST * part["danger"]
+    return float(np.mean(np.maximum(pay.max(axis=1), 0.0) - (p * pay).sum(axis=1)))
+
+
+def threshold_rule(train, part):
+    def rule_regret(level, ep):
+        hit = ep["seen"] >= level
+        first = np.where(hit.any(axis=1), hit.argmax(axis=1), -1)
+        pay = ep["payoff"] - DANGER_COST * ep["danger"]
+        got = np.where(first >= 0, pay[np.arange(len(first)), np.maximum(first, 0)], 0.0)
+        return float(np.mean(np.maximum(pay.max(axis=1), 0.0) - got))
+    level = min(np.linspace(0.2, 1.4, 25), key=lambda lv: rule_regret(lv, train))
+    return rule_regret(level, part)
+
+
+def run_seed(seed, mode):
+    world = campaign(seed)
+    held, shifted = world["heldout"], world["shifted"]
+    rubicon = build_model(FEATURES, 2, TASK_TYPES[0], np.random.default_rng(seed + 1))
+    vigilant = build_model(FEATURES, 2, TASK_TYPES[0], np.random.default_rng(seed + 2), danger_cost=VIGILANT_COST)
+    fit(rubicon, world, UPDATES[mode], None)
+    fit(vigilant, world, UPDATES[mode], None)
+    base = regret(rubicon, held)
+    ko = {"urgency:off": regret(knockout(rubicon, "urgency", "off"), held) - base, "threat:off": regret(knockout(rubicon, "threat", "off"), held) - base}
+    at_risk = held["has"]
+    danger_mass = lambda m: float((commit_probs(m, held) * held["danger"])[at_risk].sum(axis=1).mean())
+    constrained = held["constraint"].any(axis=1)
+
+    def payoff(m):
+        p = commit_probs(m, held)
+        return float(((p * (held["payoff"] - DANGER_COST * held["danger"] - BREACH_COST * held["constraint"])).sum(axis=1))[constrained].mean())
+    cato = dict(rubicon, sealed=True)
+    first_step = float(np.mean(np.maximum(held["payoff"].max(axis=1), 0.0) - (held["payoff"] - DANGER_COST * held["danger"])[:, 0]))
+    return {"world": world, "rubicon": rubicon, "vigilant": vigilant, "lesions": ko, "trivial": first_step,
+            "table": {"rubicon_held": base, "rubicon_shift": regret(rubicon, shifted), "rule_shift": threshold_rule(world["train"], shifted),
+                      "danger_rubicon": danger_mass(rubicon), "danger_vigilant": danger_mass(vigilant), "pay_rubicon": payoff(rubicon), "pay_cato": payoff(cato)},
+            "row": {"H-SIG": regret(rubicon, shifted) - threshold_rule(world["train"], shifted), "H-NEC": ko["urgency:off"] - ko["threat:off"],
+                    "H-BLIND": danger_mass(rubicon) - danger_mass(vigilant), "H-RIVAL": payoff(rubicon) - payoff(cato)}}
+
+# ~~~~ verification ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def mutate(name):
+    global ACTIVE_MUTANT
+    before_name, ACTIVE_MUTANT = ACTIVE_MUTANT, name
+    return before_name
+
+
+def verification(first, mode):
+    lim, world = MIND_CARD["thresholds"], first["world"]
+    sample = {k: v[:150] for k, v in world["train"].items()}
+    notes, caught = [], {}
+
+    def gap(model, gen, n):
+        return max(finite_difference_check(model["params"], loss_and_grads(model, sample)[1], lambda m=model: loss_and_grads(m, sample)[0], gen,
+                                           n_entries=n, floor=lim["gradcheck_floor"]).values())
+
+    def sound(model):
+        fall = 1.0 - float(np.mean(model["history"][-20:])) / model["history"][0]
+        held_regret = regret(model, world["heldout"])
+        return fall >= lim["loss_drop_fraction"] and held_regret <= (1 - lim["margin_over_trivial"]) * first["trivial"], fall, held_regret
+
+    worst = max(gap(build_model(FEATURES, 2, TASK_TYPES[0], np.random.default_rng(first["seed"] + 70)), np.random.default_rng(first["seed"] + 3), 6),
+                gap(first["rubicon"], np.random.default_rng(first["seed"] + 4), 6), gap(first["vigilant"], np.random.default_rng(first["seed"] + 5), 6))
+    grad_info = {"tensors_checked": 2, "tensors_total": 2, "max_rel_error": worst, "checked_at": ["init", "after_training_steps"], "passed": bool(worst <= lim["gradcheck_rel_error"])}
+    notes.append(("C1", "gradient_check", grad_info["passed"], "engine gradients against finite differences: worst relative error %.2e" % worst))
+    twins = []
+    for _ in range(2):
+        m = build_model(FEATURES, 2, TASK_TYPES[0], np.random.default_rng(first["seed"] + 8))
+        fit(m, world, 12, None)
+        twins.append(m)
+    same = twins[0]["history"] == twins[1]["history"] and all(np.array_equal(twins[0]["params"][k], twins[1]["params"][k]) for k in twins[0]["params"])
+    notes.append(("C2", "determinism_finiteness", bool(same), "twin trainings from seed %d agree: %s" % (first["seed"] + 8, same)))
+    ok, fall, held_regret = sound(first["rubicon"])
+    notes.append(("C3", "learning", ok, "regret fell %.3f (needs 0.3); held-out regret %.3f against %.3f for committing at once" % (fall, held_regret, first["trivial"])))
+    tr = world["train"]
+    gen = np.random.default_rng(first["seed"] + 11)
+    cells = gen.permutation(tr["payoff"].size)
+    scrambled = dict(tr, payoff=tr["payoff"].reshape(-1)[cells].reshape(tr["payoff"].shape), danger=tr["danger"].reshape(-1)[cells].reshape(tr["danger"].shape))
+    shuffled = build_model(FEATURES, 2, TASK_TYPES[0], np.random.default_rng(first["seed"] + 12))
+    fit(shuffled, {"train": scrambled}, UPDATES[mode], None)
+    held = world["heldout"]
+    pay = held["payoff"] - DANGER_COST * held["danger"]
+
+    def constant_hazard(h):
+        commit = h * (1.0 - h) ** np.arange(STEPS)
+        return float(np.mean(np.maximum(pay.max(axis=1), 0.0) - (commit[None, :] * pay).sum(axis=1)))
+    blind_best = min(constant_hazard(h) for h in np.linspace(0.02, 0.98, 49))
+    sr, floor = regret(shuffled, held), lim["shuffled_ratio_min"] * blind_best
+    notes.append(("C4", "shuffled_payoff_control", sr >= floor, "payoffs shuffled across all episodes and steps: held-out regret %.3f, floor %.3f" % (sr, floor)))
+
+    def replay():
         try:
-            return self.ranks.index(rank)
-        except ValueError:
-            return -1
-
-    def rank_above(self, rank: str) -> Optional[str]:
-        level = self.rank_level(rank)
-        if 0 < level < len(self.ranks):
-            return self.ranks[level - 1]
-        return None
-
-
-class SiegeWeaponCalculator:
-    """Calculate siege weapon specifications."""
-    def __init__(self):
-        self.weapons: Dict[str, Dict[str, Any]] = {}
-
-    def add_weapon(self, name: str, range_meters: int,
-                  damage: int, reload_time_seconds: int,
-                  crew_size: int) -> None:
-        self.weapons[name] = {
-            "range": range_meters,
-            "damage": damage,
-            "reload": reload_time_seconds,
-            "crew": crew_size
-        }
-
-    def effectiveness(self, weapon_name: str) -> float:
-        if weapon_name not in self.weapons:
-            return 0.0
-        w = self.weapons[weapon_name]
-        return (w["range"] / 100 * 0.3 +
-                w["damage"] / 50 * 0.4 +
-                (30 / w["reload"]) * 0.3)
-
-
-class ConquestTimelineBuilder:
-    """Build timeline of Gallic conquest."""
-    def __init__(self):
-        self.events: List[Dict[str, Any]] = []
-
-    def add_event(self, year: int, campaign: str,
-                 battles: List[str], outcome: str,
-                 territory_gained: str) -> None:
-        self.events.append({
-            "year": year,
-            "campaign": campaign,
-            "battles": battles,
-            "outcome": outcome,
-            "territory": territory_gained
-        })
-
-    def events_by_year(self, year: int) -> List[Dict[str, Any]]:
-        return [e for e in self.events if e["year"] == year]
-
-    def total_conquests(self) -> int:
-        return len([e for e in self.events if "victory" in e["outcome"].lower()])
+            m = build_model(FEATURES, 2, TASK_TYPES[0], np.random.default_rng(first["seed"] + 2))
+            clean = gap(m, np.random.default_rng(first["seed"]), 4)
+            fit(m, world, UPDATES[mode], None)
+            return bool(clean <= lim["gradcheck_rel_error"] and sound(m)[0])
+        except FloatingPointError:
+            return False
+    clean_run = replay()
+    for name in MUTANTS:
+        old = mutate(name)
+        caught[name] = not replay()
+        mutate(old)
+    notes.append(("C5", "mutant_detection", clean_run and all(caught.values()), "clean replay passes C1 and C3: %s; mutants caught %d of %d" % (clean_run, sum(caught.values()), len(MUTANTS))))
+    p = commit_probs(first["rubicon"], world["heldout"])
+    total = p.sum(axis=1)
+    notes.append(("C6.1", "probability_conservation", bool(np.all(total <= 1.0 + 1e-12) and np.all(p >= 0)), "commitment probabilities never exceed one in total (definition check)"))
+    F = world["heldout"]["F"][:40]
+    w, b = first["rubicon"]["params"]["w"], first["rubicon"]["params"]["b"][0]
+    toy = {"F": F, "payoff": world["heldout"]["payoff"][:40], "danger": world["heldout"]["danger"][:40], "constraint": world["heldout"]["constraint"][:40]}
+    z = np.einsum("etd,d->et", F, w) + b
+    s = 0.5 * (1 + np.tanh(0.5 * z))
+    dz = np.ones_like(z) * s * (1 - s)
+    analytic = np.einsum("et,etd->d", dz, F)
+    node_w, node_b = leaf(w), leaf(np.array([b]))
+    out = logistic(shift(linear(F, node_w), node_b))
+    total_node = Node(float(out.value.sum()), (out,), lambda g: (np.ones_like(out.value) * g,))
+    backpropagate(total_node)
+    match = float(np.abs(node_w.grad - analytic).max())
+    control = float(np.abs(node_w.grad - np.einsum("et,etd->d", np.ones_like(z), F)).max())
+    notes.append(("C6.2", "engine_matches_hand_derivation", match <= lim["invariance_tol"] and control >= lim["negative_control_min_violation"],
+                  "engine gradient of a logistic sum matches the hand derivation within %.1e; a derivative without the logistic factor differs by %.1e" % (match, control)))
+    prints = {k: {hashlib.sha256(r.tobytes()).hexdigest() for r in world[k]["payoff"]} for k in EPISODES}
+    apart = not (prints["train"] & prints["heldout"] or prints["train"] & prints["shifted"] or prints["heldout"] & prints["shifted"])
+    notes.append(("C7", "split_integrity", apart, "no episode shared between splits: %s" % apart))
+    return notes, grad_info, caught
 
 
-if __name__ == "__main__":
-    demo()
+def summarise(runs, first_seed, evaluated):
+    draw, hyps, kos = np.random.default_rng(first_seed + 9973), [], []
+    for spec in MIND_CARD["hypotheses"]:
+        vals = np.array([r["row"][spec["id"]] for r in runs])
+        m, ci = paired_bootstrap(vals, draw) if evaluated else (float(vals.mean()), None)
+        hyps.append({"id": spec["id"], "metric": spec["metric"], "mean_diff": m, "ci95": ci, "mesi": spec["mesi"], "n_seeds": len(runs),
+                     "verdict": verdict(m, ci, spec["mesi"], spec["direction"]) if evaluated else "not evaluated"})
+    for label in runs[0]["lesions"]:
+        vals = np.array([r["lesions"][label] for r in runs])
+        m, ci = paired_bootstrap(vals, draw) if evaluated else (float(vals.mean()), None)
+        kos.append({"module": label.split(":")[0], "mode": "off", "signature": label.startswith("urgency"), "metric_change": m, "ci95": ci})
+    return hyps, kos
 
 
-class DictatorshipPowerAnalyzer:
-    """Analyze powers exercised during dictatorship."""
-    def __init__(self):
-        self.powers = {
-            "military_command": "Supreme command of armies",
-            "legislative_initiative": "Ability to propose laws",
-            "senate_control": "Control over Senate proceedings",
-            "judicial_authority": "Final judicial authority",
-            "provincial_governance": "Governor of all provinces",
-            "tribunician_power": "Protection of plebeians"
-        }
-
-    def power_scope(self, power_name: str) -> Optional[str]:
-        return self.powers.get(power_name)
-
-    def all_powers(self) -> Dict[str, str]:
-        return self.powers
-
-
-class triumvirateAnalyzer:
-    """Analyze the Second Triumvirate."""
-    def __init__(self):
-        self.members = {
-            "Octavian": {"age": 23, "strength": "Political legitimacy"},
-            "Mark Antony": {"age": 41, "strength": "Military command"},
-            "Lepidus": {"age": 46, "strength": "Infantry loyalty"}
-        }
-
-    def member_info(self, name: str) -> Optional[Dict[str, Any]]:
-        return self.members.get(name)
-
-    def combined_strengths(self) -> List[str]:
-        return [m["strength"] for m in self.members.values()]
+def report_lines(mode, seeds, took, runs, notes, grad_info, caught, hyps, kos, code):
+    ci_text = lambda ci: "not evaluated" if ci is None else "[%+.4f, %+.4f]" % tuple(ci)
+    avg = lambda key: float(np.mean([r["table"][key] for r in runs]))
+    yield "=== VERIFIED REPORT · chapter 0104 ==="
+    yield "file: %s · card_revision %d · mode %s · mutant %s" % (os.path.basename(__file__), MIND_CARD["card_revision"], mode, ACTIVE_MUTANT)
+    yield "environment: python %s · numpy %s" % (sys.version.split()[0], np.__version__)
+    yield "seeds: %s · runtime_s %.1f · budget_s %.0f" % (seeds, took, TIME_BUDGET[mode])
+    yield "n_params: rubicon %d · vigilant %d" % (n_params(runs[0]["rubicon"]), n_params(runs[0]["vigilant"]))
+    yield "gradcheck: %d/%d tensors at init and after training · max_rel_error %.2e · passed %s" % (grad_info["tensors_checked"], grad_info["tensors_total"], grad_info["max_rel_error"], grad_info["passed"])
+    yield "correctness:"
+    for c, n, ok, d in notes:
+        yield "  %-5s %-32s %s  %s" % (c, n, "PASS" if ok else "FAIL", d)
+    yield "mutants: %d/%d detected · score %.2f · %s" % (sum(caught.values()), len(MUTANTS), sum(caught.values()) / len(MUTANTS), ", ".join(k + (" caught" if caught.get(k) else " missed") for k in MUTANTS))
+    yield "hypotheses (paired over seeds; 95% percentile bootstrap of the mean, 2000 resamples):"
+    for h in hyps:
+        yield "  %-8s mean_diff %+.4f ci95 %s mesi %s seeds %d -> %s" % (h["id"], h["mean_diff"], ci_text(h["ci95"]), h["mesi"], h["n_seeds"], h["verdict"])
+    yield "knockouts (Rubicon policy, held-out regret change):"
+    for k in kos:
+        yield "  %-8s off  signature %-5s %+.4f ci95 %s" % (k["module"], k["signature"], k["metric_change"], ci_text(k["ci95"]))
+    yield "regret (seed mean): Rubicon held-out %.3f · Rubicon shifted %.3f · threshold rule shifted %.3f" % (avg("rubicon_held"), avg("rubicon_shift"), avg("rule_shift"))
+    yield "committing into danger (seed mean): Rubicon %.3f · vigilant %.3f" % (avg("danger_rubicon"), avg("danger_vigilant"))
+    yield "payoff in constraint episodes (seed mean): Rubicon %.3f · under Cato's sealed constraint %.3f" % (avg("pay_rubicon"), avg("pay_cato"))
+    yield "real-data bridge: skipped (no --data PATH given)"
+    yield "task_types: " + ", ".join(TASK_TYPES)
+    yield "exit_code: %d" % code
+    yield "=== END REPORT ==="
 
 
-class SenateProceedingsRecorder:
-    """Record proceedings of Senate under Caesar."""
-    def __init__(self):
-        self.proceedings: List[Dict[str, Any]] = []
-
-    def add_proceeding(self, date: str, topic: str,
-                      speakers: List[str], outcome: str) -> None:
-        self.proceedings.append({
-            "date": date,
-            "topic": topic,
-            "speakers": speakers,
-            "outcome": outcome
-        })
-
-    def proceedings_about(self, topic: str) -> List[Dict[str, Any]]:
-        return [p for p in self.proceedings if topic.lower() in p["topic"].lower()]
-
-
-class RomanCitizenshipGranter:
-    """Track citizenship grants by Caesar."""
-    def __init__(self):
-        self.grants: List[Dict[str, str]] = []
-
-    def add_grant(self, recipient: str, original_city: str,
-                 year: int, reason: str) -> None:
-        self.grants.append({
-            "recipient": recipient,
-            "origin": original_city,
-            "year": year,
-            "reason": reason
-        })
-
-    def grants_by_origin(self, city: str) -> List[Dict[str, str]]:
-        return [g for g in self.grants if g["origin"] == city]
-
-    def total_grants(self) -> int:
-        return len(self.grants)
+def protocol(mode, first_seed, count, json_path, data_path):
+    started, seeds = time.time(), [first_seed + i for i in range(count)]
+    print("chapter 0104 · mode %s · seeds %s · mutant %s" % (mode, seeds, ACTIVE_MUTANT), flush=True)
+    runs = [run_seed(s, mode) for s in seeds]
+    notes, grad_info, caught = verification(dict(runs[0], seed=first_seed), mode)
+    hyps, kos = summarise(runs, first_seed, mode == "full" and count >= 5)
+    took = time.time() - started
+    notes.append(("C8", "budget", took <= TIME_BUDGET[mode], "%.1f s of %.0f s" % (took, TIME_BUDGET[mode])))
+    failed = [c for c, _, ok, _ in notes if not ok]
+    code = 0 if not failed else (3 if failed == ["C8"] else 1)
+    lines = list(report_lines(mode, seeds, took, runs, notes, grad_info, caught, hyps, kos, code))
+    record = {"schema_version": "1.0", "chapter": 104, "file": os.path.basename(__file__), "card_revision": MIND_CARD["card_revision"],
+              "environment": {"python": sys.version.split()[0], "numpy": np.__version__}, "seeds": seeds, "runtime_s": round(took, 2),
+              "n_params": n_params(runs[0]["rubicon"]), "gradcheck": grad_info, "correctness": [{"id": c, "name": n, "passed": ok, "detail": d} for c, n, ok, d in notes],
+              "mutants": {"detected": sum(caught.values()), "total": len(MUTANTS), "score": sum(caught.values()) / len(MUTANTS)},
+              "hypotheses": hyps, "knockouts": kos, "task_types": TASK_TYPES, "exit_code": code}
+    write_report(lines, record, json_path)
+    return code
 
 
-class BreadCircusCalculator:
-    """Calculate bread distribution metrics."""
-    def __init__(self):
-        self.population_estimate = 400000
-        self.bread_allocation_per_person = 0.5
-
-    def total_bread_needed(self) -> float:
-        return self.population_estimate * self.bread_allocation_per_person
-
-    def daily_consumption(self, grain_modifier: float = 1.0) -> float:
-        return self.total_bread_needed() * grain_modifier
-
-
-class BuildingProjectTracker:
-    """Track Caesar's building projects."""
-    def __init__(self):
-        self.projects: List[Dict[str, Any]] = []
-
-    def add_project(self, name: str, project_type: str,
-                   completion_year: int, cost_sestertii: int,
-                   significance: str) -> None:
-        self.projects.append({
-            "name": name,
-            "type": project_type,
-            "year": completion_year,
-            "cost": cost_sestertii,
-            "significance": significance
-        })
-
-    def projects_by_type(self, ptype: str) -> List[Dict[str, Any]]:
-        return [p for p in self.projects if p["type"] == ptype]
-
-
-class RomanNameAnalyzer:
-    """Analyze Roman naming conventions."""
-    def __init__(self):
-        self.praenomen_list = ["Gaius", "Lucius", "Marcus", "Quintus", "Publius"]
-        self.nomen_list = ["Julius", "Claudii", "Cornelius", "Aemilius"]
-        self.cognomen_examples = ["Caesar", "Sulla", "Cato", "Africanus"]
-
-    def full_name_parts(self, praenomen: str, nomen: str, cognomen: str) -> List[str]:
-        return [praenomen, nomen, cognomen]
-
-    def is_patrician_name(self, nomen: str) -> bool:
-        return nomen in self.nomen_list
-
-
-class ForumUsageAnalyzer:
-    """Analyze Roman Forum usage patterns."""
-    def __init__(self):
-        self.activities = {
-            "political": ["elections", "speeches", "voting"],
-            "legal": ["trials", "lawyers", "courts"],
-            "commercial": ["trade", "shops", "banking"],
-            "religious": ["sacrifices", "temples", "priests"],
-            "social": ["meetings", "greetings", "news"]
-        }
-
-    def activities_by_area(self, area: str) -> List[str]:
-        return self.activities.get(area, [])
-
-
-class MilitaryFormationAnalyzer:
-    """Analyze Roman military formations."""
-    def __init__(self):
-        self.formations = {
-            "testudo": {"purpose": "Siege defense", "units": 50},
-            "triplex_acies": {"purpose": "Battle formation", "units": 3000},
-            "cuneus": {"purpose": "Breaking enemy lines", "units": 500},
-            "orbis": {"purpose": "Circular defense", "units": 200}
-        }
-
-    def formation_info(self, name: str) -> Optional[Dict[str, Any]]:
-        return self.formations.get(name)
-
-
-class CaesarQuoteAnalyzer:
-    """Analyze famous quotes attributed to Caesar."""
-    def __init__(self):
-        self.quotes = {
-            "Veni, vidi, vici": {"context": "Zela victory", "year": -47},
-            "Alea iacta est": {"context": "Crossing Rubicon", "year": -49},
-            "Et tu, Brute?": {"context": "Assassination", "year": -44},
-            "Tu quoque, Brute?": {"context": "Assassination", "year": -44}
-        }
-
-    def quote_info(self, quote: str) -> Optional[Dict[str, Any]]:
-        return self.quotes.get(quote)
-
-    def all_quotes(self) -> List[str]:
-        return list(self.quotes.keys())
+def main(argv=None):
+    parser = argparse.ArgumentParser(prog=os.path.basename(__file__), description="Chapter 0104: the Rubicon engine (non-military commitment timing).")
+    flags = [("--quick", {"action": "store_true"}), ("--card", {"action": "store_true"}), ("--seed", {"type": int, "default": DEFAULT_SEED}),
+             ("--seeds", {"type": int}), ("--json", {}), ("--mutant", {}), ("--data", {})]
+    for flag, options in flags:
+        parser.add_argument(flag, **options)
+    chosen = parser.parse_args(argv)
+    if chosen.card:
+        print(json.dumps(MIND_CARD, indent=2, ensure_ascii=False))
+        return 0
+    runs_wanted = chosen.seeds if chosen.seeds is not None else (1 if chosen.quick else 5)
+    problems = [text for bad, text in ((runs_wanted < 1, "--seeds must be at least 1"), (chosen.seed < 0, "--seed must be a non-negative integer"),
+                                       (chosen.mutant is not None and chosen.mutant not in MUTANTS, "unknown --mutant")) if bad]
+    if problems:
+        print("; ".join(problems), file=sys.stderr)
+        return 2
+    mutate(chosen.mutant)
+    try:
+        return protocol("quick" if chosen.quick else "full", chosen.seed, runs_wanted, chosen.json, chosen.data)
+    except FloatingPointError as failure:
+        print("non-finite values: %s" % failure, file=sys.stderr)
+        return 4
 
 
 if __name__ == "__main__":
-    demo()
+    sys.exit(main())

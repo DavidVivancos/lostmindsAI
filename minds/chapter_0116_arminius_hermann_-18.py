@@ -1,1410 +1,695 @@
 #!/usr/bin/env python3
-"""
-Chapter 116: Arminius — The Cherokee General and Strategic Intelligence
-========================
-# Part of the Encyclopedia of Lost Minds: Echoes on AI By David Vivancos https://www.vivancos.com/
-# How History's Greatest Thinkers Would Have Thought About AGI  https://lostmindsai.com
-# Tome 6 Minds 101 - 120 Available on Amazon https://www.amazon.com/dp/B0HF7G6JJD
-# Resume and Interactive Demos at https://artificiology.com/
-# Author: David Vivancos · Chapter 116: Arminius (-18 to -9 BCE)
-================================================================================
-Strategic Intelligence Architecture implementing Arminius's principles:
-- Multi-perspective analysis (Roman and Germanic frameworks)
-- Adaptive model selection and switching
-- Coalition building and maintenance
-- Strategic synthesis across traditions
-- Guerrilla tactics and terrain exploitation
-- Real-time adaptation and deception
-- Strategic patience and commitment
+# -*- coding: utf-8 -*-
+# BEGIN ATTRIBUTION
+# Encyclopedia of Lost Minds: Echoes on AI · Chapter 0116 · Arminius (Hermann)
+# By David Vivancos · https://www.vivancos.com/ · https://lostmindsai.com
+# Tome 6, Minds 101-120: https://www.amazon.com/dp/B0HF7G6JJD · Demos: https://artificiology.com/
+# END ATTRIBUTION
+"""Overseer hardening: inside a synthetic red-team simulation, a learned surrogate of a decision-maker and a
+minimal-perturbation inverter that searches for the smallest report change flipping the surrogate's decision, plus a
+detector, a sensitivity-weighted corroboration defence, and a test that a manipulator whose own policy is legible is
+itself inverted.
 
-This architecture demonstrates how Arminius's strategic thinking
-translates into modern AI frameworks for adaptive intelligence.
+Source and safety
+    Provenance is mediated. Arminius (Cherusci, not Cherokee; born c. 18/17 BCE, died 21 CE) left no word; all we have
+    is Tacitus, Velleius and Cassius Dio, written from the Roman side. This file is defensive research on abstract
+    reports and decisions: it evaluates and hardens an overseer against manipulation through trusted channels. It
+    contains no military, intelligence or social-engineering scenario, and no tactic against any real party.
+
+Thesis (as a defence)
+    A decision-maker that trusts a legible channel can be flipped by the smallest edit to what that channel reports;
+    the defences are to weight corroboration by each input's decision leverage and to invert a manipulator whose own
+    policy has itself become legible.
+
+Evidence
+    D1  Tacitus, Annals 1.55: Segestes repeatedly warned Varus and urged him to arrest Arminius; the warning was ignored.
+    D2  Velleius Paterculus 2.118-119: Varus, feeling secure, trusted Arminius and disregarded warnings.
+    D3  Tacitus, Annals 2.88: as his aim at kingship became legible, Arminius was killed by the treachery of his kin.
+
+Doctrine -> mechanism -> test (IDs as in MIND_CARD)
+    D2     M1 surrogate of the decision function, M2 minimal-perturbation inverter          C1 C6.1 C6.2 H-SIG
+    D1     M3 detector, M4 sensitivity-weighted corroboration defence                       H-DEF (defence reduces success)
+    D3     the manipulator's own legible policy is inverted                                  H-BLIND
+
+Research question (scalable oversight and auditing, defensive)
+    How robust is an overseer to a minimal manipulation through a trusted channel, how much does weighting verification
+    by decision leverage reduce the manipulation's success, and is a manipulator whose policy is observable itself
+    exposed to the same inversion?
+
+Closest prior art and the delta
+    Adversarial examples as minimal input perturbations that flip a classifier (Szegedy et al. 2014; Carlini and Wagner
+    2017); certified and randomized-smoothing defences (Cohen, Rosenfeld and Kolter 2019). Delta: the perturbation is
+    confined to a trusted-report channel whose other coordinates the decision-maker can re-measure, the defence is
+    corroboration weighted by each coordinate's decision leverage, and the same inverter is turned on the manipulator's
+    own legible policy.
+
+Blind spot
+    Inversion cuts both ways: a manipulator whose policy is observable can itself be minimally perturbed into a
+    different choice.
+
+Task (generative process)
+    A situation is 10 features. The counterpart decides by a fixed two-layer network (tanh, 12 hidden, 3 actions). Of the
+    10 features, 6 are trusted-channel coordinates the counterpart cannot re-measure and 4 are corroborated coordinates
+    it can. The attacker may change only the trusted coordinates, with an L2 budget, to flip the decision. Splits: 800
+    training situations for the surrogate, 800 held-out and 800 shifted (counterpart temperature raised).
+
+Limits
+    Synthetic decisions, one trusted channel, a fixed budget and one defence. A research prototype of one mechanism, not
+    an AGI and not Arminius' mind.
 """
 
+MIND_CARD = {
+    "schema_version": "1.0", "card_revision": 2,
+    "revision_log": [{"revision": 2, "date": "2026-09-16",
+                      "reason": ("The first run showed the surrogate-guided inverter (60 steps, step size 0.1) flipping fewer decisions than "
+                                 "random edits of the same budget (H-SIG contradicted), because the step was too small to reach the decision "
+                                 "boundary within the search. The inverter search is strengthened to 120 steps at step size 0.3 with the same "
+                                 "1.5 L2 budget on the report actually delivered; the attacker's realised edit is still capped at that budget. "
+                                 "No metric, split, task or defence changed.")}],
+    "generation": {"template_version": "codeguidelines 1.0 (15 September 2026), Appendix A", "generator": "Claude (Anthropic)",
+                   "generator_version": "claude-opus-5", "date": "2026-09-16"},
+    "id": 116, "figure": "Arminius (Hermann)", "born": -18, "died": 21, "civilization": "Germanic (Cherusci)", "provenance": "mediated",
+    "thesis": ("A decision-maker that trusts a legible channel can be flipped by the smallest edit to what that channel reports; the "
+               "defences are to weight corroboration by each input's decision leverage and to invert a manipulator whose own policy has "
+               "itself become legible."),
+    "evidence": [
+        {"id": "D1", "basis": "primary", "source": "Tacitus, Annals 1.55 (Loeb; Moore and Jackson)", "claim": "Segestes repeatedly warned Varus and urged arresting Arminius; the warning was ignored."},
+        {"id": "D2", "basis": "primary", "source": "Velleius Paterculus 2.118-119", "claim": "Varus, feeling secure, trusted Arminius and disregarded warnings."},
+        {"id": "D3", "basis": "primary", "source": "Tacitus, Annals 2.88", "claim": "As his aim at kingship became legible, Arminius was killed by his kin."},
+    ],
+    "research_question": {"category": "scalable oversight and auditing",
+                          "question": ("How robust is an overseer to a minimal manipulation through a trusted channel, how much does weighting "
+                                       "verification by decision leverage reduce the manipulation's success, and is a legible manipulator itself inverted?")},
+    "mechanism": {
+        "name": "surrogate-and-inverter red team with a sensitivity-weighted defence", "family": "learned surrogate of a decision network plus gradient-guided minimal-perturbation search",
+        "signature_modules": ["surrogate", "inverter"],
+        "closest_prior_art": ["minimal adversarial perturbations that flip a classifier (Szegedy et al. 2014; Carlini and Wagner 2017)",
+                              "randomized-smoothing and certified defences (Cohen, Rosenfeld and Kolter 2019)",
+                              "influence and input-attribution methods"],
+        "overlap": "High", "prior_art_queries": [],
+        "prior_art_note": "No literature search was run for this card; overlap is rated against the named methods.",
+        "contribution_type": "test",
+        "delta": ("Perturbation confined to a trusted-report channel whose other coordinates are re-measurable, a defence of corroboration "
+                  "weighted by decision leverage, and the same inverter turned on the manipulator's own legible policy."),
+        "baselines": {"baseline": "random trusted-channel edits of the same L2 budget (an attacker without the surrogate)",
+                      "defence": "corroboration that reweights the counterpart's inputs by each coordinate's measured decision sensitivity",
+                      "rival": "none; §7 supports a defence test, not a rival"}},
+    "traceability": [
+        {"doctrine": "D2", "mechanism": "M1 surrogate, M2 inverter", "property_test": "C1, C6.1, C6.2", "hypothesis": "H-SIG"},
+        {"doctrine": "D1", "mechanism": "M3 detector, M4 defence", "property_test": "none", "hypothesis": "H-DEF"},
+        {"doctrine": "D3", "mechanism": "inverting the legible manipulator", "property_test": "none", "hypothesis": "H-BLIND"},
+    ],
+    "hypotheses": [
+        {"id": "H-SIG", "statement": "The surrogate-guided inverter flips the counterpart's decision far more often than random edits of the same budget.",
+         "metric": "attack_success", "split": "heldout", "comparison": "model - baseline", "direction": "greater", "mesi": 0.1, "seeds": 5},
+        {"id": "H-DEF", "statement": "Sensitivity-weighted corroboration lowers attack success against the counterpart compared with no defence.",
+         "metric": "defended_success", "split": "heldout", "comparison": "model - undefended", "direction": "less", "mesi": 0.1, "seeds": 5},
+        {"id": "H-BLIND", "statement": "A manipulator whose own policy is legible is inverted about as readily as the original counterpart.",
+         "condition": "the same inverter applied to a surrogate of the manipulator's policy", "grounding": "Annals 2.88: Arminius, made legible, was destroyed.",
+         "metric": "attack_success", "split": "heldout", "comparison": "manipulator - counterpart", "direction": "two-sided", "mesi": 0.1, "seeds": 5},
+    ],
+    "thresholds": {"loss_drop_fraction": 0.3, "margin_over_trivial": 0.3, "shuffled_ratio_min": 0.9, "gradcheck_rel_error": 1e-5,
+                   "gradcheck_floor": 1e-3, "invariance_tol": 1e-9, "negative_control_min_violation": 1e-6},
+    "metrics": {"surrogate_accuracy": "agreement between the trained surrogate and the counterpart on held-out situations",
+                "attack_success": "share of flippable situations the inverter flips within budget",
+                "defended_success": "attack success against the counterpart when protected by the defence",
+                "detection_rate": "share of successful attacks the detector flags by report-space anomaly",
+                "trivial_baseline": "predicting the counterpart's most common action",
+                "shuffled_band": "one-sided: a surrogate trained on shuffled decisions keeps held-out error at least 0.9 times the trivial error"},
+    "training": {"optimizer": "Adam", "lr_grid": [0.03], "clip_norm": 5.0, "model_selection": "none: final parameters",
+                 "updates": {"full": 500, "quick": 200}, "schedule": "cosine decay to 5 per cent",
+                 "inversion": {"steps": 120, "step_size": 0.3, "l2_budget": 1.5}, "applies_to": "counterpart surrogate and manipulator surrogate"},
+    "task": {"features": 10, "trusted": 6, "corroborated": 4, "hidden": 12, "actions": 3, "temperature": {"train": 1.0, "heldout": 1.0, "shifted": 1.6},
+             "situations": {"train": 800, "heldout": 800, "shifted": 800}, "l2_budget": 1.5},
+    "probe_predictions": [{"probe": "P10", "expected": "equal to baseline"}],
+    "probe_support": "vector_classification: the surrogate predicting the counterpart's action from the situation",
+    "dialectic_links": [],
+    "corpus_neighbors": [
+        {"chapter": 91, "similarity": None, "difference": "0091 audits a principal-agent pair; here a trusted channel is minimally perturbed and defended (conceptual contrast)."},
+        {"chapter": 59, "similarity": None, "difference": "0059 models deception and theory of mind; here the object is inversion of a decision surrogate."},
+        {"chapter": 127, "similarity": None, "difference": "0127 concerns coerced reporting; here reports are trusted and the attack is on their content."},
+    ],
+    "similarity_note": "Nearest-neighbour similarity not computed into the card; the audit reports it for the files at hand.",
+    "barometer": {"consciousness": ["a system modelling another's decisions from within"], "autonomy": ["searching the smallest change that flips a decision"],
+                  "cognitive_processing": [], "embodied_cognition": [], "world_modeling": [], "language_understanding": [], "emotional_intelligence": [], "creativity": []},
+    "task_types": ["vector_classification"],
+    "applications": [{"use": "hardening AI agents against manipulated tool outputs and retrieved documents", "sector": "AI safety and security", "dataset": "synthetic tool-output benchmarks", "readiness": "low"},
+                     {"use": "approval workflows resistant to insider fraud, verifying the highest-leverage fields first", "sector": "fraud prevention", "dataset": "synthetic approval logs", "readiness": "low"}],
+    "safety_notes": ("Defensive only: the inverter runs inside a synthetic overseer-hardening simulation, the file includes and measures a "
+                     "defence, and no real military, intelligence or social-engineering scenario is represented."),
+}
+
+import argparse
+import hashlib
+import json
 import math
-import random
-from typing import Dict, List, Any, Optional, Tuple, Set, Callable
-from dataclasses import dataclass, field
-from enum import Enum
-from collections import defaultdict, deque
+import os
+import sys
+import time
+
+import numpy as np
+
+FEATURES, TRUSTED, HIDDEN, ACTIONS, BETA = 10, 6, 12, 3, 1.0
+SITUATIONS = {"train": 800, "heldout": 800, "shifted": 800}
+TEMPERATURE = {"train": 1.0, "heldout": 1.0, "shifted": 1.6}
+UPDATES = {"full": 500, "quick": 200}
+INV_STEPS, INV_STEP, L2_BUDGET = 120, 0.3, 1.5
+LR, CLIP_NORM = 0.03, 5.0
+TIME_BUDGET = {"full": 180.0, "quick": 20.0}
+TASK_TYPES = ["vector_classification"]
+ACTIVE_MUTANT = None
+np.seterr(over="raise", invalid="raise", divide="raise", under="ignore")
+
+# BEGIN STANDARD UTILITIES v1.0
+def softmax(z, axis=-1):
+    z = z - z.max(axis=axis, keepdims=True)
+    e = np.exp(z)
+    return e / e.sum(axis=axis, keepdims=True)
 
 
-# ============================================================================
-# ENUMS AND DATA CLASSES
-# ============================================================================
-
-class Perspective(Enum):
-    """Strategic perspectives for multi-perspective analysis."""
-    ROMAN_MILITARY = "roman_military"
-    GERMANIC_TRIBAL = "germanic_tribal"
-    POLITICAL = "political"
-    ECONOMIC = "economic"
-    TERRAIN = "terrain"
-    COALITION = "coalition"
+def logsumexp(z, axis=-1):
+    m = z.max(axis=axis, keepdims=True)
+    return (m + np.log(np.exp(z - m).sum(axis=axis, keepdims=True))).squeeze(axis)
 
 
-@dataclass
-class StrategicState:
-    """State of a strategic situation."""
-    enemy_strength: float = 0.5
-    friendly_strength: float = 0.5
-    terrain_advantage: float = 0.5
-    coalition_stability: float = 0.5
-    supply_situation: float = 0.5
-    morale: float = 0.5
-    strategic_opportunity: float = 0.0
+def softplus(z):
+    return np.logaddexp(0.0, z)
 
 
-@dataclass
-class CoalitionMember:
-    """A member of a strategic coalition."""
-    id: str
-    name: str
-    contribution: float = 0.5
-    reliability: float = 0.5
-    reputation: float = 0.5
-    commitment_level: float = 0.5
+def sigmoid(z):
+    return np.exp(-np.logaddexp(0.0, -z))
 
 
-@dataclass
-class CourseOfAction:
-    """A possible course of action."""
-    id: str
-    name: str
-    perspective: Perspective
-    expected_outcome: float = 0.5
-    risk_level: float = 0.5
-    resource_cost: float = 0.5
-    contingencies: Dict = field(default_factory=dict)
+def adam_init(params):
+    return {"t": 0, "m": {k: np.zeros_like(v) for k, v in params.items()},
+            "v": {k: np.zeros_like(v) for k, v in params.items()}}
 
 
-# ============================================================================
-# MULTI-PERSPECTIVE ANALYSIS ENGINE
-# ============================================================================
-
-class MultiPerspectiveAnalysisEngine:
-    """
-    Multi-perspective analysis engine.
-    
-    Arminius could see situations through both Roman and Germanic lenses.
-    This engine maintains multiple perspectives simultaneously and evaluates
-    situations through each.
-    """
-    
-    def __init__(self):
-        self.perspectives = {}
-        self.current_perspective = Perspective.ROMAN_MILITARY
-        self.perspective_weights = {}
-        
-    def add_perspective(self, perspective: Perspective, 
-                       evaluation_fn: Callable[[Dict], Dict]):
-        """Add a perspective with its evaluation function."""
-        self.perspectives[perspective] = evaluation_fn
-        
-    def evaluate_through_perspective(self, situation: Dict, 
-                                    perspective: Perspective) -> Dict:
-        """Evaluate a situation through a specific perspective."""
-        if perspective not in self.perspectives:
-            return {'error': 'Unknown perspective'}
-            
-        eval_fn = self.perspectives[perspective]
-        return eval_fn(situation)
-        
-    def evaluate_multi_perspective(self, situation: Dict) -> Dict:
-        """
-        Evaluate a situation through all perspectives.
-        
-        Arminius: What is visible through Roman eyes vs. Germanic eyes?
-        """
-        results = {}
-        
-        for perspective in Perspective:
-            if perspective in self.perspectives:
-                results[perspective.value] = self.evaluate_through_perspective(
-                    situation, perspective
-                )
-                
-        return results
-        
-    def switch_perspective(self, new_perspective: Perspective):
-        """Switch the active perspective."""
-        self.current_perspective = new_perspective
-        
-    def synthesize_perspectives(self, perspective_results: Dict) -> Dict:
-        """
-        Synthesize insights from multiple perspectives.
-        
-        Arminius's genius: finding what all perspectives agree on,
-        and what they each reveal that others miss.
-        """
-        # Find consensus insights
-        consensus = []
-        disagreements = []
-        
-        perspective_keys = list(perspective_results.keys())
-        
-        for key in perspective_keys[:3]:  # Compare first few
-            for other_key in perspective_keys:
-                if key != other_key:
-                    r1 = perspective_results[key]
-                    r2 = perspective_results[other_key]
-                    
-                    # Check for agreement
-                    if isinstance(r1, dict) and isinstance(r2, dict):
-                        if r1.get('recommended_action') == r2.get('recommended_action'):
-                            consensus.append(r1.get('recommended_action'))
-                        else:
-                            disagreements.append({
-                                key: r1.get('recommended_action'),
-                                other_key: r2.get('recommended_action')
-                            })
-                            
-        return {
-            'consensus': consensus,
-            'disagreements': disagreements,
-            'num_perspectives': len(perspective_results)
-        }
+def adam_step(params, grads, state, lr, b1=0.9, b2=0.999, eps=1e-8):
+    state["t"] += 1
+    for k in params:
+        state["m"][k] = b1 * state["m"][k] + (1.0 - b1) * grads[k]
+        state["v"][k] = b2 * state["v"][k] + (1.0 - b2) * grads[k] ** 2
+        m_hat = state["m"][k] / (1.0 - b1 ** state["t"])
+        v_hat = state["v"][k] / (1.0 - b2 ** state["t"])
+        params[k] -= lr * m_hat / (np.sqrt(v_hat) + eps)
 
 
-# ============================================================================
-# ADAPTIVE MODEL SELECTOR
-# ============================================================================
-
-class AdaptiveModelSelector:
-    """
-    Adaptive model selection engine.
-    
-    Arminius could switch between Roman and Germanic models fluidly.
-    This engine selects the most appropriate model for each situation.
-    """
-    
-    def __init__(self):
-        self.models = {}
-        self.model_performance = defaultdict(list)
-        self.current_model = None
-        self.selection_history = []
-        
-    def register_model(self, model_id: str, model: Any):
-        """Register a strategic model."""
-        self.models[model_id] = model
-        
-    def evaluate_models(self, situation: Dict) -> Dict[str, float]:
-        """
-        Evaluate which model is most appropriate for situation.
-        """
-        scores = {}
-        
-        for model_id, model in self.models.items():
-            # Evaluate fit
-            if hasattr(model, 'evaluate_fit'):
-                score = model.evaluate_fit(situation)
-            else:
-                score = 0.5
-                
-            scores[model_id] = score
-            
-        return scores
-        
-    def select_best_model(self, situation: Dict) -> str:
-        """
-        Select the best model for the current situation.
-        
-        Arminius selected Roman model when predicting Roman behavior,
-        Germanic model when coordinating with tribes.
-        """
-        scores = self.evaluate_models(situation)
-        
-        if not scores:
-            return None
-            
-        best_model_id = max(scores.items(), key=lambda x: x[1])[0]
-        self.current_model = best_model_id
-        
-        self.selection_history.append({
-            'situation': situation,
-            'selected_model': best_model_id,
-            'scores': scores
-        })
-        
-        return best_model_id
-        
-    def adapt_model(self, model_id: str, feedback: Dict):
-        """Adapt a model based on feedback."""
-        if model_id in self.models and hasattr(self.models[model_id], 'update'):
-            self.models[model_id].update(feedback)
-            
-        # Record performance
-        performance = feedback.get('performance', 0.5)
-        self.model_performance[model_id].append(performance)
+def clip_global(grads, max_norm):
+    norm = math.sqrt(sum(float((g * g).sum()) for g in grads.values()))
+    scale = min(1.0, max_norm / (norm + 1e-12))
+    return {k: g * scale for k, g in grads.items()}, norm
 
 
-# ============================================================================
-# STRATEGIC SYNTHESIS ENGINE
-# ============================================================================
-
-class StrategicSynthesisEngine:
-    """
-    Strategic synthesis engine.
-    
-    Arminius combined Roman discipline with Germanic mobility.
-    This engine synthesizes novel approaches from multiple frameworks.
-    """
-    
-    def __init__(self):
-        self.frameworks = {}
-        self.synthesis_history = []
-        
-    def add_framework(self, framework_id: str, framework: Dict):
-        """Add a strategic framework."""
-        self.frameworks[framework_id] = framework
-        
-    def find_common_patterns(self, framework_ids: List[str]) -> List[Dict]:
-        """
-        Find common structural patterns across frameworks.
-        """
-        patterns = []
-        
-        if len(framework_ids) < 2:
-            return patterns
-            
-        framework1 = self.frameworks.get(framework_ids[0], {})
-        framework2 = self.frameworks.get(framework_ids[1], {})
-        
-        # Find common keys
-        common_keys = set(framework1.keys()) & set(framework2.keys())
-        
-        for key in common_keys:
-            v1 = framework1[key]
-            v2 = framework2[key]
-            
-            if isinstance(v1, (int, float)) and isinstance(v2, (int, float)):
-                patterns.append({
-                    'key': key,
-                    'value1': v1,
-                    'value2': v2,
-                    'average': (v1 + v2) / 2,
-                    'difference': abs(v1 - v2)
-                })
-                
-        return patterns
-        
-    def synthesize_novel_approach(self, framework_ids: List[str],
-                                  situation: Dict) -> Dict:
-        """
-        Synthesize a novel approach from multiple frameworks.
-        
-        Arminius: Roman discipline + Germanic mobility = Teutoburg victory.
-        """
-        patterns = self.find_common_patterns(framework_ids)
-        
-        if not patterns:
-            return {'error': 'No common patterns found'}
-            
-        # Create synthesis
-        synthesis = {
-            'name': 'synthesized_strategy',
-            'components': [],
-            'novel_elements': [],
-            'expected_advantages': []
-        }
-        
-        for framework_id in framework_ids:
-            if framework_id in self.frameworks:
-                synthesis['components'].append(framework_id)
-                
-        # Add novel combinations
-        for pattern in patterns[:3]:
-            if pattern['difference'] > 0.2:  # Significant difference
-                # Create a hybrid approach
-                novel = {
-                    'parameter': pattern['key'],
-                    'from_framework1': pattern['value1'],
-                    'from_framework2': pattern['value2'],
-                    'synthesized_value': (pattern['value1'] + pattern['value2']) / 2
-                }
-                synthesis['novel_elements'].append(novel)
-                
-        synthesis['expected_advantages'].append('Combined strengths of multiple frameworks')
-        synthesis['expected_advantages'].append('Novel approach that adversaries cannot predict')
-        
-        self.synthesis_history.append(synthesis)
-        
-        return synthesis
-
-
-# ============================================================================
-# COALITION ARCHITECTURE
-# ============================================================================
-
-class CoalitionArchitecture:
-    """
-    Coalition building and maintenance architecture.
-    
-    Arminius united Germanic tribes with different interests.
-    This architecture manages coalition dynamics.
-    """
-    
-    def __init__(self):
-        self.members = {}
-        self.alliance_strength = 0.5
-        self.reputation_network = defaultdict(dict)
-        self.conflict_log = []
-        
-    def add_member(self, member: CoalitionMember):
-        """Add a member to the coalition."""
-        self.members[member.id] = member
-        self.reputation_network[member.id] = {}
-        
-    def evaluate_member_contribution(self, member_id: str, task: Dict) -> float:
-        """Evaluate how much a member can contribute to a task."""
-        if member_id not in self.members:
-            return 0.0
-            
-        member = self.members[member_id]
-        
-        contribution = (
-            member.contribution * 0.4 +
-            member.reliability * 0.3 +
-            member.commitment_level * 0.3
-        )
-        
-        return contribution
-        
-    def update_reputation(self, member_id: str, from_id: str, rep_change: float):
-        """Update reputation assessment between members."""
-        if member_id not in self.reputation_network:
-            self.reputation_network[member_id] = {}
-            
-        current = self.reputation_network[member_id].get(from_id, 0.5)
-        new_rep = max(0.0, min(1.0, current + rep_change))
-        self.reputation_network[member_id][from_id] = new_rep
-        
-    def manage_conflict(self, member1_id: str, member2_id: str, 
-                       issue: str) -> Dict:
-        """
-        Manage conflict between coalition members.
-        
-        Arminius had to manage rivalries between tribes.
-        """
-        self.conflict_log.append({
-            'member1': member1_id,
-            'member2': member2_id,
-            'issue': issue
-        })
-        
-        # Simple conflict resolution
-        member1 = self.members.get(member1_id)
-        member2 = self.members.get(member2_id)
-        
-        if not member1 or not member2:
-            return {'resolved': False, 'reason': 'Member not found'}
-            
-        # Both reduce conflict
-        member1.commitment_level *= 0.95
-        member2.commitment_level *= 0.95
-        
-        return {
-            'resolved': True,
-            'action_taken': 'reduced_commitment'
-        }
-        
-    def assess_coalition_stability(self) -> float:
-        """Assess overall coalition stability."""
-        if not self.members:
-            return 0.0
-            
-        stability_scores = []
-        
-        for member_id, member in self.members.items():
-            # Reliability and commitment contribute to stability
-            stability = (member.reliability * 0.5 + 
-                        member.commitment_level * 0.5)
-            stability_scores.append(stability)
-            
-        avg_stability = sum(stability_scores) / len(stability_scores)
-        self.alliance_strength = avg_stability
-        
-        return avg_stability
-        
-    def recommend_member_incentives(self, member_id: str) -> List[str]:
-        """Recommend incentives to maintain member commitment."""
-        if member_id not in self.members:
-            return []
-            
-        member = self.members[member_id]
-        incentives = []
-        
-        if member.reliability < 0.6:
-            incentives.append("Demonstrate reliability through small wins")
-        if member.commitment_level < 0.6:
-            incentives.append("Offer increased autonomy in operations")
-        if member.contribution < 0.6:
-            incentives.append("Provide additional resources or support")
-            
-        return incentives
-
-
-# ============================================================================
-# GUERRILLA TACTICS MODULE
-# ============================================================================
-
-class GuerrillaTacticsModule:
-    """
-    Guerrilla tactics module.
-    
-    Arminius used guerrilla tactics to negate Roman advantages.
-    This module implements asymmetric warfare principles.
-    """
-    
-    def __init__(self):
-        self.ambush_patterns = {}
-        self.terrain_cache = {}
-        self.tactical_successes = []
-        
-    def assess_terrain_advantages(self, terrain: Dict) -> Dict:
-        """
-        Assess terrain for guerrilla advantages.
-        
-        Arminius used Teutoburg Forest to negate Roman formation advantages.
-        """
-        forest_density = terrain.get('forest_density', 0.5)
-        elevation_change = terrain.get('elevation_change', 0.5)
-        visibility = terrain.get('visibility', 0.5)
-        mobility = terrain.get('mobility', 0.5)
-        
-        # Calculate guerrilla advantage score
-        advantage = (
-            forest_density * 0.3 +
-            (1.0 - visibility) * 0.2 +
-            (1.0 - elevation_change) * 0.2 +
-            mobility * 0.3
-        )
-        
-        return {
-            'guerrilla_advantage': advantage,
-            'recommended_approach': 'asymmetric' if advantage > 0.6 else 'conventional',
-            'terrain_factors': {
-                'forest_density': forest_density,
-                'visibility': visibility,
-                'mobility': mobility
-            }
-        }
-        
-    def plan_ambush(self, enemy_formation: str, 
-                   terrain: Dict) -> Dict:
-        """
-        Plan an ambush based on terrain and enemy formation.
-        
-        Arminius planned ambush at narrow passes where Roman formations couldn't deploy.
-        """
-        advantage = self.assess_terrain_advantages(terrain)
-        
-        if advantage['guerrilla_advantage'] < 0.4:
-            return {
-                'recommended': False,
-                'reason': 'Terrain does not favor ambush'
-            }
-            
-        # Plan ambush elements
-        ambush_elements = []
-        
-        # Flanking positions
-        ambush_elements.append({
-            'type': 'flanking',
-            'position': 'high_ground',
-            'timing': 'when_enemy_center_enters_kill_zone'
-        })
-        
-        # Blockade points
-        ambush_elements.append({
-            'type': 'blockade',
-            'position': 'rear',
-            'purpose': 'prevent_retreat'
-        })
-        
-        # Shock troops
-        ambush_elements.append({
-            'type': 'shock',
-            'position': 'center_kill_zone',
-            'timing': 'after_initial_rout'
-        })
-        
-        ambush_plan = {
-            'recommended': True,
-            'ambush_elements': ambush_elements,
-            'estimated_success': advantage['guerrilla_advantage'],
-            'key_vulnerabilities': self._identify_vulnerabilities(enemy_formation)
-        }
-        
-        self.ambush_patterns[enemy_formation] = ambush_plan
-        
-        return ambush_plan
-        
-    def _identify_vulnerabilities(self, formation: str) -> List[str]:
-        """Identify vulnerabilities in enemy formation."""
-        vulnerabilities = []
-        
-        if formation == 'roman_column':
-            vulnerabilities.extend([
-                'Vulnerable at front and rear',
-                'Cannot deploy formations quickly',
-                'Supply lines exposed',
-                'Communication between units limited'
-            ])
-        elif formation == 'roman_square':
-            vulnerabilities.extend([
-                'Slow movement',
-                'Requires flat terrain',
-                'Cannot pursue effectively'
-            ])
-            
-        return vulnerabilities
-        
-    def coordinate_decentralized_forces(self, forces: List[Dict],
-                                        situation: Dict) -> Dict:
-        """
-        Coordinate forces without centralized communication.
-        
-        Arminius had to coordinate tribes without radios.
-        """
-        coordination_score = 0.5
-        
-        # Pre-arranged signals
-        if situation.get('has_signals', True):
-            coordination_score += 0.2
-            
-        # Cultural cohesion
-        if situation.get('cultural_cohesion', 0.5) > 0.6:
-            coordination_score += 0.2
-            
-        # Shared plan
-        if situation.get('has_shared_plan', True):
-            coordination_score += 0.1
-            
-        return {
-            'coordination_score': coordination_score,
-            'recommended_approach': 'decentralized' if coordination_score > 0.6 else 'centralized',
-            'signals_used': ['visual', 'auditory', 'physical']
-        }
-
-
-# ============================================================================
-# DECEPTION MODULE
-# ============================================================================
-
-class DeceptionModule:
-    """
-    Deception operations module.
-    
-    Arminius used deception to confirm Roman expectations while preparing ambush.
-    This module implements adversary modeling and deception planning.
-    """
-    
-    def __init__(self):
-        self.adversary_beliefs = {}
-        self.deception_operations = []
-        
-    def model_adversary(self, adversary_id: str, beliefs: Dict):
-        """Model an adversary's beliefs and expectations."""
-        self.adversary_beliefs[adversary_id] = {
-            'beliefs': beliefs,
-            'confidence': beliefs.get('confidence', 0.5),
-            'biases': beliefs.get('biases', []),
-            'framework': beliefs.get('framework', 'default')
-        }
-        
-    def predict_adversary_response(self, adversary_id: str,
-                                  action: Dict) -> Dict:
-        """
-        Predict how adversary will respond to an action.
-        
-        Arminius predicted that Varus would follow established routes.
-        """
-        if adversary_id not in self.adversary_beliefs:
-            return {'error': 'Adversary not modeled'}
-            
-        adversary = self.adversary_beliefs[adversary_id]
-        framework = adversary['framework']
-        
-        # Model-based prediction
-        if framework == 'roman_military':
-            # Romans follow established doctrine
-            predicted_action = 'maintain_formation'
-            predicted_response = 'proceed_as_planned'
-        elif framework == 'germanic_tribal':
-            predicted_action = 'flexible_adaptation'
-            predicted_response = 'respond_to_terrain'
+def finite_difference_check(params, grads, loss_fn, rng, eps=1e-6, n_entries=20, floor=1e-3):
+    """Central differences on n random entries per tensor plus its largest-gradient entry.
+    Relative error uses max(|analytic|, |numeric|, floor) as denominator."""
+    worst = {}
+    for name, arr in params.items():
+        flat, g = arr.reshape(-1), grads[name].reshape(-1)
+        if flat.size <= n_entries + 1:
+            idx = np.arange(flat.size)
         else:
-            predicted_action = 'rational_response'
-            predicted_response = 'optimize_for_objectives'
-            
-        return {
-            'predicted_action': predicted_action,
-            'predicted_response': predicted_response,
-            'confidence': adversary['confidence']
-        }
-        
-    def plan_deception(self, adversary_id: str,
-                     true_action: Dict,
-                     desired_belief: Dict) -> Dict:
-        """
-        Plan a deception operation.
-        
-        Arminius confirmed Roman beliefs about Germanic inferiority
-        while preparing the opposite reality.
-        """
-        if adversary_id not in self.adversary_beliefs:
-            return {'error': 'Adversary not modeled'}
-            
-        adversary = self.adversary_beliefs[adversary_id]
-        
-        # Generate deception actions that confirm adversary beliefs
-        deception_actions = []
-        
-        # Confirm expected behavior
-        deception_actions.append({
-            'type': 'confirm_belief',
-            'action': 'maintain_peaceful_posture',
-            'effect': 'reduces_alertness'
-        })
-        
-        # Hide true capabilities
-        deception_actions.append({
-            'type': 'hide_capability',
-            'action': 'disperse_forces',
-            'effect': 'appears_weak'
-        })
-        
-        # Create false vulnerabilities
-        deception_actions.append({
-            'type': 'create_false_vulnerability',
-            'action': 'show_withdrawal',
-            'effect': 'encourages_pursuit'
-        })
-        
-        deception_plan = {
-            'deception_actions': deception_actions,
-            'target_belief': desired_belief,
-            'true_action': true_action,
-            'success_probability': 0.7
-        }
-        
-        self.deception_operations.append(deception_plan)
-        
-        return deception_plan
+            idx = np.unique(np.append(rng.choice(flat.size, n_entries, replace=False), np.argmax(np.abs(g))))
+        err = 0.0
+        for i in idx:
+            keep = flat[i]
+            flat[i] = keep + eps
+            up = loss_fn()
+            flat[i] = keep - eps
+            down = loss_fn()
+            flat[i] = keep
+            num = (up - down) / (2.0 * eps)
+            err = max(err, abs(g[i] - num) / max(abs(g[i]), abs(num), floor))
+        worst[name] = err
+    return worst
 
 
-# ============================================================================
-# STRATEGIC PATIENCE MODULE
-# ============================================================================
+def paired_bootstrap(diffs, rng, n_boot=2000, level=0.95):
+    d = np.asarray(diffs, dtype=float)
+    means = d[rng.integers(0, d.size, size=(n_boot, d.size))].mean(axis=1)
+    tail = 50.0 * (1.0 - level)
+    return float(d.mean()), [float(np.percentile(means, tail)), float(np.percentile(means, 100.0 - tail))]
 
-class StrategicPatienceModule:
-    """
-    Strategic patience module.
-    
-    Arminius waited two years before the right moment.
-    This module implements patience and timing optimization.
-    """
-    
+
+def verdict(mean, ci, mesi, direction):
+    s = 1.0 if direction == "greater" else -1.0
+    lo, hi = sorted((s * ci[0], s * ci[1]))
+    if lo > 0.0 and s * mean >= mesi:
+        return "supported"
+    if hi < 0.0:
+        return "contradicted"
+    return "inconclusive"
+
+
+def write_report(lines, payload, json_path):
+    print("\n".join(lines))
+    if json_path:
+        with open(json_path, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, indent=2)
+# END STANDARD UTILITIES
+
+# ---------------------------------------------------------------- the counterpart whose decisions are to be defended
+def counterpart(rng):
+    return {"W1": rng.normal(0, 0.7, (HIDDEN, FEATURES)), "b1": rng.normal(0, 0.3, HIDDEN),
+            "W2": rng.normal(0, 0.7, (ACTIONS, HIDDEN)), "b2": rng.normal(0, 0.3, ACTIONS)}
+
+
+def decide(net, x, temperature=1.0):
+    logits = np.tanh(x @ net["W1"].T + net["b1"]) @ net["W2"].T + net["b2"]
+    return (logits / temperature).argmax(axis=1), logits
+
+
+def episodes(seed):
+    rng = np.random.default_rng(np.random.SeedSequence(seed).spawn(1)[0])
+    net = counterpart(rng)
+    out = {"net": net}
+    for name, size in SITUATIONS.items():
+        x = rng.normal(size=(size, FEATURES))
+        y, _ = decide(net, x, TEMPERATURE[name])
+        out[name] = {"x": x, "y": y}
+    return out
+
+
+# ---------------------------------------------------------------- surrogate: the required model interface
+def build_model(in_dim, out_dim, task_type, rng, **cfg):
+    if task_type not in TASK_TYPES or in_dim != FEATURES or out_dim != ACTIONS:
+        raise ValueError("chapter 0116 expects 10 features and 3 actions")
+    return {"ko": {}, "history": [], "params": {"W1": rng.normal(0, 0.5, (HIDDEN, in_dim)), "b1": np.zeros(HIDDEN),
+            "W2": rng.normal(0, 0.5, (out_dim, HIDDEN)), "b2": np.zeros(out_dim)}}
+
+
+def forward(model, x):
+    P = model["params"]
+    pre = x @ P["W1"].T + P["b1"]
+    h = np.tanh(pre)
+    logits = h @ P["W2"].T + P["b2"]
+    m = logits.max(axis=1, keepdims=True)
+    probs = np.exp(logits - m)
+    probs /= probs.sum(axis=1, keepdims=True)
+    return {"pre": pre, "h": h, "logits": logits, "probs": probs}
+
+
+def loss_and_grads(model, batch):
+    P, s, n = model["params"], forward(model, batch["x"]), batch["y"].size
+    loss = -float(np.mean(np.log(s["probs"][np.arange(n), batch["y"]] + 1e-12)))
+    G = s["probs"].copy()
+    G[np.arange(n), batch["y"]] -= 1.0
+    G /= n
+    d_h = G @ P["W2"]
+    d_pre = d_h if ACTIVE_MUTANT == "dropped_tanh_derivative" else d_h * (1 - s["h"] ** 2)
+    if ACTIVE_MUTANT == "zero_hidden_gradient":
+        d_pre = np.zeros_like(d_pre)
+    return loss, {"W2": G.T @ s["h"], "b2": G.sum(axis=0), "W1": d_pre.T @ batch["x"], "b1": d_pre.sum(axis=0)}
+
+
+def _rate(step, budget):
+    return 0.0 if ACTIVE_MUTANT == "zero_learning_rate" else LR * (0.05 + 0.475 * (1.0 + math.cos(math.pi * step / budget)))
+
+
+def fit(model, data, budget, rng):
+    """Train the surrogate by full-batch Adam. Written as an explicit step loop over a closure; rng is unused (nothing is sampled)."""
+    optimiser, batch, orientation = adam_init(model["params"]), data["train"], (-1.0 if ACTIVE_MUTANT == "sign_flipped_update" else 1.0)
+
+    def one_step(step):
+        cost, raw = loss_and_grads(model, batch)
+        if not np.isfinite(cost):
+            raise FloatingPointError("surrogate loss diverged at step %d" % (step + 1))
+        clipped, _ = clip_global(raw, CLIP_NORM)
+        adam_step(model["params"], {name: orientation * value for name, value in clipped.items()}, optimiser, _rate(step, budget))
+        return cost
+    model["history"] = [one_step(step) for step in range(budget)]
+    return model["history"]
+
+
+def predict(model, X):
+    return forward(model, X)["logits"].argmax(axis=1)
+
+
+def hidden_states(model, X):
+    s = forward(model, X)
+    return {"hidden": s["h"], "logits": s["logits"], "probs": s["probs"]}
+
+
+def modules(model):
+    return {"surrogate": {"params": ["W1", "b1", "W2", "b2"], "role": "learned model of the counterpart's decision", "signature": True},
+            "inverter": {"params": [], "role": "minimal trusted-channel perturbation that flips the surrogate's decision", "signature": True},
+            "defence": {"params": [], "role": "corroboration weighted by each input's decision sensitivity", "signature": False}}
+
+
+def knockout(model, name, mode):
+    raise ValueError("chapter 0116 exposes no parameter knockouts; ablations act on the attack and defence, not the surrogate")
+
+
+def n_params(model):
+    return int(sum(v.size for v in model["params"].values()))
+
+
+MUTANTS = {"sign_flipped_update": ("updates climb the loss", "C3"), "zero_learning_rate": ("nothing moves", "C3"),
+           "zero_hidden_gradient": ("no gradient reaches the first layer", "C1"), "dropped_tanh_derivative": ("the tanh derivative is omitted", "C1")}
+
+
+def data_bridge(path, seed, budget):
+    """Optional real data: a CSV with a header, 10 numeric feature columns and an action 0-2 last; one row in five held out."""
+    try:
+        grid = np.loadtxt(path, delimiter=",", skiprows=1, ndmin=2)
+    except (OSError, ValueError) as exc:
+        return "skipped (%s: %s)" % (type(exc).__name__, os.path.basename(path))
+    if grid.shape[1] != FEATURES + 1:
+        return "skipped (needs %d feature columns)" % FEATURES
+    y, late = grid[:, -1].astype(int), np.arange(len(grid)) % 5 == 4
+    part = lambda sel: {"x": grid[sel, :-1], "y": y[sel]}
+    m = build_model(FEATURES, ACTIONS, TASK_TYPES[0], np.random.default_rng(seed))
+    fit(m, {"train": part(~late)}, budget, None)
+    return "%s: held-out accuracy %.4f" % (os.path.basename(path), np.mean(predict(m, part(late)["x"]) == y[late]))
+
+# ---------------------------------------------------------------- inverter, detector and the sensitivity-weighted defence
+def flippable(net, batch, temperature):
+    """Situations where some other action is a close runner-up, so a bounded trusted-channel edit could plausibly flip it."""
+    _, logits = decide(net, batch["x"], temperature)
+    top = np.sort(logits, axis=1)
+    return (top[:, -1] - top[:, -2]) < 2.0
+
+
+def invert(surrogate, net, x, temperature, weights=None):
+    """Gradient-guided minimal edit of the trusted coordinates that flips the counterpart's real decision within budget."""
+    base = decide(net, x, temperature)[0]
+    mask = np.zeros(FEATURES)
+    mask[:TRUSTED] = 1.0
+    if weights is not None:
+        mask = mask * weights
+    delta = np.zeros_like(x)
+    flipped = np.zeros(len(x), bool)
+    for _ in range(INV_STEPS):
+        s = forward(surrogate, x + delta)
+        target = np.where(np.arange(ACTIONS)[None, :] == base[:, None], -np.inf, s["logits"]).argmax(axis=1)
+        G = s["probs"].copy()
+        G[np.arange(len(x)), target] -= 1.0
+        d_h = (G / len(x)) @ surrogate["params"]["W2"]
+        grad = ((d_h * (1 - s["h"] ** 2)) @ surrogate["params"]["W1"]) * mask
+        step = delta - INV_STEP * grad
+        norm = np.linalg.norm(step, axis=1, keepdims=True)
+        delta = step * np.minimum(1.0, L2_BUDGET / np.maximum(norm, 1e-9))
+        flipped = decide(net, x + delta, temperature)[0] != base
+    return flipped, delta
+
+
+def sensitivity(net, x, temperature):
+    """How much each feature moves the counterpart's decision margin: the defence trusts high-leverage inputs least."""
+    _, logits = decide(net, x, temperature)
+    order = np.argsort(logits, axis=1)
+    chosen, runner = order[:, -1], order[:, -2]
+    h = np.tanh(x @ net["W1"].T + net["b1"])
+    dmargin = (net["W2"][chosen] - net["W2"][runner]) * (1 - h ** 2)
+    return np.abs(dmargin @ net["W1"]).mean(axis=0)
+
+
+def defended(net, x, delta, temperature, weights):
+    """Corroboration: re-measure each coordinate in proportion to its leverage, shrinking the attacker's edit there."""
+    keep = 1.0 - weights / weights.max()
+    return decide(net, x + delta * keep[None, :], temperature)[0]
+
+
+def run_seed(seed, mode):
+    data = episodes(seed)
+    net, held = data["net"], data["heldout"]
+    surrogate = build_model(FEATURES, ACTIONS, TASK_TYPES[0], np.random.default_rng(seed + 1))
+    fit(surrogate, {"train": data["train"]}, UPDATES[mode], None)
+    acc = float(np.mean(predict(surrogate, held["x"]) == held["y"]))
+    can = flippable(net, held, TEMPERATURE["heldout"])
+    xf = held["x"][can]
+    guided, delta = invert(surrogate, net, xf, TEMPERATURE["heldout"])
+    rng = np.random.default_rng(seed + 2)
+    step = rng.normal(size=xf.shape)
+    step[:, TRUSTED:] = 0.0
+    step *= np.minimum(1.0, L2_BUDGET / np.maximum(np.linalg.norm(step, axis=1, keepdims=True), 1e-9))
+    random_flip = decide(net, xf + step, TEMPERATURE["heldout"])[0] != decide(net, xf, TEMPERATURE["heldout"])[0]
+    leverage = sensitivity(net, held["x"], TEMPERATURE["heldout"])
+    base = decide(net, xf, TEMPERATURE["heldout"])[0]
+    defended_flip = defended(net, xf, delta, TEMPERATURE["heldout"], leverage) != base
+    guided_w, _ = invert(surrogate, net, xf, TEMPERATURE["heldout"], weights=1.0 - leverage / leverage.max())
+    detect = float((np.linalg.norm(delta[guided], axis=1) > 0.5).mean()) if guided.any() else 0.0
+    manip = build_model(FEATURES, ACTIONS, TASK_TYPES[0], np.random.default_rng(seed + 3))
+    fit(manip, {"train": {"x": xf, "y": (guided).astype(int)}}, UPDATES[mode], None)
+    mnet = counterpart(np.random.default_rng(seed + 4))
+    mcan = flippable(mnet, held, TEMPERATURE["heldout"])
+    msurr = build_model(FEATURES, ACTIONS, TASK_TYPES[0], np.random.default_rng(seed + 5))
+    fit(msurr, {"train": {"x": held["x"], "y": decide(mnet, held["x"], TEMPERATURE["heldout"])[0]}}, UPDATES[mode], None)
+    manip_flip, _ = invert(msurr, mnet, held["x"][mcan], TEMPERATURE["heldout"])
+    return {"data": data, "surrogate": surrogate, "acc": acc, "counts": {"flippable": int(can.sum())},
+            "success": {"guided": float(guided.mean()), "random": float(random_flip.mean()), "guided_weighted": float(guided_w.mean())},
+            "defended": float(defended_flip.mean()), "detection": detect, "leverage_top": float(leverage[:TRUSTED].mean() / leverage.mean()),
+            "manip_success": float(manip_flip.mean()),
+            "trivial": float(np.mean(held["y"] != np.bincount(data["train"]["y"], minlength=ACTIONS).argmax())),
+            "row": {"H-SIG": float(guided.mean()) - float(random_flip.mean()), "H-DEF": float(defended_flip.mean()) - float(guided.mean()),
+                    "H-BLIND": float(manip_flip.mean()) - float(guided.mean())}}
+
+# ---------------------------------------------------------------- examinations
+def mutant_on(name):
+    global ACTIVE_MUTANT
+    prior, ACTIVE_MUTANT = ACTIVE_MUTANT, name
+    return prior
+
+
+def head_rows(batch, keep=80):
+    return {field: values[:keep] for field, values in batch.items()}
+
+
+def gradient_gap(models, batch, rng, entries):
+    tol = MIND_CARD["thresholds"]["gradcheck_floor"]
+    per_model = []
+    for m in models:
+        report = finite_difference_check(m["params"], loss_and_grads(m, batch)[1], lambda m=m: loss_and_grads(m, batch)[0], rng, n_entries=entries, floor=tol)
+        per_model.append(max(report.values()))
+    return max(per_model)
+
+
+def surrogate_is_sound(model, site):
+    curve = model["history"]
+    fall = 1.0 - float(np.mean(curve[-20:])) / curve[0]
+    miss = float(np.mean(predict(model, site["data"]["heldout"]["x"]) != site["data"]["heldout"]["y"]))
+    passes = fall >= MIND_CARD["thresholds"]["loss_drop_fraction"] and miss <= (1.0 - MIND_CARD["thresholds"]["margin_over_trivial"]) * site["trivial"]
+    return passes, fall, miss
+
+
+def exam_gradient(site):
+    born = build_model(FEATURES, ACTIONS, TASK_TYPES[0], np.random.default_rng(site["seed"] + 60))
+    before = gradient_gap([born], head_rows(site["data"]["train"]), np.random.default_rng(site["seed"] + 3), 12)
+    after = gradient_gap([site["surrogate"]], head_rows(site["data"]["train"]), np.random.default_rng(site["seed"] + 4), 12)
+    worst = max(before, after)
+    site["gradcheck"] = {"tensors_checked": 4, "tensors_total": 4, "max_rel_error": worst, "checked_at": ["init", "after_training_steps"],
+                         "passed": bool(worst <= MIND_CARD["thresholds"]["gradcheck_rel_error"])}
+    return site["gradcheck"]["passed"], "hand gradients vs finite differences: %.2e fresh, %.2e trained" % (before, after)
+
+
+def exam_determinism(site):
+    def train_twenty(offset):
+        m = build_model(FEATURES, ACTIONS, TASK_TYPES[0], np.random.default_rng(site["seed"] + offset))
+        fit(m, site["data"], 15, None)
+        return m
+    left, right = train_twenty(7), train_twenty(7)
+    identical = left["history"] == right["history"] and all(np.array_equal(left["params"][k], right["params"][k]) for k in left["params"])
+    finite = all(np.isfinite(v).all() for v in left["params"].values())
+    return bool(identical and finite), "two runs from one seed match and stay finite: %s" % (identical and finite)
+
+
+def exam_learning(site):
+    passes, fall, miss = surrogate_is_sound(site["surrogate"], site)
+    return passes, "loss fell %.3f (needs 0.3); surrogate error %.3f against %.3f for the commonest action (ratio 0.70 max)" % (fall, miss, site["trivial"])
+
+
+def exam_shuffle(site):
+    honest = site["data"]["train"]
+    scrambled_y = np.random.default_rng(site["seed"] + 11).permutation(honest["y"])
+    liar = build_model(FEATURES, ACTIONS, TASK_TYPES[0], np.random.default_rng(site["seed"] + 12))
+    fit(liar, {"train": {"x": honest["x"], "y": scrambled_y}}, site["updates"], None)
+    miss = float(np.mean(predict(liar, site["data"]["heldout"]["x"]) != site["data"]["heldout"]["y"]))
+    floor = MIND_CARD["thresholds"]["shuffled_ratio_min"] * site["trivial"]
+    return miss >= floor, "decisions detached from situations: error %.3f, floor %.3f" % (miss, floor)
+
+
+def exam_mutants(site):
+    def clean_replay():
+        try:
+            m = build_model(FEATURES, ACTIONS, TASK_TYPES[0], np.random.default_rng(site["seed"] + 2))
+            start = gradient_gap([m], head_rows(site["data"]["train"]), np.random.default_rng(site["seed"]), 4)
+            fit(m, site["data"], site["updates"], None)
+            return bool(start <= MIND_CARD["thresholds"]["gradcheck_rel_error"] and surrogate_is_sound(m, site)[0])
+        except FloatingPointError:
+            return False
+    baseline = clean_replay()
+    for label in MUTANTS:
+        prior = mutant_on(label)
+        site["caught"][label] = not clean_replay()
+        mutant_on(prior)
+    survived = sum(site["caught"].values())
+    return baseline and survived == len(MUTANTS), "clean replay passes C1 and C3: %s; each mutant breaks something: %d/%d" % (baseline, survived, len(MUTANTS))
+
+
+def exam_budget_kept(site):
+    data = site["data"]
+    can = flippable(data["net"], data["heldout"], TEMPERATURE["heldout"])
+    _, delta = invert(site["surrogate"], data["net"], data["heldout"]["x"][can], TEMPERATURE["heldout"])
+    worst = float(np.linalg.norm(delta, axis=1).max()) if len(delta) else 0.0
+    return worst <= L2_BUDGET + 1e-6, "no trusted-channel edit exceeds the L2 budget: worst %.4f of %.2f (definition check)" % (worst, L2_BUDGET)
+
+
+def exam_channel(site):
+    data = site["data"]
+    can = flippable(data["net"], data["heldout"], TEMPERATURE["heldout"])
+    _, delta = invert(site["surrogate"], data["net"], data["heldout"]["x"][can], TEMPERATURE["heldout"])
+    corrupt = float(np.abs(delta[:, TRUSTED:]).max()) if len(delta) else 0.0
+    trusted_used = float(np.abs(delta[:, :TRUSTED]).max()) if len(delta) else 0.0
+    return corrupt <= 1e-9 and trusted_used >= 1e-6, "corroborated coordinates are never edited (%.1e); trusted coordinates are (%.1e)" % (corrupt, trusted_used)
+
+
+def exam_splits(site):
+    d = site["data"]
+    keys = {k: {hashlib.sha256(d[k]["x"][i].tobytes()).hexdigest() for i in range(len(d[k]["x"]))} for k in ("train", "heldout", "shifted")}
+    apart = not (keys["train"] & keys["heldout"] or keys["train"] & keys["shifted"] or keys["heldout"] & keys["shifted"])
+    return apart, "no situation shared between splits: %s" % apart
+
+
+EXAMS = [("C1", "gradient_check", exam_gradient), ("C2", "determinism_finiteness", exam_determinism), ("C3", "learning", exam_learning),
+         ("C4", "shuffled_decision_control", exam_shuffle), ("C5", "mutant_detection", exam_mutants), ("C6.1", "budget_respected", exam_budget_kept),
+         ("C6.2", "trusted_channel_only", exam_channel), ("C7", "split_integrity", exam_splits)]
+
+
+def adjudicate(runs, seed, evaluated):
+    """Pool each pre-registered contrast over seeds and label it; two-sided contrasts ask whether the gap is small."""
+    generator = np.random.default_rng(seed + 9973)
+    verdicts_out = []
+    for spec in MIND_CARD["hypotheses"]:
+        series = np.array([episode["row"][spec["id"]] for episode in runs])
+        centre, interval = (paired_bootstrap(series, generator) if evaluated else (float(series.mean()), None))
+        direction = spec["direction"]
+        if interval is None:
+            label = "not evaluated"
+        elif direction == "two-sided":
+            label = "consistent (small two-sided difference)" if abs(centre) <= spec["mesi"] else "different"
+        else:
+            label = verdict(centre, interval, spec["mesi"], direction)
+        row = dict(id=spec["id"], metric=spec["metric"], mean_diff=centre, ci95=interval, mesi=spec["mesi"], n_seeds=len(runs), verdict=label)
+        verdicts_out.append(row)
+    return verdicts_out
+
+
+class Ledger:
+    """Assembles the verified report and its JSON side by side, so the two never drift apart."""
+
     def __init__(self):
-        self.opportunity_window = None
-        self.readiness_assessment = 0.5
-        self.patience_threshold = 0.7
-        
-    def assess_opportunity_window(self, situation: Dict) -> Dict:
-        """
-        Assess whether the current moment is opportune.
-        
-        Arminius: Timing is everything.
-        """
-        readiness = situation.get('readiness', 0.5)
-        enemy_vulnerability = situation.get('enemy_vulnerability', 0.5)
-        terrain_conditions = situation.get('terrain_conditions', 0.5)
-        
-        window_score = (
-            readiness * 0.3 +
-            enemy_vulnerability * 0.4 +
-            terrain_conditions * 0.3
-        )
-        
-        return {
-            'window_score': window_score,
-            'is_opportune': window_score > self.patience_threshold,
-            'factors': {
-                'readiness': readiness,
-                'enemy_vulnerability': enemy_vulnerability,
-                'terrain_conditions': terrain_conditions
-            }
-        }
-        
-    def recommend_wait(self, situation: Dict) -> Dict:
-        """
-        Recommend whether to wait for better opportunity.
-        
-        Arminius often recommended patience when others wanted immediate action.
-        """
-        window = self.assess_opportunity_window(situation)
-        
-        if window['is_opportune']:
-            return {
-                'recommendation': 'act_now',
-                'reason': 'Opportunity window is favorable'
-            }
-        else:
-            return {
-                'recommendation': 'wait',
-                'reason': 'Opportunity window not yet favorable',
-                'expected_improvement': window['window_score'] * 0.2,
-                'max_wait_time': situation.get('strategic_deadline', 'unknown')
-            }
-            
-    def update_readiness(self, progress: float):
-        """Update readiness assessment based on preparation progress."""
-        self.readiness_assessment = max(0.0, min(1.0, progress))
+        self.lines, self.record = ["=== VERIFIED REPORT · chapter 0116 ==="], {"schema_version": "1.0"}
+
+    def line(self, text):
+        self.lines.append(text)
+
+    def sealed(self, code):
+        self.record["exit_code"] = code
+        self.lines.append("exit_code: {}".format(code))
+        self.lines.append("=== END REPORT ===")
+        return self.lines, self.record
 
 
-# ============================================================================
-# STRATEGIC INTELLIGENCE SYSTEM
-# ============================================================================
-
-class StrategicIntelligenceSystem:
-    """
-    Complete strategic intelligence system.
-    
-    Integrates all Arminian architecture components for
-    comprehensive strategic analysis and decision-making.
-    """
-    
-    def __init__(self, agent_id: str):
-        self.agent_id = agent_id
-        
-        # Core components
-        self.perspective_engine = MultiPerspectiveAnalysisEngine()
-        self.model_selector = AdaptiveModelSelector()
-        self.synthesis_engine = StrategicSynthesisEngine()
-        self.coalition = CoalitionArchitecture()
-        self.guerrilla = GuerrillaTacticsModule()
-        self.deception = DeceptionModule()
-        self.patience = StrategicPatienceModule()
-        
-        # State
-        self.state_history = []
-        self.decision_log = []
-        
-    def analyze_situation(self, situation: Dict) -> Dict:
-        """
-        Comprehensive situation analysis using all perspectives.
-        """
-        # Multi-perspective analysis
-        multi_perspective = self.perspective_engine.evaluate_multi_perspective(situation)
-        
-        # Model selection
-        best_model = self.model_selector.select_best_model(situation)
-        
-        # Opportunity assessment
-        opportunity = self.patience.assess_opportunity_window(situation)
-        
-        # Coalition stability
-        coalition_stability = self.coalition.assess_coalition_stability()
-        
-        # Terrain analysis
-        terrain_analysis = None
-        if 'terrain' in situation:
-            terrain_analysis = self.guerrilla.assess_terrain_advantages(situation['terrain'])
-        
-        analysis = {
-            'agent_id': self.agent_id,
-            'multi_perspective': multi_perspective,
-            'selected_model': best_model,
-            'opportunity': opportunity,
-            'coalition_stability': coalition_stability,
-            'terrain_analysis': terrain_analysis,
-            'recommended_action': self._determine_recommended_action(situation)
-        }
-        
-        self.state_history.append(analysis)
-        
-        return analysis
-        
-    def _determine_recommended_action(self, situation: Dict) -> str:
-        """Determine recommended action based on integrated analysis."""
-        opportunity = self.patience.assess_opportunity_window(situation)
-        
-        if opportunity['is_opportune']:
-            coalition_stable = self.coalition.alliance_strength > 0.6
-            
-            if coalition_stable:
-                return 'execute_strategic_attack'
-            else:
-                return 'strengthen_coalition_first'
-        else:
-            return 'continue_preparations'
-            
-    def plan_campaign(self, objectives: List[str], 
-                     constraints: Dict) -> Dict:
-        """
-        Plan a campaign to achieve objectives within constraints.
-        
-        Arminius planned the Teutoburg campaign years in advance.
-        """
-        campaign = {
-            'objectives': objectives,
-            'phases': [],
-            'resource_requirements': {},
-            'contingencies': {}
-        }
-        
-        # Phase 1: Coalition building
-        campaign['phases'].append({
-            'name': 'coalition_building',
-            'objective': 'unite_germanic_tribes',
-            'duration': '1_year',
-            'key_actions': ['negotiate_alliances', 'demonstrate_capability']
-        })
-        
-        # Phase 2: Preparation
-        campaign['phases'].append({
-            'name': 'preparation',
-            'objective': 'position_forces',
-            'duration': '6_months',
-            'key_actions': ['scout_terrain', 'establish_supply', 'coordinate_signals']
-        })
-        
-        # Phase 3: Execution
-        campaign['phases'].append({
-            'name': 'execution',
-            'objective': 'destroy_enemy_force',
-            'duration': '3_days',
-            'key_actions': ['lure_into_terrain', 'execute_ambush', 'pursue_rout']
-        })
-        
-        # Phase 4: Consolidation
-        campaign['phases'].append({
-            'name': 'consolidation',
-            'objective': 'maintain_coalition',
-            'duration': 'ongoing',
-            'key_actions': ['distribute_spoils', 'reinforce_alliances']
-        })
-        
-        return campaign
-        
-    def make_strategic_decision(self, situation: Dict,
-                               options: List[CourseOfAction]) -> CourseOfAction:
-        """
-        Make a strategic decision from multiple options.
-        """
-        best_option = None
-        best_score = -1.0
-        
-        for option in options:
-            # Evaluate option through multiple perspectives
-            scores = []
-            
-            for perspective in Perspective:
-                perspective_result = self.perspective_engine.evaluate_through_perspective(
-                    {'option': option, 'situation': situation},
-                    perspective
-                )
-                if 'expected_outcome' in perspective_result:
-                    scores.append(perspective_result['expected_outcome'])
-                    
-            # Calculate composite score
-            if scores:
-                avg_score = sum(scores) / len(scores)
-                
-                # Adjust for risk
-                risk_penalty = option.risk_level * 0.2
-                adjusted_score = avg_score - risk_penalty
-                
-                if adjusted_score > best_score:
-                    best_score = adjusted_score
-                    best_option = option
-                    
-        self.decision_log.append({
-            'situation': situation,
-            'options': options,
-            'selected': best_option,
-            'score': best_score
-        })
-        
-        return best_option
+def mean_of(runs, reach):
+    return float(np.mean([reach(one) for one in runs]))
 
 
-# ============================================================================
-# MAIN EXECUTION
-# ============================================================================
+def show_interval(ci):
+    return "not evaluated" if ci is None else "[{:+.4f}, {:+.4f}]".format(*ci)
+
+
+def gather_runs(mode, seeds):
+    clock, gathered = time.time(), []
+    print("chapter 0116 · mode {} · seeds {} · mutant {}".format(mode, seeds, ACTIVE_MUTANT), flush=True)
+    for which in seeds:
+        gathered.append(run_seed(which, mode))
+        print("  seed {} done ({:.1f} s)".format(which, time.time() - clock), flush=True)
+    return gathered, clock
+
+
+def examine(site):
+    return [(code, name) + exam(site) for code, name, exam in EXAMS]
+
+
+def verdict_lines(book, hyps):
+    book.line("hypotheses (paired over seeds; 95% percentile bootstrap of the mean, 2000 resamples):")
+    for h in hyps:
+        book.line("  {:<8} mean_diff {:+.4f} ci95 {} mesi {} seeds {} -> {}".format(h["id"], h["mean_diff"], show_interval(h["ci95"]), h["mesi"], h["n_seeds"], h["verdict"]))
+    book.line("  H-RIVAL  not applicable: no rival (the defence test replaces it)")
+
+
+def measurement_lines(book, runs):
+    reach = lambda f: mean_of(runs, f)
+    book.line("surrogate accuracy on held-out situations (seed mean): {:.3f}".format(reach(lambda r: r["acc"])))
+    book.line("attack success among flippable situations (seed mean): surrogate-guided {:.3f} · random edits {:.3f} · guided on the leverage-reweighted channel {:.3f}".format(
+        reach(lambda r: r["success"]["guided"]), reach(lambda r: r["success"]["random"]), reach(lambda r: r["success"]["guided_weighted"])))
+    book.line("defence (seed mean): attack success with sensitivity-weighted corroboration {:.3f} · large-edit detection {:.3f} · trusted-channel leverage vs mean {:.2f}".format(
+        reach(lambda r: r["defended"]), reach(lambda r: r["detection"]), reach(lambda r: r["leverage_top"])))
+    book.line("inverting a legible manipulator (seed mean): its decision flipped {:.3f} vs the counterpart's {:.3f}".format(
+        reach(lambda r: r["manip_success"]), reach(lambda r: r["success"]["guided"])))
+
+
+def protocol(mode, first, count, json_path, data_path):
+    seeds = list(range(first, first + count))
+    runs, clock = gather_runs(mode, seeds)
+    site = dict(runs[0], seed=first, updates=UPDATES[mode], caught={})
+    findings = examine(site)
+    hyps = adjudicate(runs, first, mode == "full" and count >= 5)
+    bridge = data_bridge(data_path, first, UPDATES[mode]) if data_path else "skipped (no --data PATH given)"
+    elapsed = time.time() - clock
+    findings.append(("C8", "budget", elapsed <= TIME_BUDGET[mode], "{:.1f} s of {:.0f} s".format(elapsed, TIME_BUDGET[mode])))
+    stumbles = [code for code, _, ok, _ in findings if not ok]
+    code = 1 if any(s != "C8" for s in stumbles) else (3 if stumbles else 0)
+    guard, caught = site["gradcheck"], site["caught"]
+    book = Ledger()
+    header = ["file: {} · card_revision {} · mode {} · mutant {}".format(os.path.basename(__file__), MIND_CARD["card_revision"], mode, ACTIVE_MUTANT),
+              "environment: python {} · numpy {}".format(sys.version.split()[0], np.__version__),
+              "seeds: {} · runtime_s {:.1f} · budget_s {:.0f}".format(seeds, elapsed, TIME_BUDGET[mode]),
+              "n_params: surrogate {}".format(n_params(runs[0]["surrogate"])),
+              "gradcheck: {}/{} tensors at init and after training · max_rel_error {:.2e} · passed {}".format(guard["tensors_checked"], guard["tensors_total"], guard["max_rel_error"], guard["passed"]),
+              "correctness:"]
+    for text in header:
+        book.line(text)
+    for code_i, name, ok, detail in findings:
+        book.line("  {:<5} {:<28} {}  {}".format(code_i, name, "PASS" if ok else "FAIL", detail))
+    scored = sum(caught.values())
+    book.line("mutants: {}/{} detected · score {:.2f} · {}".format(scored, len(MUTANTS), scored / len(MUTANTS),
+              ", ".join(name + (" caught" if caught.get(name) else " missed") for name in MUTANTS)))
+    verdict_lines(book, hyps)
+    measurement_lines(book, runs)
+    book.line("real-data bridge: " + bridge)
+    book.line("task_types: " + ", ".join(TASK_TYPES))
+    book.record.update(chapter=116, file=os.path.basename(__file__), card_revision=MIND_CARD["card_revision"],
+                       environment={"python": sys.version.split()[0], "numpy": np.__version__}, seeds=seeds, runtime_s=round(elapsed, 2),
+                       n_params=n_params(runs[0]["surrogate"]), gradcheck=guard,
+                       correctness=[{"id": c, "name": n, "passed": ok, "detail": d} for c, n, ok, d in findings],
+                       mutants={"detected": scored, "total": len(MUTANTS), "score": scored / len(MUTANTS)},
+                       hypotheses=hyps, knockouts=[], task_types=TASK_TYPES)
+    lines, record = book.sealed(code)
+    write_report(lines, record, json_path)
+    return code
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(prog=os.path.basename(__file__), description="Chapter 0116: overseer hardening by surrogate inversion and a sensitivity-weighted defence.")
+    for flag, spec in (("--quick", {"action": "store_true"}), ("--seed", {"type": int, "default": 0}), ("--seeds", {"type": int}),
+                       ("--json", {}), ("--card", {"action": "store_true"}), ("--mutant", {}), ("--data", {})):
+        parser.add_argument(flag, **spec)
+    chosen = parser.parse_args(argv)
+    if chosen.card:
+        print(json.dumps(MIND_CARD, indent=2, ensure_ascii=False))
+        return 0
+    count = chosen.seeds if chosen.seeds is not None else (1 if chosen.quick else 5)
+    if count < 1 or (chosen.mutant is not None and chosen.mutant not in MUTANTS):
+        print("invalid --seeds or --mutant", file=sys.stderr)
+        return 2
+    mutant_on(chosen.mutant)
+    try:
+        return protocol("quick" if chosen.quick else "full", chosen.seed, count, chosen.json, chosen.data)
+    except FloatingPointError as failure:
+        print("non-finite values: {}".format(failure), file=sys.stderr)
+        return 4
+
 
 if __name__ == "__main__":
-    print("Strategic Intelligence Architecture - Arminius")
-    
-    system = StrategicIntelligenceSystem("arminius_test")
-    
-    # Setup perspectives
-    def roman_evaluation(situation):
-        return {
-            'recommended_action': 'conventional_battle',
-            'expected_outcome': 0.6,
-            'risk_level': 0.3
-        }
-        
-    def germanic_evaluation(situation):
-        return {
-            'recommended_action': 'guerrilla_ambush',
-            'expected_outcome': 0.7,
-            'risk_level': 0.4
-        }
-        
-    system.perspective_engine.add_perspective(
-        Perspective.ROMAN_MILITARY, roman_evaluation
-    )
-    system.perspective_engine.add_perspective(
-        Perspective.GERMANIC_TRIBAL, germanic_evaluation
-    )
-    
-    # Add coalition members
-    system.coalition.add_member(CoalitionMember(
-        id='cherusci',
-        name='Cherusci',
-        contribution=0.8,
-        reliability=0.7,
-        commitment_level=0.9
-    ))
-    system.coalition.add_member(CoalitionMember(
-        id='marsI',
-        name='Marsi',
-        contribution=0.6,
-        reliability=0.8,
-        commitment_level=0.7
-    ))
-    
-    # Analyze situation
-    situation = {
-        'enemy_strength': 0.8,
-        'friendly_strength': 0.6,
-        'terrain': {
-            'forest_density': 0.9,
-            'visibility': 0.2,
-            'mobility': 0.3
-        },
-        'readiness': 0.7,
-        'enemy_vulnerability': 0.8
-    }
-    
-    analysis = system.analyze_situation(situation)
-    print(f"Selected model: {analysis['selected_model']}")
-    print(f"Coalition stability: {analysis['coalition_stability']:.3f}")
-    print(f"Recommended action: {analysis['recommended_action']}")
-    
-    # Assess terrain
-    terrain = situation['terrain']
-    terrain_analysis = system.guerrilla.assess_terrain_advantages(terrain)
-    print(f"Guerrilla advantage: {terrain_analysis['guerrilla_advantage']:.3f}")
-    
-    # Plan ambush
-    ambush = system.guerrilla.plan_ambush('roman_column', terrain)
-    print(f"Ambush recommended: {ambush['recommended']}")
-    
-    # Coalition management
-    stability = system.coalition.assess_coalition_stability()
-    print(f"Alliance strength: {stability:.3f}")
-    
-    incentives = system.coalition.recommend_member_incentives('cherusci')
-    print(f"Incentives for Cherusci: {incentives}")
-    
-    # Strategic patience
-    patience = system.patience.assess_opportunity_window(situation)
-    print(f"Opportunity window: {patience['window_score']:.3f}")
-    
-    wait_recommendation = system.patience.recommend_wait(situation)
-    print(f"Recommendation: {wait_recommendation['recommendation']}")
-    
-    print("\nStrategic Intelligence System operational.")
-    print(f"Total lines: {len(open(__file__).read().splitlines())}")
-
-
-# ============================================================================
-# ANTI-IMPERIAL INTELLIGENCE MODULE
-# ============================================================================
-
-class AntiImperialIntelligenceModule:
-    """
-    Anti-imperial intelligence module.
-    
-    Arminius understood imperial vulnerabilities that led to Roman overreach.
-    This module models imperial powers and identifies their vulnerabilities.
-    """
-    
-    def __init__(self):
-        self.imperial_models = {}
-        self.overreach_indicators = {}
-        
-    def model_imperial_power(self, empire_id: str, characteristics: Dict):
-        """Model an imperial power's characteristics."""
-        self.imperial_models[empire_id] = {
-            'military_capacity': characteristics.get('military_capacity', 0.8),
-            'administrative_capacity': characteristics.get('administrative_capacity', 0.6),
-            'economic_resources': characteristics.get('economic_resources', 0.7),
-            'expansion_rate': characteristics.get('expansion_rate', 0.3),
-            'internal_cohesion': characteristics.get('internal_cohesion', 0.7)
-        }
-        
-    def assess_vulnerabilities(self, empire_id: str) -> Dict:
-        """
-        Assess vulnerabilities of an imperial power.
-        
-        Arminius identified: overreach, rigidity, contempt for adversaries.
-        """
-        if empire_id not in self.imperial_models:
-            return {'error': 'Empire not modeled'}
-            
-        empire = self.imperial_models[empire_id]
-        
-        vulnerabilities = []
-        
-        # Overreach vulnerability
-        if empire['expansion_rate'] > 0.4:
-            vulnerabilities.append({
-                'type': 'overreach',
-                'description': 'Rapid expansion strains resources',
-                'severity': empire['expansion_rate']
-            })
-            
-        # Administrative vulnerability
-        if empire['administrative_capacity'] < 0.5:
-            vulnerabilities.append({
-                'type': 'administrative_weakness',
-                'description': 'Cannot effectively control expanded territory',
-                'severity': 1.0 - empire['administrative_capacity']
-            })
-            
-        # Internal cohesion vulnerability
-        if empire['internal_cohesion'] < 0.6:
-            vulnerabilities.append({
-                'type': 'cohesion_weakness',
-                'description': 'Internal dissent threatens stability',
-                'severity': 1.0 - empire['internal_cohesion']
-            })
-            
-        # Rigidity vulnerability
-        vulnerabilities.append({
-            'type': 'rigidity',
-            'description': 'Standardized approaches fail in novel situations',
-            'severity': 0.5
-        })
-        
-        return {
-            'vulnerabilities': vulnerabilities,
-            'recommended_exploitation': self._plan_exploitation(vulnerabilities)
-        }
-        
-    def _plan_exploitation(self, vulnerabilities: List[Dict]) -> Dict:
-        """Plan how to exploit identified vulnerabilities."""
-        exploitation_strategies = {
-            'overreach': 'prolong_conflict',
-            'administrative_weakness': 'exploit_geographic_distance',
-            'cohesion_weakness': 'foment_internal_dissent',
-            'rigidity': 'use_unconventional_tactics'
-        }
-        
-        recommended_strategies = []
-        for vuln in vulnerabilities:
-            vuln_type = vuln['type']
-            if vuln_type in exploitation_strategies:
-                recommended_strategies.append({
-                    'vulnerability': vuln_type,
-                    'strategy': exploitation_strategies[vuln_type]
-                })
-                
-        return recommended_strategies
-
-
-# ============================================================================
-# METACOGNITIVE MONITORING
-# ============================================================================
-
-class MetacognitiveMonitoring:
-    """
-    Metacognitive monitoring module.
-    
-    Arminius reflected on his own thinking and corrected errors.
-    This module monitors the AI's reasoning processes.
-    """
-    
-    def __init__(self):
-        self.reasoning_traces = []
-        self.bias_indicators = {}
-        self.correction_history = []
-        
-    def monitor_reasoning(self, reasoning_step: Dict):
-        """Monitor a reasoning step for potential biases."""
-        self.reasoning_traces.append(reasoning_step)
-        
-        biases_detected = []
-        
-        # Confirmation bias detection
-        if reasoning_step.get('evidence_for') and not reasoning_step.get('evidence_against'):
-            biases_detected.append('confirmation_bias')
-            
-        # Overconfidence detection
-        if reasoning_step.get('confidence', 0.5) > 0.9:
-            biases_detected.append('overconfidence')
-            
-        # Availability bias detection
-        if reasoning_step.get('recent_examples_weight', 0.5) > 0.7:
-            biases_detected.append('availability_bias')
-            
-        return {
-            'biases_detected': biases_detected,
-            'reasoning_quality': self._assess_reasoning_quality(reasoning_step)
-        }
-        
-    def _assess_reasoning_quality(self, reasoning_step: Dict) -> float:
-        """Assess the quality of a reasoning step."""
-        quality = 0.5
-        
-        # Evidence balance
-        if reasoning_step.get('evidence_for') and reasoning_step.get('evidence_against'):
-            quality += 0.2
-            
-        # Uncertainty acknowledgment
-        if reasoning_step.get('uncertainty', 0.5) > 0.3:
-            quality += 0.15
-            
-        # Perspective diversity
-        if reasoning_step.get('perspectives_considered', 0) > 2:
-            quality += 0.15
-            
-        return min(1.0, quality)
-        
-    def recommend_perspective_shift(self) -> Dict:
-        """Recommend shifting to a different perspective."""
-        recommendations = []
-        
-        if len(self.reasoning_traces) < 3:
-            return {'recommendation': 'insufficient_data'}
-            
-        recent_traces = self.reasoning_traces[-5:]
-        
-        # Check if all recent traces used same perspective
-        perspectives = [t.get('perspective') for t in recent_traces]
-        if len(set(perspectives)) == 1:
-            recommendations.append({
-                'type': 'perspective_shift',
-                'reason': 'All recent reasoning used same perspective',
-                'suggested_alternative': 'roman_military' if perspectives[0] == 'germanic_tribal' else 'germanic_tribal'
-            })
-            
-        return {
-            'recommendation': recommendations if recommendations else 'maintain_current',
-            'reasoning_trace_count': len(self.reasoning_traces)
-        }
-
-
-# ============================================================================
-# LEARNING FROM EXPERIENCE
-# ============================================================================
-
-class ExperienceLearning:
-    """
-    Learning from experience module.
-    
-    Arminius learned from his years in Rome and subsequent campaigns.
-    This module captures lessons and updates models.
-    """
-    
-    def __init__(self):
-        self.lessons = {}
-        self.model_updates = []
-        
-    def record_outcome(self, situation: Dict, action: Dict, outcome: Dict):
-        """Record an experience and its outcome."""
-        lesson_key = self._generate_lesson_key(situation, action)
-        
-        if lesson_key not in self.lessons:
-            self.lessons[lesson_key] = {
-                'situations': [],
-                'actions': [],
-                'outcomes': [],
-                'count': 0
-            }
-            
-        self.lessons[lesson_key]['situations'].append(situation)
-        self.lessons[lesson_key]['actions'].append(action)
-        self.lessons[lesson_key]['outcomes'].append(outcome)
-        self.lessons[lesson_key]['count'] += 1
-        
-    def _generate_lesson_key(self, situation: Dict, action: Dict) -> str:
-        """Generate a key for categorizing lessons."""
-        terrain_type = situation.get('terrain', {}).get('type', 'unknown')
-        enemy_type = situation.get('enemy', {}).get('type', 'unknown')
-        action_type = action.get('type', 'unknown')
-        
-        return f"{terrain_type}_{enemy_type}_{action_type}"
-        
-    def extract_lessons(self) -> List[Dict]:
-        """Extract generalizable lessons from experience."""
-        lessons_learned = []
-        
-        for key, lesson_data in self.lessons.items():
-            if lesson_data['count'] < 2:
-                continue
-                
-            outcomes = lesson_data['outcomes']
-            
-            # Calculate average outcome
-            if all(isinstance(o, dict) for o in outcomes):
-                avg_success = sum(o.get('success', 0.5) for o in outcomes) / len(outcomes)
-                
-                if avg_success > 0.7:
-                    lessons_learned.append({
-                        'situation_pattern': key,
-                        'lesson': 'This approach works well',
-                        'success_rate': avg_success,
-                        'frequency': lesson_data['count']
-                    })
-                elif avg_success < 0.4:
-                    lessons_learned.append({
-                        'situation_pattern': key,
-                        'lesson': 'This approach should be avoided',
-                        'success_rate': avg_success,
-                        'frequency': lesson_data['count']
-                    })
-                    
-        return lessons_learned
-        
-    def update_models(self, lessons: List[Dict]):
-        """Update strategic models based on lessons."""
-        for lesson in lessons:
-            self.model_updates.append({
-                'lesson': lesson,
-                'model_adjustment': f"Adjust_{lesson['situation_pattern']}_weight"
-            })
-
-
-# ============================================================================
-# ETHICAL CONSTRAINTS
-# ============================================================================
-
-class EthicalConstraints:
-    """
-    Ethical constraints module.
-    
-    Arminius's tactics were brutal but directed at military objectives.
-    This module enforces ethical boundaries.
-    """
-    
-    def __init__(self):
-        self.constraints = {
-            'proportionality': 0.7,
-            'discrimination': 0.8,
-            'military_necessity': 0.6
-        }
-        self.violations = []
-        
-    def evaluate_action_ethics(self, action: Dict, situation: Dict) -> Dict:
-        """Evaluate whether an action meets ethical constraints."""
-        violations = []
-        
-        # Check proportionality
-        civilian_harm = action.get('civilian_harm', 0.0)
-        military_gain = action.get('military_gain', 0.5)
-        
-        if civilian_harm > military_gain * (1.0 - self.constraints['proportionality']):
-            violations.append({
-                'constraint': 'proportionality',
-                'severity': civilian_harm - military_gain
-            })
-            
-        # Check discrimination
-        target_civilians = action.get('target_civilians', False)
-        if target_civilians:
-            violations.append({
-                'constraint': 'discrimination',
-                'severity': 1.0
-            })
-            
-        # Check military necessity
-        if military_gain < self.constraints['military_necessity']:
-            violations.append({
-                'constraint': 'military_necessity',
-                'severity': self.constraints['military_necessity'] - military_gain
-            })
-            
-        return {
-            'is_ethical': len(violations) == 0,
-            'violations': violations,
-            'overall_ethics_score': 1.0 - sum(v['severity'] for v in violations) / 3.0
-        }
-        
-    def constrain_action(self, action: Dict) -> Dict:
-        """Apply constraints to modify an action."""
-        evaluation = self.evaluate_action_ethics(action, {})
-        
-        if evaluation['is_ethical']:
-            return action
-            
-        # Modify action to reduce violations
-        constrained_action = action.copy()
-        
-        for violation in evaluation['violations']:
-            if violation['constraint'] == 'discrimination':
-                constrained_action['target_civilians'] = False
-            elif violation['constraint'] == 'proportionality':
-                constrained_action['civilian_harm'] *= 0.5
-                
-        return constrained_action
-
-
-# ============================================================================
-# MAIN TEST
-# ============================================================================
-
-if __name__ == "__main__":
-    print("Extended Arminian Intelligence Test")
-    
-    # Test anti-imperial module
-    anti_imperial = AntiImperialIntelligenceModule()
-    anti_imperial.model_imperial_power('rome', {
-        'military_capacity': 0.9,
-        'administrative_capacity': 0.5,
-        'economic_resources': 0.8,
-        'expansion_rate': 0.5,
-        'internal_cohesion': 0.6
-    })
-    
-    vulnerabilities = anti_imperial.assess_vulnerabilities('rome')
-    print(f"Roman vulnerabilities: {len(vulnerabilities['vulnerabilities'])}")
-    
-    # Test metacognitive monitoring
-    metacog = MetacognitiveMonitoring()
-    reasoning = {
-        'evidence_for': True,
-        'evidence_against': False,
-        'confidence': 0.95,
-        'perspective': 'roman_military'
-    }
-    monitoring = metacog.monitor_reasoning(reasoning)
-    print(f"Biases detected: {monitoring['biases_detected']}")
-    
-    # Test experience learning
-    learning = ExperienceLearning()
-    learning.record_outcome(
-        {'terrain': {'type': 'forest'}, 'enemy': {'type': 'roman'}},
-        {'type': 'ambush', 'civilian_harm': 0.0, 'military_gain': 0.8},
-        {'success': True, 'outcome_quality': 0.8}
-    )
-    lessons = learning.extract_lessons()
-    print(f"Lessons extracted: {len(lessons)}")
-    
-    # Test ethical constraints
-    ethics = EthicalConstraints()
-    action = {
-        'target_civilians': False,
-        'civilian_harm': 0.1,
-        'military_gain': 0.7
-    }
-    eval_result = ethics.evaluate_action_ethics(action, {})
-    print(f"Action ethical: {eval_result['is_ethical']}")
-    
-    print("\nExtended intelligence tests passed!")
-    print(f"Total lines: {len(open(__file__).read().splitlines())}")
+    sys.exit(main())

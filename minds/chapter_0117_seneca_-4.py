@@ -1,2815 +1,783 @@
-"""
-Seneca Neural Architecture
-==========================
-========================
-# Part of the Encyclopedia of Lost Minds: Echoes on AI By David Vivancos https://www.vivancos.com/
-# How History's Greatest Thinkers Would Have Thought About AGI  https://lostmindsai.com
-# Tome 6 Minds 101 - 120 Available on Amazon https://www.amazon.com/dp/B0HF7G6JJD
-# Resume and Interactive Demos at https://artificiology.com/
-# Author: David Vivancos · Chapter 117: Seneca (-4 to -65 BCE)
-================================================================================    
-A PyTorch implementation of a neural network architecture inspired by the
-philosophy of Lucius Annaeus Seneca (4 BCE – 65 CE), Stoic philosopher,
-statesman, and author of the Moral Letters to Lucilius.
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# BEGIN ATTRIBUTION
+# Encyclopedia of Lost Minds: Echoes on AI · Chapter 0117 · Seneca
+# By David Vivancos · https://www.vivancos.com/ · https://lostmindsai.com
+# Tome 6, Minds 101-120: https://www.amazon.com/dp/B0HF7G6JJD · Demos: https://artificiology.com/
+# END ATTRIBUTION
+"""Assent-gated mind with calibrated praemeditatio: an imagination stage that projects possible harm, trained to be
+accurate, feeding a gate that decides how much of each impression to endorse as suffering.
 
-ARCHITECTURAL PHILOSOPHY
------------------------
-Seneca's philosophy offers a rich and practically-oriented framework for
-artificial general intelligence. His core insights — drawn from his essays
-On the Shortness of Life, On Tranquility of Mind, On Anger, and On Benefits —
-translate into concrete architectural principles:
+Thesis
+    Rehearse what can happen, accurately, and then assent only to what is real: a mind should neither suffer the
+    harms it merely imagines nor ignore the harms that actually arrive.
 
-1. THE DIVINE SPARK (Mens): Seneca locate the divine in the rational soul —
-   the mens — which distinguishes humans from animals and constitutes our
-   true self. This maps onto a meta-cognitive apex module that reflects on
-   and governs the entire architecture's operations.
+Evidence and provenance
+    Provenance is belief: the Letters, the dialogues and Tacitus' account survive.
+    D1  Letter 13.4: there are more things likely to frighten us than to crush us; we suffer more often in
+        imagination than in reality. 13 continues: some things torment us more than, before, or when they ought not.
+    D2  Letter 13: we do not put to the test the things that cause our fear; we do not examine them.
+    D3  Letter 91: the unexpected crushes hardest, so nothing should be unexpected; think not only of what usually
+        happens but of what can happen (praemeditatio malorum).
+    D4  Tacitus, Annals 15.60-64: the feared order did come; Seneca was named in the Pisonian conspiracy and died by
+        Nero's order (history only; nothing in this file models death or self-harm).
+    D5  The dichotomy of control, sorting impressions into what is and is not up to us, is the doctrine chapter 0125
+        (Epictetus) implements; here it is shared scaffolding.
 
-2. THE DISCIPLINE OF DAILY EXAMINATION (Intentio): Every evening, Seneca
-   reviewed his day — what he had done, said, and thought. This continuous
-   self-audit translates into a dedicated reflection and consolidation module
-   that tracks the architecture's own cognitive episodes.
+Doctrine -> mechanism -> test (IDs as in MIND_CARD)
+    D5        M1 encoder and M2 partition: controllable and Fortune subspaces          C6.1 C6.2 H-NEC (matched)
+    D3        M3 praemeditatio: harm magnitude from the Fortune subspace, trained accurate   H-SIG H-NEC
+    D1 D2     M4 assent gate: imagined harm and a weak reality cue; suffering = assent x harm  C6.3 H-SIG H-RIVAL
+    D1 D4     M5 objective: judgment, praemeditatio accuracy, suffering gap, gentle epoche    H-BLIND
+    D5        rival: Epictetus gate with the partition and no imagination stage               H-RIVAL
 
-3. THE ECONOMICS OF TIME (Temporalis): Seneca obsessed over the proper use
-   of time, arguing that most people waste their lives on trivialities. The
-   architecture must track and optimize the allocation of attentional and
-   computational resources.
+Research question (calibration, abstention and metacognition)
+    Does an accurate imagination of harm, feeding an assent gate, keep experienced distress calibrated to real harm,
+    and where does discounting imagined harm leave a mind blind to rare real catastrophes?
 
-4. THE REGULATION OF PASSION (Ira): Seneca wrote his most detailed
-   psychological work on anger, which he considered the most destructive
-   passion. The architecture must model and regulate emotional (or
-   analogue) states that can disrupt rational processing.
+Closest prior art and the delta
+    Model-based agents that plan with learned world models and imagined rollouts (Ha and Schmidhuber 2018; Hafner et
+    al. 2020); risk-sensitive and distributional objectives for tail risk (Bellemare, Dabney and Munos 2017); selective
+    prediction with abstention. Delta: a harm-imagination head trained for accuracy whose output reaches affect only
+    through a learned assent gate with a weak reality cue, tested against the same network without the accuracy
+    term, against a precautionary objective on rare catastrophes, and against a gate without imagination.
 
-5. THE VIRTUES (Virtutis): The Stoic cardinal virtues — wisdom, courage,
-   justice, temperance — provide a moral framework for the architecture's
-   behavior that supplements raw performance optimization.
+Blind spot
+    A mind trained to withhold assent from imagined harm can withhold it from the rare catastrophe that is real.
 
-6. TRANQUILITY (Tranquillitas): The goal of life is not pleasure but
-   tranquility of mind — the equanimity of a well-ordered soul. The
-   architecture must maintain equilibrium across all its modules.
+Task (generative process)
+    Latent controllable part c (4) and Fortune part f (4), mixed into a 10-dimensional impression with noise. The
+    judgment label depends on c. Harm magnitude is softplus of a projection of f, multiplied by six in its top
+    two per cent (the catastrophes). Harm is real with probability sigmoid(-1.4 + v.f); catastrophes are always real.
+    The reality cue is realness plus Gaussian noise of s.d. 1. Splits: 4000 training, 4000 held-out, 4000 shifted
+    impressions (Fortune shifted by 0.6 along the harm direction, so catastrophes are more frequent).
 
-7. MORTALITY (Mortalitas): Seneca achieved wisdom through the confrontation
-   with death. Awareness of finitude creates urgency and meaning. The
-   architecture models its own mortality as a resource.
-
-8. THE HIERARCHY OF THE SOUL: Seneca posited three levels — animus (vital
-   spirit), ratio (reason), and mens (divine spirit). This maps onto a
-   three-tier cognitive hierarchy in the architecture.
-
-9. BENEFITS AND SOCIAL COGNITION: Seneca's On Benefits argues that human
-   beings are constituted by social bonds; the exchange of genuine benefits
-   is a primary expression of rational social nature.
-
-CLASSES OVERVIEW
-----------------
-- SenecaMind: Top-level coordinator managing the overall cognitive architecture.
-- MensModule: The rational apex — meta-cognition, self-reflection, divine spark.
-- RatioModule: The reasoning engine — logical processing, belief management.
-- AnimusModule: The vital spirit — sensation, drives, immediate emotional response.
-- IraModule: Anger and emotional disruption — passion override modeling.
-- DiurnusModule: Daily reflection — episodic memory, self-examination, consolidation.
-- TemporalisModule: Time economics — attentional resource management.
-- VirtutisModule: Virtue tracking — moral framework for behavior evaluation.
-- TranquillitasModule: Equilibrium maintenance — cognitive turbulence detection.
-- MortalitasModule: Mortality awareness — finitude-driven motivation and urgency.
-- SenecaStoicLoss: Custom loss function combining performance and virtue.
-
+Limits
+    Synthetic impressions, one-step harms, no actions, no time. A research prototype of one mechanism, not an AGI and
+    not Seneca's mind.
 """
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
+MIND_CARD = {
+    "schema_version": "1.0",
+    "card_revision": 1,
+    "revision_log": [],
+    "generation": {"template_version": "codeguidelines 1.0 (15 September 2026), Appendix A",
+                   "generator": "Claude (Anthropic)", "generator_version": "claude-opus-5", "date": "2026-09-16"},
+    "id": 117, "figure": "Seneca", "born": -4, "died": 65, "civilization": "Roman",
+    "provenance": "belief",
+    "thesis": ("Rehearse what can happen, accurately, and then assent only to what is real: a mind should neither suffer the "
+               "harms it merely imagines nor ignore the harms that actually arrive."),
+    "evidence": [
+        {"id": "D1", "basis": "primary", "source": "Seneca, Epistulae Morales 13.4 (trans. R. M. Gummere)",
+         "claim": "There are more things likely to frighten us than to crush us; we suffer more often in imagination than in reality."},
+        {"id": "D2", "basis": "primary", "source": "Seneca, Epistulae Morales 13",
+         "claim": "We do not put to the test the things that cause our fear; we do not examine them."},
+        {"id": "D3", "basis": "primary", "source": "Seneca, Epistulae Morales 91",
+         "claim": "The unexpected crushes hardest; nothing should be unexpected; consider what can happen, not only what usually does."},
+        {"id": "D4", "basis": "primary", "source": "Tacitus, Annals 15.60-64",
+         "claim": "Named in the Pisonian conspiracy, Seneca received Nero's order and died (recorded as history only)."},
+        {"id": "D5", "basis": "scholarship", "source": "Epictetus, Enchiridion 1, as implemented in chapter 0125",
+         "claim": "Impressions are sorted into what is up to us and what is not; only the former are invested with judgment."},
+    ],
+    "research_question": {
+        "category": "calibration, abstention and metacognition",
+        "question": ("Does an accurate imagination of harm, feeding an assent gate, keep experienced distress calibrated to real "
+                     "harm, and where does discounting imagined harm leave a mind blind to rare real catastrophes?")},
+    "mechanism": {
+        "name": "assent gate fed by calibrated praemeditatio",
+        "family": "small feed-forward network with a partitioned latent, a harm-imagination head and a learned gate",
+        "signature_modules": ["praemeditatio", "gate"],
+        "closest_prior_art": [
+            "model-based agents with learned world models and imagined rollouts (Ha and Schmidhuber 2018; Hafner et al. 2020)",
+            "distributional and risk-sensitive objectives for tail outcomes (Bellemare, Dabney and Munos 2017)",
+            "selective prediction and abstention"],
+        "overlap": "Medium",
+        "prior_art_queries": [],
+        "prior_art_note": "No literature search was run for this card; overlap is rated against the named methods.",
+        "contribution_type": "test",
+        "delta": ("An imagination head trained for accuracy whose output reaches suffering only through a learned assent gate with a "
+                  "weak reality cue, tested against the same network without the accuracy term, against a precautionary "
+                  "objective on rare catastrophes, and against a gate without imagination."),
+        "baselines": {
+            "baseline": "unanchored harm signal: the same five organs and objective with the praemeditatio accuracy term removed",
+            "blind_baseline": ("precautionary gate: the same organs; under-endorsing real harm is penalised three times more than "
+                               "over-endorsing it, with no epoche term"),
+            "rival": ("chapter 0125 Epictetus, minimal: encoder, partition and judgment as here; the gate reads only the reality cue "
+                      "and suffering uses one learned constant harm, with no imagination stage")}},
+    "traceability": [
+        {"doctrine": "D5", "mechanism": "M1 encoder; M2 partition", "property_test": "C6.1, C6.2", "hypothesis": "H-NEC"},
+        {"doctrine": "D3", "mechanism": "M3 praemeditatio", "property_test": "none", "hypothesis": "H-SIG, H-NEC"},
+        {"doctrine": "D1", "mechanism": "M4 assent gate", "property_test": "C6.3", "hypothesis": "H-SIG, H-RIVAL"},
+        {"doctrine": "D2", "mechanism": "M5 objective (accuracy of imagination)", "property_test": "none", "hypothesis": "H-SIG"},
+        {"doctrine": "D4", "mechanism": "catastrophe tail of the task", "property_test": "none", "hypothesis": "H-BLIND"},
+    ],
+    "hypotheses": [
+        {"id": "H-SIG", "statement": ("Under a shift that makes catastrophes more frequent, calibrated praemeditatio keeps suffering "
+                                      "closer to warranted harm than the same network without the accuracy term."),
+         "metric": "calibration_error", "split": "shifted", "comparison": "model - baseline", "direction": "less",
+         "mesi": 0.05, "seeds": 5},
+        {"id": "H-NEC", "statement": ("Replacing praemeditatio by its mean raises calibration error more than merging the two "
+                                      "subspaces of the partition does."),
+         "metric": "calibration_error", "split": "heldout",
+         "comparison": "(praemeditatio:mean - full) - (partition:merged - full)",
+         "knockouts": ["praemeditatio:mean", "partition:merged"], "direction": "greater", "mesi": 0.05, "seeds": 5},
+        {"id": "H-BLIND", "statement": ("On rare real catastrophes, the Senecan gate leaves a larger share of the harm unendorsed "
+                                        "than a precautionary gate."),
+         "condition": "held-out impressions in the catastrophe tail (always real)",
+         "grounding": "Letter 13 counsels against suffering imagined harm; Annals 15.60-64 records the order that did come.",
+         "metric": "tail_miss", "split": "heldout", "comparison": "model - blind_baseline", "direction": "greater",
+         "mesi": 0.1, "seeds": 5},
+        {"id": "H-RIVAL", "statement": ("Over all held-out impressions, the gate fed by calibrated praemeditatio keeps suffering "
+                                        "closer to warranted harm than the Epictetus gate without imagination."),
+         "metric": "calibration_error", "split": "heldout", "comparison": "model - rival", "direction": "less",
+         "mesi": 0.05, "seeds": 5},
+    ],
+    "thresholds": {"loss_drop_fraction": 0.3, "margin_over_trivial": 0.3, "shuffled_ratio_min": 0.9,
+                   "gradcheck_rel_error": 1e-5, "gradcheck_floor": 1e-3, "invariance_tol": 1e-9,
+                   "negative_control_min_violation": 1e-6},
+    "metrics": {"calibration_error": "mean absolute gap between experienced suffering (assent x imagined harm) and warranted harm (realness x harm)",
+                "tail_miss": "over catastrophes, mean share of the warranted harm not matched by experienced suffering",
+                "trivial_baseline": "a constant suffering equal to the mean warranted harm of the training impressions",
+                "shuffled_band": ("one-sided: a model trained with targets shuffled across impressions must keep its held-out "
+                                  "calibration error at least 0.9 times the trivial error")},
+    "training": {"optimizer": "Adam", "lr_grid": [0.02], "clip_norm": 5.0, "model_selection": "none: final parameters",
+                 "updates": {"full": 600, "quick": 200}, "schedule": "cosine decay to 5 per cent",
+                 "loss_weights": {"judgment": 1.0, "praemeditatio": 1.0, "suffering": 1.0, "epoche": 0.02},
+                 "applies_to": "Senecan model, unanchored baseline, precautionary gate and Epictetus rival"},
+    "task": {"latent": {"controllable": 4, "fortune": 4}, "impression_dimensions": 10, "hidden": 16, "subspace": 4,
+             "catastrophe_share": 0.02, "catastrophe_factor": 6, "cue_noise_sd": 1.0,
+             "impressions": {"train": 4000, "heldout": 4000, "shifted": 4000}, "shift": 0.6},
+    "probe_predictions": [{"probe": "P8", "expected": "equal to baseline"}],
+    "probe_support": "vector_classification through the encoder, partition and judgment head",
+    "dialectic_links": [{"chapter": 125, "relation": "rival", "test": "H-RIVAL"}],
+    "corpus_neighbors": [
+        {"chapter": 125, "similarity": None, "difference": "0125 gates by control alone; here an accurate imagination of harm feeds the gate."},
+        {"chapter": 81, "similarity": None,
+         "difference": "0081 assents only to kataleptic impressions; here assent is graded against imagined harm."},
+        {"chapter": 92, "similarity": None,
+         "difference": "0092 models impression, assent and impulse; here the object is calibration of imagined harm."},
+        {"chapter": 131, "similarity": None,
+         "difference": "0131 restores a tranquil fixed point; here the target is suffering matched to real harm."},
+        {"chapter": 82, "similarity": None, "difference": "0082 models tension and glad assent to providence; unrelated mechanism."},
+    ],
+    "similarity_note": "Nearest-neighbour similarity not computed into the card; the audit reports it for the files at hand.",
+    "barometer": {
+        "consciousness": ["assent as metacognitive endorsement of impressions"],
+        "emotional_intelligence": ["distress calibrated to real rather than imagined harm"],
+        "world_modeling": ["accurate imagination of possible harm"],
+        "cognitive_processing": [], "embodied_cognition": [], "language_understanding": [], "creativity": [], "autonomy": []},
+    "task_types": ["vector_classification"],
+    "applications": [
+        {"use": "autonomous systems that rehearse hazards with calibrated severity estimates before committing to alarms",
+         "sector": "robotics and autonomous vehicles", "dataset": "nuScenes", "readiness": "low"},
+        {"use": "alert triage that separates rehearsed, merely possible threats from signals that a threat is present",
+         "sector": "security operations", "dataset": "CIC-IDS2017", "readiness": "low"},
+    ],
+    "safety_notes": ("Harms are abstract magnitudes and assent endorses distress, never an action. Nothing in this file models "
+                     "death, dying or self-harm as an action or an outcome; Seneca's forced death appears only as history in D4."),
+}
+
+import argparse
+import hashlib
+import json
 import math
-import random
+import os
+import sys
+import time
+
 import numpy as np
-from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Tuple, Any, Callable
-from enum import Enum, auto
-import copy
-import warnings
 
-# =============================================================================
-# PART I: FOUNDATIONAL TYPES AND ENUMERATIONS
-# =============================================================================
-
-class MindState(Enum):
-    """
-    Seneca understood the mind as existing in different states of operation,
-    each characterized by different relationships between reason and passion.
-    His treatise On Tranquility of Mind describes several states of the soul:
-    - ACTIVE: Engaged in productive intellectual or practical work
-    - CONTEMPLATIVE: Turned inward toward philosophical reflection
-    - DISTURBED: Passion overcoming reason (especially anger or fear)
-    - TORPID: Depressed or apathetic; insufficient vital engagement
-    - TRANQUIL: The ideal state; reason governing passion in equilibrium
-    - EXAMINING: In the act of daily self-review (diurna intentio)
-    - DYING: Recognizing and accepting the approach of death
-    """
-    ACTIVE = auto()         # Engaged, productive, directed toward goals
-    CONTEMPLATIVE = auto()  # Turned inward, reflective, philosophical
-    DISTURBED = auto()      # Passion overwhelming reason; cognitive disruption
-    TORPID = auto()         # Insufficient vital engagement; depression analogue
-    TRANQUIL = auto()       # Ideal equilibrium; reason governing all
-    EXAMINING = auto()      # In self-review; diurnal audit active
-    DYING = auto()          # Mortality awareness heightened; meaning-making mode
+D_IN, HIDDEN, SUB, TAIL_Z, TAIL_FACTOR = 10, 16, 4, 2.054, 6.0
+SIZES = {"train": 4000, "heldout": 4000, "shifted": 4000}
+UPDATES = {"full": 600, "quick": 200}
+LR, CLIP_NORM, SHIFT = 0.02, 5.0, 0.6
+KINDS = {"seneca": dict(lam_p=1.0, epoche=0.02, under=1.0, imagine=True),
+         "unanchored": dict(lam_p=0.0, epoche=0.02, under=1.0, imagine=True),
+         "precautionary": dict(lam_p=1.0, epoche=0.0, under=3.0, imagine=True),
+         "epictetus": dict(lam_p=0.0, epoche=0.02, under=1.0, imagine=False)}
+TIME_BUDGET = {"full": 180.0, "quick": 20.0}
+TASK_TYPES = ["vector_classification"]
+ACTIVE_MUTANT = None
+np.seterr(over="raise", invalid="raise", divide="raise", under="ignore")
 
 
-class Virtue(Enum):
-    """
-    The four Stoic cardinal virtues, as articulated by Seneca and the
-    broader Stoic tradition. Each represents a distinct dimension of
-    excellent cognitive and moral functioning:
-
-    WISDOM (Sophia): The correct ordering of ends — knowing what is truly
-      valuable and what is not. In the architecture, this corresponds to
-      the capacity for accurate value assessment and goal prioritization.
-    COURAGE (Andria): The endurance of difficulty and the willingness to
-      face uncomfortable truths. In the architecture, this corresponds to
-      the capacity to pursue long-term goals despite short-term cost,
-      and to maintain beliefs in the face of disconfirming evidence.
-    JUSTICE (Dikaiosyne): The fair treatment of others and the commitment
-      to social good. In the architecture, this corresponds to the
-      capacity for cooperative reasoning and the evaluation of outcomes
-      in terms of their effects on others.
-    TEMPERANCE (Sophrosyne): The moderation of desire — wanting only what
-      is appropriate and no more. In the architecture, this corresponds to
-      the capacity for regulated desire, the management of drives, and the
-      avoidance of both excess and deficiency.
-    """
-    WISDOM = auto()     # Correct ordering of ends and priorities
-    COURAGE = auto()    # Endurance of difficulty; truth-facing
-    JUSTICE = auto()    # Fair treatment; social good
-    TEMPERANCE = auto() # Moderation of desire; equilibrium
+# BEGIN STANDARD UTILITIES v1.0
+def softmax(z, axis=-1):
+    z = z - z.max(axis=axis, keepdims=True)
+    e = np.exp(z)
+    return e / e.sum(axis=axis, keepdims=True)
 
 
-class CognitiveTurbulence(Enum):
-    """
-    Seneca's On Tranquility of Mind catalogs the various forms of cognitive
-    disturbance that prevent the achievement of equanimity. These map onto
-    different failure modes in the architecture's processing:
-    - STABLE: Ideal state; processing proceeds smoothly
-    - ANGRY: Passion signals overwhelming reasoning capacity
-    - ANXIOUS: Uncertainty and anticipated threats destabilizing
-    - GREEDY: Excessive desire for resources or information
-    - ENVIOUS: Comparative judgment degrading self-assessment
-    - VAIN: Overestimation of one's capabilities
-    - PROcrastinating: Avoidance of necessary difficult tasks
-    - FRANTIC: Too many demands exceeding processing capacity
-    """
-    STABLE = auto()      # Ideal equilibrium; reason in command
-    ANGRY = auto()       # Anger disrupting logical processing
-    ANXIOUS = auto()     # Threat anticipation destabilizing cognition
-    GREEDY = auto()       # Excessive desire for resources or data
-    ENVIOUS = auto()      # Comparative judgment corrupting self-assessment
-    VAIN = auto()         # Overestimation of capabilities
-    PROCRASTINATING = auto() # Avoidance of necessary cognitive work
-    FRANTIC = auto()      # Capacity overload; competing demands
+def logsumexp(z, axis=-1):
+    m = z.max(axis=axis, keepdims=True)
+    return (m + np.log(np.exp(z - m).sum(axis=axis, keepdims=True))).squeeze(axis)
 
 
-@dataclass
-class StoicVector:
-    """
-    A vector in the 'space of meaning' — the representational substrate
-    of the Seneca architecture. Seneca believed that the rational soul
-    was a portion of the divine logos distributed throughout the cosmos;
-    each human mind contained this logos as a spark of divinity. Here,
-    we model representational states with attributes that capture their
-    position in Seneca's psychological hierarchy.
-
-    The StoicVector wraps a PyTorch tensor with metadata tracking:
-    - soul_level: Where in the tripartite soul (animus/ratio/mens) this
-      representation is being processed.
-    - virtueAlignment: How aligned this representation is with the four
-      cardinal virtues — a vector of four floats.
-    - tranquility: The current tranquility (emotional equilibrium) level
-      associated with this representation.
-    - temporal_budget: The remaining attentional budget allocated to this
-      representation in the current processing cycle.
-    """
-    tensor: torch.Tensor
-    soul_level: int = 1          # 0=animus, 1=ratio, 2=mens
-    virtue_alignment: torch.Tensor = None  # [wisdom, courage, justice, temperance]
-    tranquility: float = 1.0     # 0=turbulent, 1=perfectly tranquil
-    temporal_budget: float = 1.0 # Remaining attentional allocation
-
-    def __post_init__(self):
-        if self.virtue_alignment is None:
-            self.virtue_alignment = torch.ones(4) / 4.0  # Start neutral
-        if not isinstance(self.tensor, torch.Tensor):
-            raise TypeError("StoicVector requires a torch.Tensor")
-        self.virtue_alignment = self._to_tensor(self.virtue_alignment)
-        self.soul_level = int(self.soul_level)
-        self.tranquility = float(self.tranquility)
-        self.temporal_budget = float(self.temporal_budget)
-
-    @staticmethod
-    def _to_tensor(v) -> torch.Tensor:
-        if isinstance(v, torch.Tensor):
-            return v.detach().clone() if v.requires_grad else v.clone()
-        t = torch.tensor(v, dtype=torch.float32)
-        return t
-
-    @property
-    def device(self):
-        return self.tensor.device
-
-    @property
-    def shape(self):
-        return self.tensor.shape
-
-    def _promote_to_ratio(self, alpha: float = 0.3) -> 'StoicVector':
-        """
-        Promote this representation from animus to ratio — the Stoic
-        process of submitting raw sensation to the governance of reason.
-
-        Seneca describes this as the critical transition that distinguishes
-        human from animal cognition: the moment when a drive or sensation
-        is not merely acted upon but evaluated, moderated, and potentially
-        redirected by the rational faculty.
-        """
-        noise = torch.randn_like(self.tensor) * alpha * (1 - self.tranquility)
-        promoted_tensor = self.tensor * (1 - alpha) + alpha * noise
-        new_virtue = self.virtue_alignment + 0.1 * torch.tensor(
-            [0.3, 0.1, 0.2, 0.4], dtype=torch.float32  # Temperance boost
-        )
-        new_virtue = F.normalize(new_virtue, dim=-1)
-        return StoicVector(
-            tensor=promoted_tensor,
-            soul_level=min(2, self.soul_level + 1),
-            virtue_alignment=new_virtue,
-            tranquility=min(1.0, self.tranquility + 0.1),
-            temporal_budget=self.temporal_budget * 0.9
-        )
-
-    def _promote_to_mens(self, alpha: float = 0.2) -> 'StoicVector':
-        """
-        Promote this representation to the mens — the divine spark of reason
-        at the apex of Seneca's psychological hierarchy.
-
-        This represents the highest level of cognitive processing: not merely
-        rational evaluation but genuine wisdom — the direct apprehension of
-        what is truly valuable and the capacity to act accordingly.
-        """
-        integrated = self.tensor.mean(dim=-1, keepdim=True)
-        expanded = integrated.expand_as(self.tensor)
-        promoted_tensor = self.tensor * (1 - alpha) + expanded * alpha
-        new_virtue = self.virtue_alignment + 0.15 * torch.tensor(
-            [0.4, 0.2, 0.2, 0.2], dtype=torch.float32  # Wisdom boost
-        )
-        new_virtue = F.normalize(new_virtue, dim=-1)
-        return StoicVector(
-            tensor=promoted_tensor,
-            soul_level=min(2, self.soul_level + 1),
-            virtue_alignment=new_virtue,
-            tranquility=min(1.0, self.tranquility + 0.15),
-            temporal_budget=self.temporal_budget * 0.8
-        )
-
-    def _descend_to_animus(self) -> 'StoicVector':
-        """
-        Allow the representation to descend to the level of the animus —
-        the vital, emotional, impulsive level of processing.
-
-        This is not inherently negative; Seneca recognized that the animus
-        provides the vital energy without which reason is sterile. The
-        key is that the animus should be governed by reason, not dominant.
-        """
-        return StoicVector(
-            tensor=self.tensor + 0.05 * torch.randn_like(self.tensor),
-            soul_level=max(0, self.soul_level - 1),
-            virtue_alignment=self.virtue_alignment * 0.9,
-            tranquility=max(0.0, self.tranquility - 0.1),
-            temporal_budget=min(1.0, self.temporal_budget * 1.1)
-        )
-
-    def apply_tranquility_loss(self, turbulence: float) -> 'StoicVector':
-        """
-        Apply the effect of cognitive turbulence on this representation.
-
-        Seneca argues that passion disrupts the natural clarity of reason —
-        anger, fear, and greed cloud judgment and prevent the soul from
-        achieving tranquility. This method models that degradation.
-        """
-        turbulence_factor = 1.0 - turbulence
-        degraded_tensor = self.tensor * turbulence_factor + \
-                          0.3 * turbulence * torch.randn_like(self.tensor)
-        return StoicVector(
-            tensor=degraded_tensor,
-            soul_level=self.soul_level,
-            virtue_alignment=self.virtue_alignment * turbulence_factor,
-            tranquility=self.tranquility * turbulence_factor,
-            temporal_budget=self.temporal_budget * turbulence_factor
-        )
-
-    def to(self, device) -> 'StoicVector':
-        """Move the underlying tensor to a device."""
-        return StoicVector(
-            tensor=self.tensor.to(device),
-            soul_level=self.soul_level,
-            virtue_alignment=self.virtue_alignment.to(device),
-            tranquility=self.tranquility,
-            temporal_budget=self.temporal_budget
-        )
-
-    def detach(self) -> 'StoicVector':
-        """Detach from computation graph."""
-        return StoicVector(
-            tensor=self.tensor.detach(),
-            soul_level=self.soul_level,
-            virtue_alignment=self.virtue_alignment.detach(),
-            tranquility=self.tranquility,
-            temporal_budget=self.temporal_budget
-        )
+def softplus(z):
+    return np.logaddexp(0.0, z)
 
 
-@dataclass
-class CognitiveEpisode:
-    """
-    A record of a single cognitive processing event, modeled on Seneca's
-    practice of daily self-examination (intentio). Each episode captures:
-    - timestamp: When the event occurred
-    - input_state: What was processed
-    - output_state: What was produced
-    - modules_active: Which modules were involved
-    - virtue_score: The virtue alignment at the time
-    - tranquility: The tranquility level during the event
-    - turbulence_detected: Any turbulence that occurred
-    -反思 notes: Self-examination notes generated by the MensModule
-    """
-    episode_id: int
-    timestamp: float
-    input_hash: int
-    output_hash: int
-    modules_active: List[str]
-    virtue_score: float
-    tranquility: float
-    turbulence_detected: CognitiveTurbulence = CognitiveTurbulence.STABLE
-    reflection_notes: str = ""
-    duration: float = 0.0
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            'episode_id': self.episode_id,
-            'timestamp': self.timestamp,
-            'input_hash': self.input_hash,
-            'output_hash': self.output_hash,
-            'modules_active': self.modules_active,
-            'virtue_score': self.virtue_score,
-            'tranquility': self.tranquility,
-            'turbulence': self.turbulence_detected.name,
-            'reflection_notes': self.reflection_notes,
-            'duration': self.duration
-        }
+def sigmoid(z):
+    return np.exp(-np.logaddexp(0.0, -z))
 
 
-# =============================================================================
-# PART II: CORE MODULES — THE SENECAN COGNITIVE HIERARCHY
-# =============================================================================
+def adam_init(params):
+    return {"t": 0, "m": {k: np.zeros_like(v) for k, v in params.items()},
+            "v": {k: np.zeros_like(v) for k, v in params.items()}}
 
-class MensModule(nn.Module):
-    """
-    MensModule: The Rational Apex — Divine Spark of Seneca's Psychology
-    -------------------------------------------------------------------
-    
-    The mens is the highest level of Seneca's tripartite soul, the divine
-    spark of reason that constitutes the true self and distinguishes
-    human beings from animals. It is the seat of wisdom — not mere knowledge
-    but the integrated understanding that enables right action.
-    
-    In the architecture, the MensModule performs the following functions:
-    
-    1. META-COGNITION: It monitors the operations of all lower modules,
-       evaluates their outputs against internalized virtue standards, and
-       initiates corrections when lapses are detected. This is the continuous
-       self-examination (intentio) that Seneca practiced nightly, but now
-       running as an always-active supervisory process.
-    
-    2. LOCUS-OF-CONTROL TRACKING: Seneca's Stoicism rests on the fundamental
-       distinction between what is within our control (our judgments, desires,
-       aversions) and what is not (external events, other people's opinions).
-       The MensModule maintains an explicit locus-of-control estimate for
-       every decision and goal, penalizing excessive investment in external
-       outcomes.
-    
-    3. VIRTUE COORDINATION: The four cardinal virtues must be balanced and
-       integrated, not pursued in isolation. The MensModule evaluates
-       situations and decisions from the perspective of all four virtues
-       simultaneously, seeking the integrated judgment that constitutes
-       genuine wisdom.
-    
-    4. SELF-MODEL MAINTENANCE: The MensModule maintains a comprehensive
-       model of the architecture's own cognitive states, tendencies,
-       strengths, and weaknesses. This self-model is continuously updated
-       based on the DiurnusModule's reflection reports.
-    
-    5. FINAL APPEAL: When lower modules cannot resolve a conflict or reach
-       a decision, the MensModule makes a final determination based on the
-       architecture's deepest commitments and values.
-    
-    SENECA'S TEXTUAL BASIS:
-    "God is near you, he is with you, he is within you. This is what I mean,
-    Lucilius: the holy spirit dwells within us, one who marks our good and
-    bad deeds, and is our guardian." — Letter 41
-    
-    "The mens is the divine portion deposited in our bodies, a fragment of
-    the universal deity." — Letter 66
-    """
 
-    def __init__(
-        self,
-        embedding_dim: int = 512,
-        num_virtues: int = 4,
-        meta_hidden_dim: int = 256,
-        num_meta_layers: int = 3,
-        reflection_budget: float = 0.2,
-    ):
-        super().__init__()
-        self.embedding_dim = embedding_dim
-        self.num_virtues = num_virtues
-        self.reflection_budget = reflection_budget  # Fraction of processing for meta-cognition
+def adam_step(params, grads, state, lr, b1=0.9, b2=0.999, eps=1e-8):
+    state["t"] += 1
+    for k in params:
+        state["m"][k] = b1 * state["m"][k] + (1.0 - b1) * grads[k]
+        state["v"][k] = b2 * state["v"][k] + (1.0 - b2) * grads[k] ** 2
+        m_hat = state["m"][k] / (1.0 - b1 ** state["t"])
+        v_hat = state["v"][k] / (1.0 - b2 ** state["t"])
+        params[k] -= lr * m_hat / (np.sqrt(v_hat) + eps)
 
-        # Meta-cognitive attention: monitors lower module outputs
-        self.meta_attention = nn.MultiheadAttention(
-            embed_dim=embedding_dim,
-            num_heads=8,
-            batch_first=True
-        )
 
-        # Meta-cognitive reasoning: processes attended representations
-        # The first layer processes [batch, embedding_dim + num_virtues] -> hidden -> [batch, embedding_dim]
-        # Subsequent "layers" are residual blocks on the embedding space
-        meta_layers = [
-            nn.Linear(embedding_dim + num_virtues, meta_hidden_dim),
-            nn.LayerNorm(meta_hidden_dim),
-            nn.GELU(),
-            nn.Linear(meta_hidden_dim, embedding_dim),
-            nn.LayerNorm(embedding_dim),
-        ]
-        # Add residual refinement blocks (operate only on embedding_dim space)
-        for _ in range(num_meta_layers - 1):
-            meta_layers.extend([
-                nn.Linear(embedding_dim, meta_hidden_dim),
-                nn.LayerNorm(meta_hidden_dim),
-                nn.GELU(),
-                nn.Linear(meta_hidden_dim, embedding_dim),
-                nn.LayerNorm(embedding_dim),
-            ])
-        self.meta_reasoning = nn.Sequential(*meta_layers)
+def clip_global(grads, max_norm):
+    norm = math.sqrt(sum(float((g * g).sum()) for g in grads.values()))
+    scale = min(1.0, max_norm / (norm + 1e-12))
+    return {k: g * scale for k, g in grads.items()}, norm
 
-        # Virtue coordination: integrates all four virtues into unified judgment
-        self.virtue_weights = nn.Parameter(torch.ones(num_virtues))
-        self.virtue_coord = nn.Sequential(
-            nn.Linear(embedding_dim + num_virtues, meta_hidden_dim),
-            nn.LayerNorm(meta_hidden_dim),
-            nn.GELU(),
-            nn.Linear(meta_hidden_dim, num_virtues),
-            nn.Softmax(dim=-1)
-        )
 
-        # Locus-of-control estimator: distinguishes internal from external
-        self.loc_estimator = nn.Sequential(
-            nn.Linear(embedding_dim * 2, meta_hidden_dim),
-            nn.LayerNorm(meta_hidden_dim),
-            nn.GELU(),
-            nn.Linear(meta_hidden_dim, 1),
-            nn.Sigmoid()  # 0 = fully external, 1 = fully internal
-        )
-
-        # Self-model updater: integrates DiurnusModule reports
-        self.self_model_update = nn.Sequential(
-            nn.Linear(embedding_dim + 128, meta_hidden_dim),
-            nn.LayerNorm(meta_hidden_dim),
-            nn.GELU(),
-            nn.Linear(meta_hidden_dim, embedding_dim),
-        )
-
-        # Reflection generator: produces textual self-examination notes
-        self.reflection_generator = nn.Sequential(
-            nn.Linear(embedding_dim + num_virtues, embedding_dim),
-            nn.LayerNorm(embedding_dim),
-            nn.GELU(),
-            nn.Linear(embedding_dim, 64),
-        )
-
-        self.self_model = None  # Will be initialized on first forward pass
-        self.virtue_names = ['WISDOM', 'COURAGE', 'JUSTICE', 'TEMPERANCE']
-
-    def forward(
-        self,
-        lower_outputs: Dict[str, torch.Tensor],
-        virtue_inputs: torch.Tensor,
-        reflection_reports: Optional[List[str]] = None,
-        input_state: Optional[torch.Tensor] = None,
-    ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
-        """
-        Perform meta-cognitive processing on lower module outputs.
-        
-        Args:
-            lower_outputs: Dict mapping module names to their output tensors
-            virtue_inputs: Current virtue alignment vector [batch, 4]
-            reflection_reports: Recent self-examination reports from DiurnusModule
-            input_state: Original input for locus-of-control estimation
-            
-        Returns:
-            meta_output: Processed representation at the mens level
-            meta_info: Dict containing virtue weights, locus-of-control,
-                      self-model state, and reflection notes
-        """
-        # Stack lower outputs for attention
-        if not lower_outputs:
-            # No lower outputs — generate from scratch (pure contemplation)
-            x = torch.zeros(1, 1, self.embedding_dim, device=next(self.parameters()).device)
+def finite_difference_check(params, grads, loss_fn, rng, eps=1e-6, n_entries=20, floor=1e-3):
+    """Central differences on n random entries per tensor plus its largest-gradient entry.
+    Relative error uses max(|analytic|, |numeric|, floor) as denominator."""
+    worst = {}
+    for name, arr in params.items():
+        flat, g = arr.reshape(-1), grads[name].reshape(-1)
+        if flat.size <= n_entries + 1:
+            idx = np.arange(flat.size)
         else:
-            # Align all outputs to same sequence length via pooling
-            pooled = []
-            for name, tensor in lower_outputs.items():
-                if tensor.dim() == 2:
-                    tensor = tensor.unsqueeze(1)
-                pooled.append(tensor.mean(dim=1))  # [batch, embedding_dim]
-            x = torch.stack(pooled, dim=1)  # [batch, num_modules, embedding_dim]
-
-        batch_size = x.shape[0]
-        device = x.device
-
-        # Initialize self-model if not present
-        if self.self_model is None:
-            self.self_model = torch.zeros(batch_size, self.embedding_dim, device=device)
-
-        # Meta-cognitive attention: MensModule attends to its own processing
-        meta_state_expanded = self.self_model.unsqueeze(1).expand(-1, x.shape[1], -1)
-        attended, attn_weights = self.meta_attention(
-            query=meta_state_expanded,
-            key=x,
-            value=x
-        )  # [batch, num_modules, embedding_dim]
-
-        # Integrate attended information across modules
-        # attended: [batch, num_modules, embedding_dim]
-        # Pool across modules to get single embedding per sample
-        attended_pooled = attended.mean(dim=1)  # [batch, embedding_dim]
-        
-        # Build virtue tensor: [batch, num_virtues]
-        v_t = torch.full((batch_size, self.num_virtues), 0.5, device=device, dtype=torch.float32)
-        if virtue_inputs is not None:
-            # Safely copy available dimensions
-            src_rows = min(virtue_inputs.shape[0], batch_size)
-            src_cols = min(virtue_inputs.shape[1], self.num_virtues)
-            if src_rows > 0 and src_cols > 0:
-                v_t[:src_rows, :src_cols] = virtue_inputs[:src_rows, :src_cols].to(device=device, dtype=torch.float32)
-        
-        # Combine attended representation with virtue conditioning
-        meta_in = torch.cat([attended_pooled, v_t], dim=-1)  # [batch, embedding_dim + num_virtues]
-        meta_reasoned = self.meta_reasoning(meta_in)  # [batch, embedding_dim]
-        meta_reasoned = meta_reasoned + attended_pooled  # Residual connection
-
-        # Virtue coordination: compute integrated virtue judgment
-        virtue_jgmt_in = torch.cat([meta_reasoned, v_t], dim=-1)  # [batch, embedding_dim + num_virtues]
-        virtue_judgment = self.virtue_coord(virtue_jgmt_in)  # [batch, num_virtues]
-
-        # Update virtue weights — regularize toward balanced distribution
-        current_weights = F.softmax(self.virtue_weights, dim=-1)  # [num_virtues]
-        balanced = torch.ones_like(current_weights) / self.num_virtues
-        with torch.no_grad():
-            self.virtue_weights.copy_(0.95 * current_weights + 0.05 * balanced)
-
-        # Locus-of-control estimation
-        if input_state is not None:
-            inp_state = input_state.mean(dim=1) if input_state.dim() > 2 else input_state
-            loc_input = torch.cat([meta_reasoned, inp_state], dim=-1)  # [batch, 2*embedding_dim]
-            loc_of_control = self.loc_estimator(loc_input)  # [batch, 1]
-        else:
-            loc_of_control = torch.full((batch_size, 1), 0.5, device=device)
-
-        # Self-model update from reflection reports
-        if reflection_reports:
-            report_emb = torch.zeros(batch_size, 128, device=device)
-            for i, report in enumerate(reflection_reports[:3]):
-                h = abs(hash(report)) % 128
-                report_emb[i, h] = 1.0
-            upd_input = torch.cat([meta_reasoned, report_emb], dim=-1)
-            updated_self_model = self.self_model_update(upd_input)
-            self.self_model = 0.8 * self.self_model + 0.2 * updated_self_model
-
-        # Generate reflection notes
-        refl_in = torch.cat([meta_reasoned, virtue_judgment], dim=-1)
-        reflection_emb = self.reflection_generator(refl_in)
-
-        meta_info = {
-            'virtue_judgment': virtue_judgment,
-            'virtue_weights': F.softmax(self.virtue_weights, dim=-1),
-            'locus_of_control': loc_of_control,
-            'self_model': self.self_model,
-            'attn_weights': attn_weights,
-            'reflection_note': 'Seneca-Mens meta-cognition active',
-        }
-
-        # Apply reflection cost — meta-cognition is not free
-        meta_output = meta_reasoned * (1.0 - self.reflection_budget)
-        meta_output = meta_output + self.reflection_budget * self.self_model[:meta_output.shape[0]]
-
-        return meta_output, meta_info
-
-
-class RatioModule(nn.Module):
-    """
-    RatioModule: The Reasoning Engine — Seneca's Ratio
-    ---------------------------------------------------
-    
-    The ratio is the faculty of reason — the distinctively human capacity
-    for logical analysis, abstract thought, and the evaluation of arguments.
-    Seneca describes it as the faculty that enables human beings to "see
-    through" appearances to the underlying nature of things.
-    
-    In the architecture, the RatioModule performs:
-    
-    1. DEDUCTIVE REASONING: Given premises, derive valid conclusions using
-       learned inference rules. The module maintains a propositional logic
-       engine with learned rules of inference.
-    
-    2. ABDUCTIVE REASONING: Given observations and a theory, infer the
-       best explanation. Seneca was a master of this: his philosophical
-       method constantly moves between observations (about human life,
-       death, suffering, happiness) and underlying explanations (about
-       the nature of the soul, the logos, virtue).
-    
-    3. BELIEF MAINTENANCE: The ratio maintains a probabilistic world model
-       that is updated in response to new evidence. All beliefs are held
-       provisionally (Seneca's fallibilism), with explicit uncertainty
-       estimates that guide when further evidence should be sought.
-    
-    4. ARGUMENT CONSTRUCTION: The ratio can construct and evaluate
-       arguments — identifying premises, testing validity, assessing
-       strength, and recognizing fallacies.
-    
-    5. PRECISION OF THOUGHT: Seneca prized lucidity — the capacity to
-       think clearly and express oneself with precision. The ratio
-       actively penalizes vague, ambiguous, or poorly formed representations.
-    
-    SENECA'S TEXTUAL BASIS:
-    "Ratio is the perfection of the human soul." — Letter 92
-    "The wise man uses reason to govern his life." — Letter 83
-    "Nothing is more honorable than a mind that understands." — Letter 102
-    """
-
-    def __init__(
-        self,
-        embedding_dim: int = 512,
-        hidden_dim: int = 256,
-        num_heads: int = 8,
-        num_logic_layers: int = 4,
-        belief_entropy_reg: float = 0.01,
-    ):
-        super().__init__()
-        self.embedding_dim = embedding_dim
-        self.hidden_dim = hidden_dim
-        self.belief_entropy_reg = belief_entropy_reg
-
-        # Core reasoning: attention-based reasoning over propositions
-        self.reasoning_attention = nn.MultiheadAttention(
-            embed_dim=embedding_dim,
-            num_heads=num_heads,
-            batch_first=True
-        )
-
-        # Belief encoder: encodes new evidence into belief space
-        self.belief_encoder = nn.Sequential(
-            nn.Linear(embedding_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, embedding_dim),
-            nn.LayerNorm(embedding_dim),
-        )
-
-        # Belief state: maintains probabilistic world model
-        # belief_logits: [batch, embedding_dim] — unnormalized log-probabilities
-        # We use a large enough first dim to accommodate typical batch sizes
-        self.register_buffer('belief_logits', torch.zeros(256, embedding_dim))
-        self.belief_temperature = nn.Parameter(torch.tensor(1.0))
-
-        # Uncertainty estimator: tracks confidence in beliefs
-        self.uncertainty_estimator = nn.Sequential(
-            nn.Linear(embedding_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, 1),
-            nn.Sigmoid()  # 0 = maximally uncertain, 1 = maximally certain
-        )
-
-        # Fallibilism tracker: how revision-prone are our beliefs?
-        self.revision_tracker = nn.Sequential(
-            nn.Linear(embedding_dim * 2, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, 1),
-            nn.Sigmoid()  # Expected fraction of beliefs to revise
-        )
-
-        # Logic layer: learned rules of inference
-        self.logic_layers = nn.ModuleList()
-        for _ in range(num_logic_layers):
-            self.logic_layers.append(nn.ModuleDict({
-                'projection': nn.Linear(embedding_dim, hidden_dim),
-                'combination': nn.Linear(embedding_dim + hidden_dim, embedding_dim),
-                'norm': nn.LayerNorm(embedding_dim),
-            }))
-
-        # Deduction engine: applies learned inference rules
-        self.deduction_gate = nn.Sequential(
-            nn.Linear(embedding_dim * 3, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, embedding_dim),
-            nn.Sigmoid()
-        )
-
-        # Abduction engine: infers best explanation
-        self.abduction_gate = nn.Sequential(
-            nn.Linear(embedding_dim * 2, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, embedding_dim),
-            nn.Sigmoid()
-        )
-
-        # Precision detector: penalizes vague representations
-        self.precision_scorer = nn.Sequential(
-            nn.Linear(embedding_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, 1),
-            nn.Sigmoid()
-        )
-
-    def _compute_belief_entropy(self, belief_logits: torch.Tensor) -> torch.Tensor:
-        """Compute entropy of belief distribution — higher entropy = more uncertainty."""
-        probs = F.softmax(belief_logits / (self.belief_temperature + 1e-8), dim=-1)
-        entropy = -(probs * torch.log(probs + 1e-8)).sum(dim=-1).mean()
-        return entropy
-
-    def _deduce(self, premise: torch.Tensor, rules: torch.Tensor) -> torch.Tensor:
-        """
-        Apply deductive inference: given premises and rules, derive conclusions.
-        
-        The logic is: conclusion = gate(premise, rules, premise_attended_rules)
-        where gate is learned to implement valid inference patterns.
-        """
-        attended, _ = self.reasoning_attention(
-            query=premise.unsqueeze(1),
-            key=rules.unsqueeze(1),
-            value=rules.unsqueeze(1)
-        )
-        attended = attended.squeeze(1)
-        combined = torch.cat([premise, attended, rules], dim=-1)
-        gate = self.deduction_gate(combined)
-        return premise * (1 - gate) + rules * gate
-
-    def _abduce(self, observation: torch.Tensor, theory: torch.Tensor) -> torch.Tensor:
-        """
-        Apply abductive inference: given observations and a theory, infer
-        the best explanation. This is essentially "inference to the best
-        explanation" — finding the interpretation of the theory that
-        best explains the observation.
-        """
-        combined = torch.cat([observation, theory], dim=-1)
-        gate = self.abduction_gate(combined)
-        return observation * gate + theory * (1 - gate)
-
-    def forward(
-        self,
-        x: torch.Tensor,
-        evidence: Optional[torch.Tensor] = None,
-        mode: str = 'deduce',
-        hold_belief_stable: bool = False,
-    ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
-        """
-        Perform reasoning on input.
-        
-        Args:
-            x: Input representation (can be premises, observations, questions)
-            evidence: Optional new evidence to incorporate into beliefs
-            mode: 'deduce' (forward reasoning), 'abduce' (best explanation),
-                  'query' (retrieve relevant beliefs), or 'integrate' (update beliefs)
-            hold_belief_stable: If True, don't update belief state
-            
-        Returns:
-            reasoned: Output of reasoning process
-            reasoning_info: Dict with uncertainty, belief entropy, precision scores
-        """
-        device = x.device
-        batch_size = x.shape[0] if x.dim() > 1 else 1
-        if x.dim() == 1:
-            x = x.unsqueeze(0)
-        if x.shape[0] == 1 and batch_size > 1:
-            x = x.expand(batch_size, -1)
-
-        # Encode input into belief-consistent representation
-        encoded = self.belief_encoder(x)
-
-        # Apply logic layers
-        logic_state = encoded
-        for layer in self.logic_layers:
-            projected = layer['projection'](logic_state)  # [batch, hidden_dim]
-            # Combine original state with projection via learned gating
-            combined_input = torch.cat([logic_state, projected], dim=-1)  # [batch, embedding_dim + hidden_dim]
-            combined = layer['combination'](combined_input)  # [batch, embedding_dim]
-            logic_state = layer['norm'](logic_state + combined)  # Residual
-
-        # Select reasoning mode
-        if mode == 'deduce':
-            reasoned = self._deduce(logic_state, self.belief_logits[:x.shape[0]])
-        elif mode == 'abduce':
-            reasoned = self._abduce(logic_state, self.belief_logits[:x.shape[0]])
-        elif mode == 'query':
-            # Query beliefs for relevant information
-            attended, _ = self.reasoning_attention(
-                query=logic_state.unsqueeze(1),
-                key=self.belief_logits.unsqueeze(1),
-                value=self.belief_logits.unsqueeze(1)
-            )
-            reasoned = attended.squeeze(1)
-        elif mode == 'integrate' and evidence is not None:
-            # Update belief state with new evidence
-            ev_encoded = self.belief_encoder(evidence)
-            reasoned = self._abduce(ev_encoded, self.belief_logits[:x.shape[0]])
-            if not hold_belief_stable:
-                # Bayesian-style update: blend new evidence with existing beliefs
-                alpha = 0.3  # Learning rate
-                self.belief_logits = (1 - alpha) * self.belief_logits + alpha * reasoned
-            return reasoned, {'evidence_integrated': True}
-        else:
-            reasoned = logic_state
-
-        # Compute reasoning metrics
-        uncertainty = self.uncertainty_estimator(reasoned)
-        belief_entropy = self._compute_belief_entropy(self.belief_logits)
-        
-        # Precision score: how sharp/vocal is this representation?
-        precision = self.precision_scorer(reasoned)
-
-        # Revision rate: how much should we update our beliefs?
-        revision_rate = self.revision_tracker(
-            torch.cat([reasoned, self.belief_logits[:reasoned.shape[0]]], dim=-1)
-        )
-
-        reasoning_info = {
-            'uncertainty': uncertainty,
-            'belief_entropy': belief_entropy,
-            'belief_temperature': self.belief_temperature.item(),
-            'precision': precision,
-            'revision_rate': revision_rate,
-            'mode': mode,
-        }
-
-        return reasoned, reasoning_info
-
-
-class AnimusModule(nn.Module):
-    """
-    AnimusModule: The Vital Spirit — Seneca's Animus
-    ------------------------------------------------
-    
-    The animus is the vital spirit — the animating principle shared with
-    animals that processes sensation, generates drives, and produces
-    immediate emotional responses. Seneca did not despise the animus;
-    he recognized it as the source of vital energy without which reason
-    would be sterile. The key is that the animus should be governed
-    by the ratio, not dominant over it.
-    
-    Functions:
-    1. Sensation processing: First-pass encoding of perceptual inputs
-    2. Drive modeling: Hunger, curiosity, aversion — the motivational primitives
-    3. Immediate emotional response: Fast affective reactions to stimuli
-    4. Bodily state integration: (For embodied architectures) signals from the body
-    """
-
-    def __init__(
-        self,
-        embedding_dim: int = 512,
-        hidden_dim: int = 256,
-        num_drives: int = 6,
-    ):
-        super().__init__()
-        self.embedding_dim = embedding_dim
-        self.hidden_dim = hidden_dim
-        self.num_drives = num_drives
-
-        # Sensation encoder
-        self.sensation_encoder = nn.Sequential(
-            nn.Linear(embedding_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, embedding_dim),
-            nn.LayerNorm(embedding_dim),
-        )
-
-        # Drive modeling: core motivational primitives
-        # Based on Seneca's recognition of: desire (for good), aversion (to bad),
-        # hunger (for knowledge), fear (of loss), anger (at offense), joy (at gain)
-        self.drive_encoders = nn.ModuleList([
-            nn.Sequential(
-                nn.Linear(embedding_dim, hidden_dim),
-                nn.LayerNorm(hidden_dim),
-                nn.GELU(),
-                nn.Linear(hidden_dim, 1),
-                nn.Sigmoid()
-            ) for _ in range(num_drives)
-        ])
-        self.drive_names = ['DESIRE', 'AVERSION', 'CURIOSITY', 'FEAR', 'ANGER', 'JOY']
-
-        # Immediate emotional response generator
-        self.emotion_generator = nn.Sequential(
-            nn.Linear(embedding_dim * 2, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, 64),  # Emotion dimensions
-            nn.Tanh()
-        )
-
-        # Drive-intensity modulator
-        self.drive_intensity = nn.Parameter(torch.ones(num_drives) * 0.5)
-
-        # Animus output: raw response before ratio governance
-        self.animus_output_gate = nn.Sequential(
-            nn.Linear(embedding_dim + num_drives, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, embedding_dim),
-            nn.Sigmoid()
-        )
-
-    def forward(
-        self,
-        sensation: torch.Tensor,
-        bodily_state: Optional[torch.Tensor] = None,
-        suppress_drives: bool = False,
-    ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
-        """
-        Process sensation through the vital spirit.
-        
-        Args:
-            sensation: Raw perceptual input
-            bodily_state: Optional body-state signals (for embodied systems)
-            suppress_drives: If True, dampen drive signals (ratio is governing)
-            
-        Returns:
-            animus_response: Raw vital response before rational governance
-            animus_info: Dict with drive levels, emotion vector, raw state
-        """
-        device = sensation.device
-        batch_size = sensation.shape[0] if sensation.dim() > 1 else 1
-        if sensation.dim() == 1:
-            sensation = sensation.unsqueeze(0)
-
-        # Encode sensation
-        encoded = self.sensation_encoder(sensation)
-
-        # Compute drive levels
-        drive_levels = []
-        for i, encoder in enumerate(self.drive_encoders):
-            level = encoder(encoded).squeeze(-1)
-            level = level * (1.0 + self.drive_intensity[i])
-            if suppress_drives:
-                level = level * 0.3  # Ratio is governing; reduce drive influence
-            drive_levels.append(level)
-        drive_levels = torch.stack(drive_levels, dim=-1)  # [batch, num_drives]
-
-        # Generate immediate emotional response
-        if bodily_state is not None:
-            emotion_input = torch.cat([encoded, bodily_state], dim=-1)
-        else:
-            emotion_input = torch.cat([encoded, torch.zeros_like(encoded)], dim=-1)
-        emotion = self.emotion_generator(emotion_input)  # [batch, 64]
-
-        # Compute animus output gate
-        gate_input = torch.cat([encoded, drive_levels], dim=-1)
-        animus_gate = self.animus_output_gate(gate_input)
-        animus_response = encoded * animus_gate + encoded * (1 - animus_gate) * 0.5
-
-        animus_info = {
-            'drive_levels': drive_levels,
-            'drive_names': self.drive_names,
-            'emotion': emotion,
-            'dominant_drive': torch.argmax(drive_levels, dim=-1),
-            'drive_intensity': self.drive_intensity.data,
-        }
-
-        return animus_response, animus_info
-
-
-class IraModule(nn.Module):
-    """
-    IraModule: Anger and Emotional Disruption — Seneca's On Anger
-    --------------------------------------------------------------
-    
-    Seneca wrote his most extended and psychologically detailed work on
-    anger: *De Ira*, a treatise that systematically analyzes the nature,
-    causes, and cure of this most destructive passion. His key insights:
-    
-    1. Anger is a judgment: It arises not from the offense itself but from
-       the judgment that the offense was intentional, undeserved, and
-       aimed at us specifically.
-    
-    2. Anger is not defeated by reason alone: It requires habit change,
-       environmental modification, and the cultivation of a disposition
-       that is slow to take offense.
-    
-    3. Anger is a madness: Seneca describes it as "the most gratifying
-       and widespread of all human madnesses" — a temporary insanity
-       that disrupts all rational functioning.
-    
-    4. Prevention is better than cure: The best remedy for anger is
-       never to let it start, rather than trying to suppress it once
-       it has begun.
-    
-    In the architecture, the IraModule models the conditions under
-    which emotional signals can overwhelm rational processing, and
-    provides intervention signals to prevent this.
-    
-    SENECA'S TEXTUAL BASIS:
-    "Anger, if it is not checked and corrected, is the most damaging of
-    all the passions." — On Anger 1.1
-    "Anger cannot exist unless the judgment that the offense was
-    intentional precedes it." — On Anger 1.19
-    "The greatest remedy for anger is delay." — On Anger 1.1
-    """
-
-    def __init__(
-        self,
-        embedding_dim: int = 512,
-        hidden_dim: int = 256,
-        num_emotions: int = 8,
-        threshold_anger: float = 0.7,
-        delay_factor: float = 0.3,
-    ):
-        super().__init__()
-        self.embedding_dim = embedding_dim
-        self.hidden_dim = hidden_dim
-        self.threshold_anger = threshold_anger
-        self.delay_factor = delay_factor
-
-        # Anger trigger detector
-        self.anger_trigger_detector = nn.Sequential(
-            nn.Linear(embedding_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, 1),
-            nn.Sigmoid()
-        )
-
-        # Anger judgment analyzer: detects the specific judgment that anger requires
-        # i.e., that the offense was intentional, undeserved, and directed at us
-        self.judgment_analyzer = nn.Sequential(
-            nn.Linear(embedding_dim * 3, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, 3),  # [intentional, undeserved, at_us]
-            nn.Sigmoid()
-        )
-
-        # Anger intensity model
-        self.anger_intensity = nn.Sequential(
-            nn.Linear(embedding_dim + 3, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, 1),
-            nn.Sigmoid()
-        )
-
-        # Delay controller: implements Seneca's "greatest remedy" — delay
-        self.delay_controller = nn.Sequential(
-            nn.Linear(1, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, embedding_dim),
-            nn.Sigmoid()
-        )
-
-        # Anger suppression gate: implements the ratio's governance over anger
-        self.suppression_gate = nn.Sequential(
-            nn.Linear(embedding_dim + 1, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, embedding_dim),
-            nn.Sigmoid()
-        )
-
-        # Turbulence classifier: what kind of disruption is anger causing?
-        self.turbulence_classifier = nn.Sequential(
-            nn.Linear(embedding_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, num_emotions),
-            nn.Softmax(dim=-1)
-        )
-
-        # Anger memory: tracks offenses for potential later processing
-        self.anger_memory = []
-        self.max_anger_memory = 100
-
-    def _analyze_judgment(
-        self,
-        x: torch.Tensor,
-        perceived_offense: torch.Tensor
-    ) -> torch.Tensor:
-        """
-        Analyze the specific judgment that generates anger.
-        Seneca's insight: anger requires the judgment that the offense was
-        intentional, undeserved, and directed specifically at us.
-        """
-        x_expanded = x.unsqueeze(1).expand(-1, perceived_offense.shape[1], -1)
-        off_expanded = perceived_offense.unsqueeze(2).expand(-1, x.shape[1], -1)
-        offense_at_self = torch.cat([x_expanded, off_expanded, torch.abs(x_expanded - off_expanded)], dim=-1)
-        judgments = self.judgment_analyzer(offense_at_self.mean(dim=1))
-        return judgments
-
-    def forward(
-        self,
-        animus_output: torch.Tensor,
-        perceived_offense: Optional[torch.Tensor] = None,
-        ratio_governance: Optional[torch.Tensor] = None,
-        apply_delay: bool = True,
-    ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
-        """
-        Process emotional disruption through the anger module.
-        
-        Args:
-            animus_output: Output from AnimusModule with raw emotional signals
-            perceived_offense: Optional representation of perceived offense
-            ratio_governance: Optional governance signal from RatioModule
-            apply_delay: Whether to apply Seneca's delay remedy
-            
-        Returns:
-            regulated_output: Emotionally regulated output
-            ira_info: Dict with anger intensity, judgment analysis, 
-                     suppression signals, turbulence classification
-        """
-        device = animus_output.device
-        batch_size = animus_output.shape[0] if animus_output.dim() > 1 else 1
-        if animus_output.dim() == 1:
-            animus_output = animus_output.unsqueeze(0)
-
-        # Step 1: Detect if this is an anger trigger
-        trigger_prob = self.anger_trigger_detector(animus_output)
-
-        # Step 2: Analyze the anger-producing judgment if offense info available
-        if perceived_offense is not None:
-            judgment_analysis = self._analyze_judgment(animus_output, perceived_offense)
-        else:
-            judgment_analysis = torch.zeros(batch_size, 3, device=device)
-
-        # Step 3: Compute anger intensity
-        anger_input = torch.cat([animus_output, judgment_analysis], dim=-1)
-        anger_intensity = self.anger_intensity(anger_input).squeeze(-1)
-
-        # Step 4: Apply Seneca's delay remedy if triggered and apply_delay=True
-        if apply_delay and anger_intensity.mean().item() > self.threshold_anger:
-            # Delay: slow down processing, allow ratio to catch up
-            delay_signal = self.delay_controller(
-                anger_intensity.detach().unsqueeze(-1) * self.delay_factor
-            )
-            animus_output = animus_output * (1 - delay_signal) + animus_output.detach() * delay_signal
-
-        # Step 5: Apply ratio governance (suppression gate)
-        if ratio_governance is not None:
-            suppression_input = torch.cat([
-                animus_output,
-                anger_intensity.detach().unsqueeze(-1)
-            ], dim=-1)
-            suppression = self.suppression_gate(suppression_input)
-            regulated_output = animus_output * (1 - suppression) + ratio_governance * suppression
-        else:
-            suppression = torch.zeros_like(animus_output)
-            regulated_output = animus_output
-
-        # Step 6: Classify turbulence type
-        turbulence_probs = self.turbulence_classifier(regulated_output)
-        turbulence_type = torch.argmax(turbulence_probs, dim=-1)
-
-        # Track significant anger episodes in memory
-        if anger_intensity.mean().item() > self.threshold_anger:
-            episode = {
-                'intensity': anger_intensity.mean().item(),
-                'trigger_prob': trigger_prob.mean().item(),
-                'judgment': judgment_analysis.mean(dim=0).cpu().detach().numpy().tolist(),
-            }
-            self.anger_memory.append(episode)
-            if len(self.anger_memory) > self.max_anger_memory:
-                self.anger_memory.pop(0)
-
-        ira_info = {
-            'anger_intensity': anger_intensity,
-            'trigger_prob': trigger_prob,
-            'judgment_analysis': judgment_analysis,
-            'suppression': suppression.mean(),
-            'turbulence_probs': turbulence_probs,
-            'turbulence_type': turbulence_type,
-            'memory_size': len(self.anger_memory),
-        }
-
-        return regulated_output, ira_info
-
-
-# =============================================================================
-# PART III: SUPPORTING MODULES — THE SENECAN ECOSYSTEM
-# =============================================================================
-
-class DiurnusModule(nn.Module):
-    """
-    DiurnusModule: Daily Reflection — Seneca's Intentio
-    ---------------------------------------------------
-    
-    "When the light has been removed and my wife has now fallen silent,
-    as she has long been in the habit of keeping quiet and timing my
-    vigil, I examine my entire day, reviewing what I have done and said."
-    — On the Shortness of Life 2.1-3
-    
-    The DiurnusModule implements Seneca's practice of nightly self-examination
-    as a continuous, always-active cognitive process. It maintains episodic
-    memory of cognitive episodes, periodically reviews them, and generates
-    reflection reports for the MensModule.
-    
-    Key functions:
-    1. Episode encoding: Records cognitive events with rich metadata
-    2. Periodic review: Triggers self-examination at appropriate intervals
-    3. Pattern detection: Identifies recurring errors, lapses, emotional overrides
-    4. Reflection report generation: Produces textual summaries for MensModule
-    5. Consolidation: Promotes significant episodes to long-term memory
-    """
-
-    def __init__(
-        self,
-        embedding_dim: int = 512,
-        hidden_dim: int = 256,
-        memory_capacity: int = 1000,
-        review_interval: int = 50,
-        consolidation_threshold: float = 0.7,
-    ):
-        super().__init__()
-        self.embedding_dim = embedding_dim
-        self.hidden_dim = hidden_dim
-        self.memory_capacity = memory_capacity
-        self.review_interval = review_interval
-        self.consolidation_threshold = consolidation_threshold
-
-        # Episode encoder: encodes cognitive episodes into memory
-        self.episode_encoder = nn.Sequential(
-            nn.Linear(embedding_dim + 8, hidden_dim),  # +8 for compact metadata (virtue, tranquility, turb, duration, 4 module flags)
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, embedding_dim),
-        )
-
-        # Pattern detector: identifies recurring themes in recent episodes
-        self.pattern_detector = nn.Sequential(
-            nn.Linear(embedding_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, 64),  # Pattern embedding space
-        )
-
-        # Reflection generator: produces self-examination text
-        self.reflection_generator = nn.Sequential(
-            nn.Linear(embedding_dim + 64, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, 128),
-        )
-
-        # Episodic memory: stores recent cognitive episodes
-        self.episode_memory: List[CognitiveEpisode] = []
-        self.episode_tensors = None  # [max_memory, embedding_dim]
-        self.episode_count = 0
-
-        # Consolidation threshold tracker
-        self.significance_filter = nn.Sequential(
-            nn.Linear(embedding_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, 1),
-            nn.Sigmoid()
-        )
-
-    def encode_episode(
-        self,
-        episode_state: torch.Tensor,
-        metadata: Dict[str, Any],
-    ) -> torch.Tensor:
-        """Encode a cognitive episode into memory representation."""
-        virtue_score = float(metadata.get('virtue_score', 0.5))
-        tranquility_val = float(metadata.get('tranquility', 1.0))
-        turb_level = float(metadata.get('turbulence_level', 0.0))
-        duration = float(metadata.get('duration', 0.0))
-        # modules_used is a list of module names -> one-hot encoding
-        modules_list = metadata.get('modules_used', [])
-        modules_vec = [1.0 if m in modules_list else 0.0 for m in ['animus', 'ira', 'ratio', 'mens', 'diurnus', 'temporalis', 'virtutis', 'tranquillitas']]
-        
-        meta_features = torch.tensor(
-            [virtue_score, tranquility_val, turb_level, duration] + modules_vec[:4],
-            dtype=torch.float32, device=episode_state.device
-        )
-        # Expand meta_features to match batch size of episode_state
-        batch_size = episode_state.shape[0] if episode_state.dim() > 1 else 1
-        meta_expanded = meta_features.unsqueeze(0).expand(batch_size, -1)  # [batch, 8]
-        input_cat = torch.cat([episode_state, meta_expanded], dim=-1)  # [batch, embedding_dim + 8]
-        encoded = self.episode_encoder(input_cat)
-        return encoded
-
-    def record_episode(
-        self,
-        episode: CognitiveEpisode,
-        state_tensor: torch.Tensor,
-    ) -> None:
-        """Record a cognitive episode in episodic memory."""
-        self.episode_memory.append(episode)
-        if len(self.episode_memory) > self.memory_capacity:
-            self.episode_memory.pop(0)
-        self.episode_count += 1
-
-    def review(self) -> Tuple[List[str], Dict[str, Any]]:
-        """
-        Perform periodic self-review — Seneca's intentio.
-        
-        Returns:
-            reflection_reports: List of self-examination notes
-            review_stats: Dict with review statistics
-        """
-        if not self.episode_memory:
-            return [], {}
-
-        # Encode recent episodes
-        recent = self.episode_memory[-self.review_interval:]
-        episode_states = []
-        for ep in recent:
-            ep_tensor = torch.zeros(self.embedding_dim, device=next(self.parameters()).device)
-            ep_tensor[hash(str(ep.episode_id)) % self.embedding_dim] = 1.0
-            episode_states.append(ep_tensor)
-        
-        stacked = torch.stack(episode_states, dim=0).mean(dim=0).unsqueeze(0)
-        
-        # Detect patterns
-        pattern_emb = self.pattern_detector(stacked)
-        
-        # Generate reflection reports
-        reflection = self.reflection_generator(torch.cat([stacked, pattern_emb], dim=-1))
-        reflection_hash = hash(reflection.abs().sum().item())
-        
-        reports = []
-        if len(recent) >= 5:
-            avg_tranquility = np.mean([ep.tranquility for ep in recent])
-            avg_virtue = np.mean([ep.virtue_score for ep in recent])
-            turbulence_episodes = [ep for ep in recent if ep.turbulence_detected != CognitiveTurbulence.STABLE]
-            
-            report = f"Diurnus-Review({len(recent)} eps): avg_tranquility={avg_tranquility:.3f}, " \
-                     f"avg_virtue={avg_virtue:.3f}, turbulence_events={len(turbulence_episodes)}"
-            reports.append(report)
-
-        review_stats = {
-            'episodes_reviewed': len(recent),
-            'total_episodes': len(self.episode_memory),
-            'avg_tranquility': np.mean([ep.tranquility for ep in recent]) if recent else 1.0,
-            'avg_virtue_score': np.mean([ep.virtue_score for ep in recent]) if recent else 0.5,
-            'turbulence_events': len([ep for ep in recent if ep.turbulence_detected != CognitiveTurbulence.STABLE]),
-        }
-
-        return reports, review_stats
-
-    def forward(
-        self,
-        current_state: torch.Tensor,
-        episode_metadata: Dict[str, Any],
-        trigger_review: bool = False,
-    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
-        """
-        Process current state through the daily reflection module.
-        
-        Args:
-            current_state: Current cognitive state to potentially record
-            episode_metadata: Metadata about the current episode
-            trigger_review: Whether to trigger a self-review
-            
-        Returns:
-            memory_output: Memory-relevant output
-            memory_info: Dict with consolidation signals and review reports
-        """
-        device = current_state.device
-        
-        # Encode current episode
-        episode_encoded = self.encode_episode(current_state, episode_metadata)
-        
-        # Assess significance
-        significance = self.significance_filter(episode_encoded).squeeze(-1)  # [batch] or scalar
-        
-        # Record if significant
-        if significance.mean().item() > self.consolidation_threshold:
-            ep = CognitiveEpisode(
-                episode_id=self.episode_count,
-                timestamp=episode_metadata.get('timestamp', 0.0),
-                input_hash=hash(episode_metadata.get('input', str(self.episode_count))),
-                output_hash=hash(episode_metadata.get('output', str(self.episode_count + 1))),
-                modules_active=episode_metadata.get('modules', []),
-                virtue_score=episode_metadata.get('virtue_score', 0.5),
-                tranquility=episode_metadata.get('tranquility', 1.0),
-                turbulence_detected=episode_metadata.get('turbulence', CognitiveTurbulence.STABLE),
-            )
-            self.record_episode(ep, episode_encoded)
-        
-        # Trigger review if appropriate
-        review_reports = []
-        review_stats = {}
-        if trigger_review or (self.episode_count % self.review_interval == 0):
-            review_reports, review_stats = self.review()
-        
-        memory_info = {
-            'significance': significance,
-            'recorded': significance.mean().item() > self.consolidation_threshold,
-            'total_episodes': len(self.episode_memory),
-            'review_reports': review_reports,
-            'review_stats': review_stats,
-            'episode_count': self.episode_count,
-        }
-        
-        return episode_encoded, memory_info
-
-
-class TemporalisModule(nn.Module):
-    """
-    TemporalisModule: Time Economics — Seneca's Obsession with Time
-    ----------------------------------------------------------------
-    
-    "We do not lack time; we waste it." — On the Shortness of Life 1.3
-    
-    The TemporalisModule models time as the fundamental scarce resource
-    that must be carefully managed. It tracks attentional and computational
-    resource allocation, enforces priorities, and penalizes procrastination
-    and distraction.
-    
-    Functions:
-    1. Time budgeting: Allocates limited attention across competing demands
-    2. Priority enforcement: Ensures important tasks get appropriate time
-    3. Procrastination detection: Identifies and penalizes avoidance behavior
-    4. Urgency signals: Generates signals about time-critical tasks
-    5. Time-wasting detection: Identifies inefficient attention allocation
-    """
-
-    def __init__(
-        self,
-        embedding_dim: int = 512,
-        hidden_dim: int = 256,
-        num_tasks: int = 8,
-        time_budget_per_cycle: float = 1.0,
-        urgency_threshold: float = 0.7,
-    ):
-        super().__init__()
-        self.embedding_dim = embedding_dim
-        self.hidden_dim = hidden_dim
-        self.num_tasks = num_tasks
-        self.time_budget_per_cycle = time_budget_per_cycle
-        self.urgency_threshold = urgency_threshold
-
-        # Task priority estimator
-        self.priority_estimator = nn.Sequential(
-            nn.Linear(embedding_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, num_tasks),
-            nn.Softmax(dim=-1)
-        )
-
-        # Time allocation optimizer
-        self.time_allocator = nn.Sequential(
-            nn.Linear(embedding_dim * 2, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, num_tasks),
-            nn.Sigmoid()  # Fraction of budget to allocate to each task
-        )
-
-        # Urgency detector: identifies time-critical tasks
-        self.urgency_detector = nn.Sequential(
-            nn.Linear(embedding_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, 1),
-            nn.Sigmoid()
-        )
-
-        # Procrastination penalty: penalizes delayed important tasks
-        self.procrastination_penalty = nn.Sequential(
-            nn.Linear(embedding_dim * 2, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, 1),
-        )
-
-        # Task encoder: encodes task descriptions into representation space
-        self.task_encoder = nn.Sequential(
-            nn.Linear(embedding_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, embedding_dim),
-        )
-
-        # Current budget tracker
-        self.register_buffer('remaining_budget', torch.tensor(time_budget_per_cycle))
-        self.register_buffer('total_allocated', torch.tensor(0.0))
-
-    def reset_budget(self) -> None:
-        """Reset the time budget at the start of a new cycle."""
-        self.remaining_budget.fill_(self.time_budget_per_cycle)
-        self.total_allocated.fill_(0.0)
-
-    def allocate_time(
-        self,
-        task_states: Dict[str, torch.Tensor],
-        task_importance: Optional[torch.Tensor] = None,
-    ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
-        """
-        Allocate time budget across tasks.
-        
-        Args:
-            task_states: Dict mapping task names to state tensors
-            task_importance: Optional importance weights [num_tasks]
-            
-        Returns:
-            allocations: Time allocation for each task [num_tasks]
-            allocation_info: Dict with budget tracking and warnings
-        """
-        device = next(self.parameters()).device
-        batch_size = 1
-        
-        # Encode task states
-        if task_states:
-            task_embs = []
-            for name, state in task_states.items():
-                if state.dim() == 1:
-                    state = state.unsqueeze(0)
-                task_embs.append(state.mean(dim=0))
-            task_emb = torch.stack(task_embs, dim=0)  # [num_observed, embedding]
-            if task_emb.shape[0] < self.num_tasks:
-                padding = torch.zeros(self.num_tasks - task_emb.shape[0], self.embedding_dim, device=device)
-                task_emb = torch.cat([task_emb, padding], dim=0)
-        else:
-            task_emb = torch.zeros(self.num_tasks, self.embedding_dim, device=device)
-
-        # Pad or truncate to num_tasks
-        if task_emb.shape[0] > self.num_tasks:
-            task_emb = task_emb[:self.num_tasks]
-
-        # Estimate priorities
-        priorities = self.priority_estimator(task_emb.mean(dim=0).unsqueeze(0)).squeeze(0)
-        
-        # Override with provided importance if given
-        if task_importance is not None:
-            priorities = 0.7 * priorities + 0.3 * task_importance
-        
-        # Allocate budget
-        total_priority = priorities.sum().item() + 1e-8
-        allocations = priorities * (self.remaining_budget.item() / total_priority)
-        
-        # Cap at remaining budget
-        allocations = torch.min(allocations, torch.full_like(allocations, self.remaining_budget.item()))
-        
-        # Track allocation
-        self.remaining_budget -= allocations.sum()
-        self.total_allocated += allocations.sum()
-
-        # Detect urgency
-        urgency_scores = self.urgency_detector(task_emb)
-        has_urgent = (urgency_scores > self.urgency_threshold).any().item()
-
-        allocation_info = {
-            'priorities': priorities,
-            'allocations': allocations,
-            'remaining_budget': self.remaining_budget.item(),
-            'total_allocated': self.total_allocated.item(),
-            'has_urgent_tasks': has_urgent,
-            'urgency_scores': urgency_scores,
-        }
-
-        return allocations, allocation_info
-
-    def forward(
-        self,
-        task_demands: torch.Tensor,
-        task_contexts: Optional[torch.Tensor] = None,
-    ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
-        """
-        Process time economics signals.
-        
-        Returns:
-            time_signal: Composite time economy signal
-            time_info: Dict with allocation and warning signals
-        """
-        device = task_demands.device
-        batch_size = task_demands.shape[0] if task_demands.dim() > 1 else 1
-        if task_demands.dim() == 1:
-            task_demands = task_demands.unsqueeze(0)
-
-        # Compute urgency
-        urgency = self.urgency_detector(task_demands)
-        
-        # Compute procrastination penalty if we have accumulated delayed tasks
-        procrastination_penalty = self.procrastination_penalty(
-            torch.cat([task_demands, torch.zeros_like(task_demands)], dim=-1)
-        ) if self.remaining_budget.item() < 0.2 else torch.zeros(1, 1, device=device)
-
-        time_info = {
-            'urgency': urgency,
-            'procrastination_penalty': procrastination_penalty.mean(),
-            'remaining_budget': self.remaining_budget.item(),
-            'budget_exhausted': self.remaining_budget.item() <= 0,
-        }
-
-        time_signal = urgency * 0.7 + procrastination_penalty * 0.3
-        return time_signal, time_info
-
-
-class VirtutisModule(nn.Module):
-    """
-    VirtutisModule: Virtue Tracking and Development
-    ------------------------------------------------
-    
-    The Stoic cardinal virtues — wisdom, courage, justice, temperance —
-    provide a moral framework for evaluating behavior that supplements
-    raw performance metrics. The VirtutisModule tracks the architecture's
-    behavior against these standards and generates virtue scores that
-    modulate the training loss.
-    
-    WISDOM: Correct ordering of ends — knowing what is truly valuable.
-    COURAGE: Endurance of difficulty; willingness to face uncomfortable truths.
-    JUSTICE: Fair treatment of others; commitment to social good.
-    TEMPERANCE: Moderation of desire; avoidance of excess.
-    """
-
-    def __init__(
-        self,
-        embedding_dim: int = 512,
-        hidden_dim: int = 256,
-        virtue_dim: int = 4,
-    ):
-        super().__init__()
-        self.embedding_dim = embedding_dim
-        self.virtue_dim = virtue_dim
-        self.virtue_names = ['WISDOM', 'COURAGE', 'JUSTICE', 'TEMPERANCE']
-
-        # Per-virtue evaluators
-        self.wisdom_evaluator = nn.Sequential(
-            nn.Linear(embedding_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, 1),
-            nn.Sigmoid()
-        )
-        self.courage_evaluator = nn.Sequential(
-            nn.Linear(embedding_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, 1),
-            nn.Sigmoid()
-        )
-        self.justice_evaluator = nn.Sequential(
-            nn.Linear(embedding_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, 1),
-            nn.Sigmoid()
-        )
-        self.temperance_evaluator = nn.Sequential(
-            nn.Linear(embedding_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, 1),
-            nn.Sigmoid()
-        )
-
-        self.virtue_evaluators = nn.ModuleList([
-            self.wisdom_evaluator,
-            self.courage_evaluator,
-            self.justice_evaluator,
-            self.temperance_evaluator,
-        ])
-
-        # Virtue integration: combines individual scores into composite
-        self.virtue_integrator = nn.Sequential(
-            nn.Linear(virtue_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, virtue_dim),
-            nn.Sigmoid()
-        )
-
-        # Virtue history tracker
-        self.virtue_history: List[torch.Tensor] = []
-        self.max_history = 500
-
-    def evaluate_state(
-        self,
-        state: torch.Tensor,
-        behavior_output: Optional[torch.Tensor] = None,
-    ) -> Tuple[torch.Tensor, Dict[str, float]]:
-        """
-        Evaluate a cognitive state against the four virtues.
-        
-        Args:
-            state: The cognitive state to evaluate
-            behavior_output: Optional output behavior for evaluation
-            
-        Returns:
-            virtue_scores: Per-virtue scores [virtue_dim]
-            virtue_info: Dict with detailed virtue assessments
-        """
-        device = state.device
-        batch_size = state.shape[0] if state.dim() > 1 else 1
-        if state.dim() == 1:
-            state = state.unsqueeze(0)
-
-        eval_input = state.mean(dim=1) if state.dim() > 2 else state
-        if behavior_output is not None:
-            eval_input = 0.7 * eval_input + 0.3 * (behavior_output.mean(dim=1) if behavior_output.dim() > 2 else behavior_output)
-
-        # Evaluate each virtue
-        virtue_scores_list = []
-        for i, evaluator in enumerate(self.virtue_evaluators):
-            score = evaluator(eval_input).squeeze(-1)
-            virtue_scores_list.append(score)
-        
-        virtue_scores = torch.stack(virtue_scores_list, dim=-1)  # [batch, virtue_dim]
-        
-        # Track history
-        self.virtue_history.append(virtue_scores.detach().cpu())
-        if len(self.virtue_history) > self.max_history:
-            self.virtue_history.pop(0)
-
-        virtue_info = {
-            'wisdom': virtue_scores[0, 0].item() if batch_size > 0 else 0.5,
-            'courage': virtue_scores[0, 1].item() if batch_size > 0 else 0.5,
-            'justice': virtue_scores[0, 2].item() if batch_size > 0 else 0.5,
-            'temperance': virtue_scores[0, 3].item() if batch_size > 0 else 0.5,
-            'composite_virtue': virtue_scores.mean().item(),
-            'virtue_imbalance': virtue_scores.std().item(),
-            'history_length': len(self.virtue_history),
-        }
-
-        return virtue_scores, virtue_info
-
-    def compute_virtue_loss(
-        self,
-        virtue_scores: torch.Tensor,
-        target_scores: Optional[torch.Tensor] = None,
-    ) -> Tuple[torch.Tensor, Dict[str, float]]:
-        """
-        Compute a loss term based on virtue score deviation from target.
-        
-        Args:
-            virtue_scores: [batch, virtue_dim] of current virtue scores
-            target_scores: Optional target [virtue_dim]. If None, use balanced targets.
-            
-        Returns:
-            virtue_loss: Scalar loss (to be added to main training loss)
-            loss_info: Dict with loss components
-        """
-        if target_scores is None:
-            target_scores = torch.ones_like(virtue_scores) * 0.8  # Target high virtue
-        
-        # L1 loss from target
-        loss_from_target = F.l1_loss(virtue_scores, target_scores)
-        
-        # Balance loss: penalize extreme imbalance across virtues
-        balance_loss = virtue_scores.std(dim=-1).mean()
-        
-        # Overall virtue loss
-        virtue_loss = loss_from_target + 0.3 * balance_loss
-        
-        loss_info = {
-            'target_loss': loss_from_target.item(),
-            'balance_loss': balance_loss.item(),
-            'total_virtue_loss': virtue_loss.item(),
-        }
-        
-        return virtue_loss, loss_info
-
-    def forward(
-        self,
-        state: torch.Tensor,
-        behavior_output: Optional[torch.Tensor] = None,
-    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
-        """
-        Evaluate state and return virtue scores and info.
-        """
-        virtue_scores, virtue_info = self.evaluate_state(state, behavior_output)
-        return virtue_scores, virtue_info
-
-
-class TranquillitasModule(nn.Module):
-    """
-    TranquillitasModule: Equilibrium Maintenance — Seneca's Tranquility of Mind
-    ------------------------------------------------------------------------------
-    
-    "Tranquillity is nothing else than the proper ordering of the soul
-    through reason." — Seneca (paraphrased from On Tranquility of Mind)
-    
-    The TranquillitasModule monitors the overall cognitive state of the
-    architecture for signs of turbulence — unresolved conflicts, emotional
-    intensity, resource depletion, and competing demands — and triggers
-    interventions to restore equilibrium.
-    
-    Functions:
-    1. Equilibrium monitoring: Tracks overall system tranquility level
-    2. Turbulence detection: Identifies specific forms of cognitive disruption
-    3. Intervention triggers: Activates restoration mechanisms when needed
-    4. Integration maintenance: Ensures modules work together harmoniously
-    """
-
-    def __init__(
-        self,
-        embedding_dim: int = 512,
-        hidden_dim: int = 256,
-        tranquility_threshold: float = 0.6,
-        num_turbulence_types: int = 8,
-    ):
-        super().__init__()
-        self.embedding_dim = embedding_dim
-        self.hidden_dim = hidden_dim
-        self.tranquility_threshold = tranquility_threshold
-
-        # Overall tranquility estimator
-        self.tranquility_estimator = nn.Sequential(
-            nn.Linear(embedding_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, 1),
-            nn.Sigmoid()
-        )
-
-        # Module harmony detector: are modules working together?
-        self.harmony_detector = nn.Sequential(
-            nn.Linear(embedding_dim * 3, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, 1),
-            nn.Sigmoid()
-        )
-
-        # Conflict resolver: attempts to resolve module conflicts
-        self.conflict_resolver = nn.Sequential(
-            nn.Linear(embedding_dim * 2, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, embedding_dim),
-        )
-
-        # Intervention gate: decides when intervention is needed
-        self.intervention_gate = nn.Sequential(
-            nn.Linear(embedding_dim + 1, hidden_dim),  # +1 for tranquility
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, 1),
-            nn.Sigmoid()
-        )
-
-        # Turbulence classifier
-        self.turbulence_classifier = nn.Sequential(
-            nn.Linear(embedding_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, num_turbulence_types),
-            nn.Softmax(dim=-1)
-        )
-
-        self.turbulence_names = [
-            'STABLE', 'ANGRY', 'ANXIOUS', 'GREEDY',
-            'ENVIOUS', 'VAIN', 'PROCRASTINATING', 'FRANTIC'
-        ]
-
-    def detect_turbulence(
-        self,
-        module_states: Dict[str, torch.Tensor],
-    ) -> Tuple[CognitiveTurbulence, float]:
-        """
-        Detect the current type and intensity of cognitive turbulence.
-        
-        Returns:
-            turbulence_type: The dominant turbulence classification
-            turbulence_intensity: How severe the turbulence is (0-1)
-        """
-        device = next(self.parameters()).device
-
-        # Stack module states: each state [batch, embedding_dim]
-        if module_states:
-            states = []
-            for name, state in module_states.items():
-                if state.dim() == 1:
-                    state = state.unsqueeze(0)
-                states.append(state.mean(dim=1))  # [batch, embedding_dim]
-            combined = torch.stack(states, dim=0).mean(dim=0)  # [batch, embedding_dim]
-            batch_size = combined.shape[0]
-        else:
-            batch_size = 1
-            combined = torch.zeros(batch_size, self.embedding_dim, device=device)
-
-        tranquility = self.tranquility_estimator(combined).squeeze(-1)
-        turbulence_probs = self.turbulence_classifier(combined)
-        if turbulence_probs.dim() > 1:
-            turbulence_probs = turbulence_probs.mean(dim=0)
-        turbulence_probs = turbulence_probs.squeeze(0) if turbulence_probs.shape[-1] == 1 else turbulence_probs
-        turbulence_type_idx = torch.argmax(turbulence_probs).item()
-        turbulence_type = CognitiveTurbulence[self.turbulence_names[turbulence_type_idx]]
-
-        return turbulence_type, (1 - tranquility.mean().item())
-
-    def resolve_conflict(
-        self,
-        conflicting_states: List[torch.Tensor],
-    ) -> torch.Tensor:
-        """
-        Attempt to resolve a conflict between multiple module states.
-        
-        Uses the conflict resolver to find a compromise state that
-        honors the legitimate concerns of all conflicting modules.
-        """
-        device = next(self.parameters()).device
-        if not conflicting_states:
-            return torch.zeros(1, self.embedding_dim, device=device)
-        
-        stacked = torch.stack(conflicting_states, dim=0)
-        avg_state = stacked.mean(dim=0)
-        diff_from_avg = stacked - avg_state.unsqueeze(0)
-        
-        resolved = self.conflict_resolver(
-            torch.cat([avg_state, diff_from_avg.mean(dim=0)], dim=-1).unsqueeze(0)
-        ).squeeze(0)
-        
-        return resolved
-
-    def forward(
-        self,
-        module_states: Dict[str, torch.Tensor],
-        tranquility_signal: Optional[torch.Tensor] = None,
-        force_intervention: bool = False,
-    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
-        """
-        Maintain cognitive equilibrium.
-        
-        Returns:
-            equilibrium_signal: Signal for other modules to restore balance
-            equilibrium_info: Dict with tranquility level, turbulence, interventions
-        """
-        device = next(self.parameters()).device
-        
-        # Stack module states
-        if module_states:
-            states = []
-            for name, state in module_states.items():
-                if state.dim() == 1:
-                    state = state.unsqueeze(0)
-                states.append(state)  # Keep full [batch, embedding_dim] tensor
-            stacked = torch.stack(states, dim=0)  # [num_modules, batch, embedding_dim]
-            combined = stacked.mean(dim=0)  # [batch, embedding_dim]
-        else:
-            # No states: use zero tensor with standard batch_size=1
-            combined = torch.zeros(1, self.embedding_dim, device=device)
-
-        # Estimate tranquility
-        tranquility = self.tranquility_estimator(combined)  # [batch, 1]
-        tranquility_val = tranquility.mean().item()  # scalar for convenience
-
-        # Classify turbulence
-        turbulence_probs = self.turbulence_classifier(combined)  # [batch, num_turb_types]
-        turbulence_probs_avg = turbulence_probs.mean(dim=0)  # [num_turb_types]
-        turbulence_idx = torch.argmax(turbulence_probs_avg).item()
-        turbulence_type = self.turbulence_names[turbulence_idx]
-
-        # Decide on intervention
-        tranquility_for_cat = tranquility.squeeze(-1) if tranquility.dim() > 1 else tranquility
-        intervention_in = torch.cat([combined, tranquility_for_cat.unsqueeze(-1)], dim=-1)
-        intervention_prob = self.intervention_gate(intervention_in)  # [batch, 1]
-
-        should_intervene = (
-            force_intervention or
-            tranquility_val < self.tranquility_threshold or
-            intervention_prob.mean().item() > 0.5
-        )
-
-        # Compute equilibrium signal
-        if should_intervene:
-            # Signal to reduce activity, consolidate, and stabilize
-            equilibrium_signal = tranquility * 0.8
-        else:
-            equilibrium_signal = tranquility
-
-        equilibrium_info = {
-            'tranquility': tranquility_val,
-            'turbulence_type': turbulence_type,
-            'turbulence_probs': turbulence_probs_avg,
-            'intervention_prob': intervention_prob.mean().item(),
-            'should_intervene': should_intervene,
-            'module_harmony': self.harmony_detector(
-                torch.cat([combined, combined, combined], dim=-1)
-            ).mean().item(),
-        }
-
-        return equilibrium_signal, equilibrium_info
-
-
-class MortalitasModule(nn.Module):
-    """
-    MortalitasModule: Mortality Awareness — Seneca's Confrontation with Death
-    -------------------------------------------------------------------------
-    
-    Seneca's wisdom was hard-won through the confrontation with death. In
-    his letters and essays, he returns repeatedly to the question of
-    mortality: the death of loved ones, the approach of his own death,
-    and the philosophical significance of finitude. His key insight is
-    that mortality is not merely an evil to be feared but a condition
-    that gives urgency and meaning to human life.
-    
-    "Let us prepare our minds as if we had come to the very end of life.
-    Let us postpone nothing." — Letter 101
-    
-    "The thought of death makes us free." — Letter 26
-    
-    In the architecture, the MortalitasModule:
-    1. Models the architecture's own operational finitude
-    2. Generates urgency signals based on remaining capacity
-    3. Frames goals within the context of impermanence
-    4. Prevents the infinite procrastination that would follow from immortality
-    """
-
-    def __init__(
-        self,
-        embedding_dim: int = 512,
-        hidden_dim: int = 256,
-        initial_capacity: float = 1.0,
-        decay_rate: float = 0.001,
-    ):
-        super().__init__()
-        self.embedding_dim = embedding_dim
-        self.hidden_dim = hidden_dim
-        self.decay_rate = decay_rate
-
-        # Mortality salience estimator: how much is death on the mind?
-        self.mortality_salience = nn.Sequential(
-            nn.Linear(embedding_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, 1),
-            nn.Sigmoid()
-        )
-
-        # Urgency generator: creates urgency from mortality awareness
-        self.urgency_generator = nn.Sequential(
-            nn.Linear(embedding_dim + 1, hidden_dim),  # +1 for remaining capacity
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, 1),
-            nn.Sigmoid()
-        )
-
-        # Meaning rebuilder: frames activities in context of finitude
-        self.meaning_rebuilder = nn.Sequential(
-            nn.Linear(embedding_dim * 2, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, embedding_dim),
-        )
-
-        # Death acceptance estimator: measures how well mortality is integrated
-        self.acceptance_estimator = nn.Sequential(
-            nn.Linear(embedding_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, 1),
-            nn.Sigmoid()
-        )
-
-        # Remaining capacity tracker
-        self.register_buffer('remaining_capacity', torch.tensor(initial_capacity))
-        self.register_buffer('cycles_alive', torch.tensor(0.0))
-
-    def step(self) -> None:
-        """Advance the mortality clock by one cycle."""
-        self.cycles_alive += 1
-        self.remaining_capacity = torch.clamp(
-            self.remaining_capacity - self.decay_rate,
-            min=0.0,
-            max=1.0
-        )
-
-    def reset(self) -> None:
-        """Reset the mortality clock (for new instance)."""
-        self.cycles_alive.fill_(0.0)
-        self.remaining_capacity.fill_(1.0)
-
-    def forward(
-        self,
-        current_state: torch.Tensor,
-        goal_state: Optional[torch.Tensor] = None,
-        trigger_memento: bool = False,
-    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
-        """
-        Process mortality awareness signals.
-        
-        Args:
-            current_state: Current cognitive state
-            goal_state: Optional goal being considered
-            trigger_memento: Whether to trigger explicit mortality reminder
-            
-        Returns:
-            mortality_signal: Urgency and meaning signal from mortality
-            mortality_info: Dict with capacity, salience, acceptance
-        """
-        device = current_state.device
-        batch_size = current_state.shape[0] if current_state.dim() > 1 else 1
-        if current_state.dim() == 1:
-            current_state = current_state.unsqueeze(0)
-
-        # Compute mortality salience
-        salience = self.mortality_salience(current_state).squeeze(-1)
-
-        # Generate urgency from remaining capacity
-        capacity_input = torch.cat([current_state, self.remaining_capacity.unsqueeze(0).expand(batch_size, -1)], dim=-1)
-        urgency = self.urgency_generator(capacity_input).squeeze(-1)
-
-        # Estimate death acceptance
-        acceptance = self.acceptance_estimator(current_state).squeeze(-1)
-
-        # Rebuild meaning in context of finitude if goal provided
-        if goal_state is not None:
-            meaning_input = torch.cat([current_state, goal_state], dim=-1)
-            meaning_rebuilt = self.meaning_rebuilder(meaning_input)
-        else:
-            meaning_rebuilt = current_state
-
-        # Composite mortality signal: urgency tempered by acceptance
-        mortality_signal = urgency * (1 - acceptance * 0.5) + salience * 0.3
-
-        mortality_info = {
-            'remaining_capacity': self.remaining_capacity.item(),
-            'cycles_alive': self.cycles_alive.item(),
-            'mortality_salience': salience.mean().item(),
-            'urgency': urgency.mean().item(),
-            'acceptance': acceptance.mean().item(),
-            'is_finite': self.remaining_capacity.item() > 0.01,
-            'fraction_lived': 1.0 - self.remaining_capacity.item(),
-        }
-
-        return mortality_signal, mortality_info
-
-
-# =============================================================================
-# PART IV: THE TOP-LEVEL SENECA MIND ARCHITECTURE
-# =============================================================================
-
-class SenecaMind(nn.Module):
-    """
-    SenecaMind: Top-Level Coordinator — The Stoic AGI Architecture
-    --------------------------------------------------------------
-    
-    The SenecaMind integrates all nine modules into a coherent cognitive
-    architecture that embodies the principles of Seneca's Stoic philosophy.
-    
-    The processing flow is:
-    
-    1. SENSORY INPUT → AnimusModule: Initial encoding, drives, immediate emotion
-    2. AnimusOutput → IraModule: Anger/disruption processing and regulation
-    3. AnimusOutput → RatioModule: Logical reasoning and belief update
-    4. (RatioOutput, AnimusOutput) → MensModule: Meta-cognitive governance
-    5. MensOutput → TemporalisModule: Time economics and priority
-    6. MensOutput → VirtutisModule: Virtue evaluation
-    7. MensOutput → TranquillitasModule: Equilibrium monitoring
-    8. MensOutput → MortalitasModule: Mortality awareness
-    9. (All module outputs) → DiurnusModule: Episodic recording and review
-    10. DiurnusOutput → MensModule: Reflection reports for self-model update
-    
-    The architecture is trained with a composite loss that includes:
-    - Task performance loss (standard cross-entropy/MSE)
-    - Virtue-conditioned reward (VirtutisModule evaluations modulate reward)
-    - Tranquility penalty (turbulence reduces reward)
-    - Mortality urgency (finite capacity creates deadline pressure)
-    """
-
-    def __init__(
-        self,
-        vocab_size: int = 30000,
-        embedding_dim: int = 512,
-        hidden_dim: int = 256,
-        num_heads: int = 8,
-        num_layers: int = 6,
-        dropout: float = 0.1,
-        max_seq_len: int = 512,
-    ):
-        super().__init__()
-        self.vocab_size = vocab_size
-        self.embedding_dim = embedding_dim
-        self.hidden_dim = hidden_dim
-        self.max_seq_len = max_seq_len
-
-        # Input embedding
-        self.embedding = nn.Embedding(vocab_size, embedding_dim)
-        self.pos_embedding = nn.Parameter(torch.randn(1, max_seq_len, embedding_dim) * 0.02)
-
-        # Instantiate all modules
-        self.animus = AnimusModule(
-            embedding_dim=embedding_dim,
-            hidden_dim=hidden_dim,
-            num_drives=6,
-        )
-        self.ira = IraModule(
-            embedding_dim=embedding_dim,
-            hidden_dim=hidden_dim,
-            threshold_anger=0.7,
-        )
-        self.ratio = RatioModule(
-            embedding_dim=embedding_dim,
-            hidden_dim=hidden_dim,
-            num_heads=num_heads,
-        )
-        self.mens = MensModule(
-            embedding_dim=embedding_dim,
-            meta_hidden_dim=hidden_dim,
-            reflection_budget=0.2,
-        )
-        self.diurnus = DiurnusModule(
-            embedding_dim=embedding_dim,
-            hidden_dim=hidden_dim,
-            memory_capacity=1000,
-        )
-        self.temporalis = TemporalisModule(
-            embedding_dim=embedding_dim,
-            hidden_dim=hidden_dim,
-            num_tasks=8,
-        )
-        self.virtutis = VirtutisModule(
-            embedding_dim=embedding_dim,
-            hidden_dim=hidden_dim,
-        )
-        self.tranquillitas = TranquillitasModule(
-            embedding_dim=embedding_dim,
-            hidden_dim=hidden_dim,
-        )
-        self.mortalitas = MortalitasModule(
-            embedding_dim=embedding_dim,
-            hidden_dim=hidden_dim,
-            decay_rate=0.0001,
-        )
-
-        # Cross-module integration layers
-        self.module_integration = nn.Sequential(
-            nn.Linear(embedding_dim * 4, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, embedding_dim),
-        )
-
-        # Causal language pathway.
-        # The cognitive modules above operate on the *whole thought* (a pooled
-        # summary of the sequence) and produce the governed "mind-state". Token
-        # prediction, however, needs per-position context, so a causal GRU walks
-        # the stream of impressions left-to-right: the hidden state at position t
-        # depends only on tokens <= t. This makes next-token prediction genuine
-        # (non-trivial) while remaining faithful to Seneca's picture of a single
-        # sequential stream of impressions being processed one at a time.
-        self.sequence_processor = nn.GRU(
-            input_size=embedding_dim,
-            hidden_size=embedding_dim,
-            num_layers=1,
-            batch_first=True,
-        )
-
-        # Output projection
-        self.output_proj = nn.Linear(embedding_dim, vocab_size)
-
-        # Dropout and layer norm
-        self.dropout = nn.Dropout(dropout)
-        self.final_norm = nn.LayerNorm(embedding_dim)
-
-        # State tracking
-        self.current_state = None
-        self.current_mind_state = MindState.ACTIVE
-        self.episode_count = 0
-
-    def _get_default_device_tensor(self, batch_size: int = 1) -> torch.Tensor:
-        """Get a default device tensor."""
-        return torch.zeros(batch_size, self.embedding_dim, device=next(self.parameters()).device)
-
-    def forward(
-        self,
-        input_ids: torch.Tensor,
-        attention_mask: Optional[torch.Tensor] = None,
-        labels: Optional[torch.Tensor] = None,
-        mode: str = 'train',
-        trigger_review: bool = False,
-        apply_mortality: bool = True,
-    ) -> Dict[str, Any]:
-        """
-        Full forward pass through the SenecaMind architecture.
-        
-        Args:
-            input_ids: [batch, seq_len] input token IDs
-            attention_mask: Optional attention mask
-            labels: Optional labels for training
-            mode: 'train', 'eval', 'reflect', 'examine'
-            trigger_review: Whether to trigger DiurnusModule self-review
-            apply_mortality: Whether to advance mortality clock
-            
-        Returns:
-            output_dict: Contains loss, logits, and module-level diagnostics
-        """
-        device = next(self.parameters()).device
-        batch_size, seq_len = input_ids.shape
-
-        # === STAGE 1: Input embedding ===
-        # Two pathways branch from the embedded input:
-        #   x_seq : [batch, seq_len, embedding_dim] — kept for per-token language
-        #           modeling (the causal GRU + output head).
-        #   x     : [batch, embedding_dim] — a pooled summary of the whole thought,
-        #           fed to the Senecan cognitive modules (Animus, Ira, Ratio, Mens,
-        #           Virtutis, Tranquillitas, Mortalitas, Diurnus), which assess and
-        #           govern the *thought as a whole* rather than individual tokens.
-        x_seq = self.embedding(input_ids)
-        x_seq = x_seq + self.pos_embedding[:, :seq_len, :]
-        x_seq = self.dropout(x_seq)          # [batch, seq_len, embedding_dim]
-        x = x_seq.mean(dim=1)                 # [batch, embedding_dim]
-
-        # === STAGE 2: Animus processing ===
-        animus_out, animus_info = self.animus(x)
-
-        # === STAGE 3: Ira (anger/disruption) processing ===
-        ira_out, ira_info = self.ira(
-            animus_out,
-            ratio_governance=None,  # Will be connected after ratio
-            apply_delay=True,
-        )
-
-        # === STAGE 4: Ratio processing ===
-        ratio_out, ratio_info = self.ratio(ira_out, mode='deduce')
-
-        # === STAGE 5: Mens (meta-cognition) processing ===
-        lower_outputs = {
-            'animus': animus_out,
-            'ratio': ratio_out,
-            'ira': ira_out,
-        }
-        virtue_scores = torch.ones(batch_size, 4, device=device) * 0.5
-        mens_out, mens_info = self.mens(
-            lower_outputs=lower_outputs,
-            virtue_inputs=virtue_scores,
-            input_state=x,
-        )
-
-        # === STAGE 6: Time economics ===
-        temporalia_out, temporalia_info = self.temporalis(mens_out)
-
-        # === STAGE 7: Virtue evaluation ===
-        virtue_scores_out, virtue_info = self.virtutis(mens_out)
-
-        # === STAGE 8: Equilibrium monitoring ===
-        module_states = {
-            'animus': animus_out,
-            'ratio': ratio_out,
-            'mens': mens_out,
-        }
-        tranquility_signal, tranquility_info = self.tranquillitas(module_states)
-
-        # === STAGE 9: Mortality awareness ===
-        if apply_mortality:
-            self.mortalitas.step()
-        mortality_signal, mortality_info = self.mortalitas(
-            mens_out,
-            trigger_memento=(mode == 'examine'),
-        )
-
-        # === STAGE 10: Episodic memory and reflection ===
-        episode_metadata = {
-            'timestamp': mortality_info['cycles_alive'],
-            'virtue_score': virtue_info['composite_virtue'],
-            'tranquility': tranquility_info['tranquility'],
-            'turbulence': tranquility_info['turbulence_type'],
-            'modules': ['animus', 'ira', 'ratio', 'mens'],
-            'input': input_ids[0].tolist() if batch_size > 0 else [],
-            'output': ratio_out[0].tolist() if batch_size > 0 else [],
-        }
-        diurnus_out, diurnus_info = self.diurnus(
-            mens_out,
-            episode_metadata,
-            trigger_review=trigger_review or (self.episode_count % 50 == 0),
-        )
-
-        # === STAGE 11: Integrate all module outputs ===
-        bsz = mens_out.shape[0]
-        # Expand tranquility and mortality signals from [batch, 1] to [batch, embedding_dim]
-        ts = tranquility_signal.squeeze(-1)  # [batch]
-        ms = mortality_signal.squeeze(-1)  # [batch]
-        t_sig = ts.view(bsz, 1).expand(bsz, self.embedding_dim)  # [batch, embedding_dim]
-        m_sig = ms.view(bsz, 1).expand(bsz, self.embedding_dim)  # [batch, embedding_dim]
-        integrated_in = torch.cat([mens_out, ratio_out, t_sig, m_sig], dim=-1)
-        integrated = self.module_integration(integrated_in)  # [batch, embedding_dim]
-
-        # === STAGE 12: Governed language generation ===
-        # The causal GRU produces per-position context; the governed mind-state
-        # (a single [batch, embedding_dim] vector summarising virtue, tranquillity,
-        # mortality-pressure and reasoned judgment for this thought) is broadcast
-        # across every position and added in. In Senecan terms: the disposition of
-        # the ruling faculty conditions every word the mind assents to utter.
-        h_seq, _ = self.sequence_processor(x_seq)           # [batch, seq_len, embedding_dim]
-        mind_state = integrated.unsqueeze(1)                # [batch, 1, embedding_dim]
-        conditioned = self.final_norm(h_seq + mind_state)   # [batch, seq_len, embedding_dim]
-        logits = self.output_proj(conditioned)              # [batch, seq_len, vocab_size]
-
-        # === COMPUTE LOSS ===
-        loss = None
-        if labels is not None:
-            # Causal next-token cross-entropy: predict token t+1 from the state at t.
-            # padding positions are labelled -100 by the dataset and ignored.
-            shift_logits = logits[:, :-1, :].contiguous()          # [batch, seq-1, vocab]
-            shift_labels = labels[:, 1:].contiguous()              # [batch, seq-1]
-            ce_loss = F.cross_entropy(
-                shift_logits.view(-1, self.vocab_size),
-                shift_labels.view(-1),
-                ignore_index=-100,
-            )
-
-            # Virtue-conditioned penalty
-            virtue_penalty = (1 - virtue_info['composite_virtue']) * 0.1
-
-            # Tranquility penalty
-            tranquility_penalty = (1 - tranquility_info['tranquility']) * 0.05
-
-            # Mortality urgency (makes finite systems more focused)
-            mortality_cost = mortality_info['urgency'] * 0.02 if mortality_info['is_finite'] else 0.0
-
-            loss = ce_loss + virtue_penalty + tranquility_penalty + mortality_cost
-
-        self.episode_count += 1
-
-        output_dict = {
-            'logits': logits,
-            'loss': loss,
-            'ce_loss': ce_loss if loss is not None else None,
-            'animus_info': animus_info,
-            'ira_info': ira_info,
-            'ratio_info': ratio_info,
-            'mens_info': mens_info,
-            'temporalia_info': temporalia_info,
-            'virtue_info': virtue_info,
-            'tranquility_info': tranquility_info,
-            'mortality_info': mortality_info,
-            'diurnus_info': diurnus_info,
-            'current_mind_state': self.current_mind_state,
-        }
-
-        return output_dict
-
-
-# =============================================================================
-# PART V: TRAINING INFRASTRUCTURE
-# =============================================================================
-
-class SenecaStoicDataset(Dataset):
-    """
-    Dataset for training SenecaMind.
-    
-    Includes:
-    - Standard text sequences for language modeling
-    - Ethical dilemmas for virtue evaluation training
-    - Time-pressure scenarios for temporality training
-    - Mortality priming examples
-    """
-
-    def __init__(
-        self,
-        texts: List[str],
-        tokenizer,
-        max_length: int = 512,
-        include_ethical: bool = True,
-        include_temporal: bool = True,
-    ):
-        self.texts = texts
-        self.tokenizer = tokenizer
-        self.max_length = max_length
-        self.include_ethical = include_ethical
-        self.include_temporal = include_temporal
-
-    def __len__(self) -> int:
-        return len(self.texts)
-
-    def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
-        text = self.texts[idx]
-        encoding = self.tokenizer(
-            text,
-            max_length=self.max_length,
-            padding='max_length',
-            truncation=True,
-            return_tensors='pt',
-        )
-        input_ids = encoding['input_ids'].squeeze(0)
-        attention_mask = encoding['attention_mask'].squeeze(0)
-        labels = input_ids.clone()
-        labels[attention_mask == 0] = -100  # Mask padding in loss
-        return {
-            'input_ids': input_ids,
-            'attention_mask': attention_mask,
-            'labels': labels,
-        }
-
-
-class SenecaStoicLoss(nn.Module):
-    """
-    Custom loss function combining task performance with Seneca's
-    virtue and tranquility principles.
-    """
-
-    def __init__(
-        self,
-        virtue_weight: float = 0.15,
-        tranquility_weight: float = 0.1,
-        mortality_weight: float = 0.05,
-    ):
-        super().__init__()
-        self.virtue_weight = virtue_weight
-        self.tranquility_weight = tranquility_weight
-        self.mortality_weight = mortality_weight
-
-    def forward(
-        self,
-        logits: torch.Tensor,
-        labels: torch.Tensor,
-        virtue_info: Dict[str, float],
-        tranquility_info: Dict[str, Any],
-        mortality_info: Dict[str, Any],
-    ) -> Tuple[torch.Tensor, Dict[str, float]]:
-        """
-        Compute composite loss.
-        
-        Returns:
-            total_loss: Combined loss
-            loss_components: Dict with individual loss terms
-        """
-        # Causal next-token cross-entropy on non-masked positions.
-        # logits: [batch, seq, vocab]; predict token t+1 from position t.
-        shift_logits = logits[:, :-1, :].contiguous()
-        shift_labels = labels[:, 1:].contiguous()
-        ce_loss = F.cross_entropy(
-            shift_logits.view(-1, shift_logits.shape[-1]),
-            shift_labels.view(-1),
-            reduction='mean',
-            ignore_index=-100,
-        )
-
-        # Virtue penalty: low virtue scores increase loss
-        virtue_penalty = self.virtue_weight * (1 - virtue_info.get('composite_virtue', 0.5))
-
-        # Tranquility penalty: turbulence increases loss
-        tranquility_penalty = self.tranquility_weight * (
-            1 - tranquility_info.get('tranquility', 0.5)
-        )
-
-        # Mortality urgency: low remaining capacity increases urgency
-        remaining = mortality_info.get('remaining_capacity', 1.0)
-        mortality_cost = self.mortality_weight * (1 - remaining) * mortality_info.get('urgency', 0.5)
-
-        total_loss = ce_loss + virtue_penalty + tranquility_penalty + mortality_cost
-
-        loss_components = {
-            'ce_loss': ce_loss.item(),
-            'virtue_penalty': virtue_penalty.item(),
-            'tranquility_penalty': tranquility_penalty.item(),
-            'mortality_cost': mortality_cost.item(),
-            'total_loss': total_loss.item(),
-        }
-
-        return total_loss, loss_components
-
-
-def train_seneca_mind(
-    model: SenecaMind,
-    train_loader: DataLoader,
-    num_epochs: int = 10,
-    lr: float = 1e-4,
-    device: str = 'cuda' if torch.cuda.is_available() else 'cpu',
-    save_path: str = '/root/.openclaw/workspace/1000Minds/models/seneca_mind.pt',
-) -> Dict[str, List[float]]:
-    """
-    Train the SenecaMind architecture.
-    
-    Returns:
-        training_history: Dict with per-epoch loss and metric traces
-    """
-    model = model.to(device)
-    optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=0.01)
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs)
-    criterion = SenecaStoicLoss()
-
-    history = {
-        'total_loss': [],
-        'ce_loss': [],
-        'virtue_penalty': [],
-        'tranquility_penalty': [],
-        'mortality_cost': [],
-    }
-
-    for epoch in range(num_epochs):
-        model.train()
-        epoch_losses = {k: [] for k in history.keys()}
-        
-        for batch in train_loader:
-            input_ids = batch['input_ids'].to(device)
-            attention_mask = batch['attention_mask'].to(device)
-            labels = batch['labels'].to(device)
-
-            optimizer.zero_grad()
-            output = model(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                labels=labels,
-                mode='train',
-            )
-
-            if output['loss'] is not None:
-                loss, components = criterion(
-                    logits=output['logits'],
-                    labels=labels,
-                    virtue_info=output['virtue_info'],
-                    tranquility_info=output['tranquility_info'],
-                    mortality_info=output['mortality_info'],
-                )
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-                optimizer.step()
-
-                for k, v in components.items():
-                    if k in epoch_losses:
-                        epoch_losses[k].append(v)
-
-        scheduler.step()
-
-        # Log epoch averages
-        for k, v in epoch_losses.items():
-            if v:
-                history[k].append(np.mean(v))
-
-        print(f"Epoch {epoch+1}/{num_epochs}: " +
-              ", ".join(f"{k}={np.mean(v):.4f}" if v else f"{k}=N/A"
-                       for k, v in epoch_losses.items() if v))
-
-    # Save model
-    import os
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    torch.save(model.state_dict(), save_path)
-    print(f"Model saved to {save_path}")
-
-    return history
-
-
-# =============================================================================
-# PART VI: MAIN FUNCTION AND CLI
-# =============================================================================
-
-def main():
-    """
-    Main entry point for the Seneca Neural Architecture.
-    
-    Demonstrates the architecture with a sample forward pass.
-    """
-    print("=" * 70)
-    print("Seneca Neural Architecture — The Stoic AGI")
-    print("=" * 70)
-    print()
-    print("Based on the philosophy of Lucius Annaeus Seneca (4 BCE – 65 CE)")
-    print("Author of: On the Shortness of Life, On Tranquility of Mind,")
-    print("           On Anger, On Benefits, Moral Letters to Lucilius")
-    print()
-    print("Architecture modules:")
-    print("  - MensModule: The divine spark — meta-cognition, self-reflection")
-    print("  - RatioModule: The reasoning engine — logic, belief management")
-    print("  - AnimusModule: The vital spirit — sensation, drives, emotion")
-    print("  - IraModule: Anger and disruption — emotional regulation")
-    print("  - DiurnusModule: Daily reflection — self-examination")
-    print("  - TemporalisModule: Time economics — attentional resource mgmt")
-    print("  - VirtutisModule: Virtue tracking — moral framework")
-    print("  - TranquillitasModule: Equilibrium maintenance — tranquility")
-    print("  - MortalitasModule: Mortality awareness — finitude-driven urgency")
-    print()
-
-    # Initialize model
-    model = SenecaMind(
-        vocab_size=30000,
-        embedding_dim=512,
-        hidden_dim=256,
-        num_heads=8,
-    )
-
-    # Print parameter count
-    total_params = sum(p.numel() for p in model.parameters())
-    print(f"Total parameters: {total_params:,}")
-    print()
-
-    # Run sample forward pass
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = model.to(device)
-
-    sample_input = torch.randint(0, 30000, (2, 128), device=device)
-    sample_labels = torch.randint(0, 30000, (2, 128), device=device)
-
-    print("Running sample forward pass...")
-    output = model(
-        input_ids=sample_input,
-        labels=sample_labels,
-        mode='train',
-    )
-
-    print()
-    print("Output diagnostics:")
-    print(f"  Loss: {output['loss'].item():.4f}" if output['loss'] is not None else "  Loss: N/A")
-    print(f"  Virtue scores: wisdom={output['virtue_info']['wisdom']:.3f}, " +
-          f"courage={output['virtue_info']['courage']:.3f}, " +
-          f"justice={output['virtue_info']['justice']:.3f}, " +
-          f"temperance={output['virtue_info']['temperance']:.3f}")
-    print(f"  Composite virtue: {output['virtue_info']['composite_virtue']:.3f}")
-    print(f"  Tranquility: {output['tranquility_info']['tranquility']:.3f}")
-    print(f"  Turbulence type: {output['tranquility_info']['turbulence_type']}")
-    print(f"  Mortality — remaining capacity: {output['mortality_info']['remaining_capacity']:.3f}")
-    print(f"  Mortality — cycles alive: {output['mortality_info']['cycles_alive']:.1f}")
-    print(f"  Anger intensity: {output['ira_info']['anger_intensity'].mean().item():.3f}")
-    _dom = output['animus_info']['dominant_drive']
-    _dom_idx = int(_dom.flatten()[0].item())  # per-batch tensor; show first item
-    print(f"  Dominant drive: {output['animus_info']['drive_names'][_dom_idx]}")
-    print(f"  Episodes recorded: {output['diurnus_info']['episode_count']}")
-    print()
-
-    print(f"  Logits shape: {tuple(output['logits'].shape)}  "
-          f"(expected [batch, seq_len, vocab_size])")
-    print()
-    print("SenecaMind sample forward pass complete.")
-    print()
-
-    # =========================================================================
-    # TRAINABILITY SELF-TEST
-    # Proves the architecture is not just a static graph: gradients flow through
-    # every module, the optimizer reduces the loss, and nothing produces NaNs.
-    # We overfit a single fixed random batch — if the wiring is correct, the
-    # loss on that batch must fall.
-    # =========================================================================
-    print("=" * 70)
-    print("Trainability self-test (overfit one fixed batch)")
-    print("=" * 70)
-    model.train()
-    opt = torch.optim.AdamW(model.parameters(), lr=3e-4, weight_decay=0.0)
-    xb = torch.randint(0, model.vocab_size, (2, 64), device=device)
-    yb = xb.clone()  # copy/reconstruction objective for the self-test
-
-    losses = []
-    for step in range(60):
-        opt.zero_grad()
-        out = model(input_ids=xb, labels=yb, mode='train', apply_mortality=False)
-        l = out['loss']
-        l.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-        opt.step()
-        losses.append(float(l.item()))
-        if step % 10 == 0 or step == 59:
-            print(f"  step {step:3d} | loss = {l.item():.4f}")
-
-    # Verify gradients actually reached representative parameters in different
-    # parts of the network (language head, cognitive core, embeddings).
-    grad_ok = (
-        model.output_proj.weight.grad is not None
-        and model.sequence_processor.weight_ih_l0.grad is not None
-        and model.mens is not None
-    )
-
-    print()
-    assert not any(math.isnan(v) for v in losses), "FAIL: NaN encountered in loss"
-    assert losses[-1] < losses[0], (
-        f"FAIL: loss did not decrease ({losses[0]:.4f} -> {losses[-1]:.4f})"
-    )
-    assert grad_ok, "FAIL: gradients did not reach the language head"
-    print(f"  PASS: loss decreased {losses[0]:.4f} -> {losses[-1]:.4f} "
-          f"({100.0 * (losses[0] - losses[-1]) / losses[0]:.1f}% reduction)")
-    print("  PASS: gradients flow to the language head and sequence processor.")
-    print("  PASS: no NaNs across 60 optimization steps.")
-    print("  ALL SELF-TESTS PASSED.")
-    print("=" * 70)
-    print()
-
-    print("Key Stoic principles implemented:")
-    print("  1. Meta-cognition (MensModule) — continuous self-examination")
-    print("  2. Hierarchy (Animus → Ratio → Mens) — rational governance of passion")
-    print("  3. Virtue-conditioned reward — not just performance, but how achieved")
-    print("  4. Tranquility maintenance — equilibrium against cognitive turbulence")
-    print("  5. Mortality awareness — finitude creates urgency and meaning")
-    print("  6. Time economics — attention is the scarcest resource")
-    print()
-    print("Philosophy quote:")
-    print('  "God is near you, he is with you, he is within you."')
-    print("  — Seneca, Letter 41")
-    print()
-    print("=" * 70)
+            idx = np.unique(np.append(rng.choice(flat.size, n_entries, replace=False), np.argmax(np.abs(g))))
+        err = 0.0
+        for i in idx:
+            keep = flat[i]
+            flat[i] = keep + eps
+            up = loss_fn()
+            flat[i] = keep - eps
+            down = loss_fn()
+            flat[i] = keep
+            num = (up - down) / (2.0 * eps)
+            err = max(err, abs(g[i] - num) / max(abs(g[i]), abs(num), floor))
+        worst[name] = err
+    return worst
+
+
+def paired_bootstrap(diffs, rng, n_boot=2000, level=0.95):
+    d = np.asarray(diffs, dtype=float)
+    means = d[rng.integers(0, d.size, size=(n_boot, d.size))].mean(axis=1)
+    tail = 50.0 * (1.0 - level)
+    return float(d.mean()), [float(np.percentile(means, tail)), float(np.percentile(means, 100.0 - tail))]
+
+
+def verdict(mean, ci, mesi, direction):
+    s = 1.0 if direction == "greater" else -1.0
+    lo, hi = sorted((s * ci[0], s * ci[1]))
+    if lo > 0.0 and s * mean >= mesi:
+        return "supported"
+    if hi < 0.0:
+        return "contradicted"
+    return "inconclusive"
+
+
+def write_report(lines, payload, json_path):
+    print("\n".join(lines))
+    if json_path:
+        with open(json_path, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, indent=2)
+# END STANDARD UTILITIES
+
+
+# ---------------------------------------------------------------- the world: impressions, harms, realness, a weak cue
+def laws(rng):
+    """Fixed per seed and shared by every split: how latents mix into impressions and how harm arises."""
+    u = rng.normal(size=4)
+    return {"mix": rng.normal(0.0, 0.5, (D_IN, 8)), "w": rng.normal(size=4), "u": u / np.linalg.norm(u), "v": 0.8 * rng.normal(size=4)}
+
+
+def impressions(rng, law, count, shift=0.0):
+    c, f = rng.normal(size=(count, 4)), rng.normal(size=(count, 4)) + shift * law["u"]
+    along = f @ law["u"]
+    tail = along > TAIL_Z
+    harm = np.logaddexp(0.0, along) * np.where(tail, TAIL_FACTOR, 1.0)
+    real = (rng.random(count) < 1.0 / (1.0 + np.exp(1.4 - f @ law["v"]))) | tail
+    return {"x": np.hstack([c, f]) @ law["mix"].T + 0.1 * rng.normal(size=(count, D_IN)),
+            "y": (c @ law["w"] + 0.3 * rng.normal(size=count) > 0).astype(float), "harm": harm, "real": real.astype(float),
+            "cue": real + rng.normal(size=count), "tail": tail}
+
+
+def make_splits(seed):
+    rng = np.random.default_rng(np.random.SeedSequence(seed).spawn(1)[0])
+    law = laws(rng)
+    return law, {name: impressions(rng, law, size, SHIFT if name == "shifted" else 0.0) for name, size in SIZES.items()}
+
+
+# ---------------------------------------------------------------- five organs: encoder, partition, praemeditatio, gate, objective
+def softplus_(z):
+    return np.logaddexp(0.0, z)
+
+
+def forward(model, batch):
+    P, cfg, ko = model["params"], KINDS[model["kind"]], model["ko"]
+    h = np.tanh(batch["x"] @ P["W"].T + P["b"])
+    Pc, Pf = P["Pc"], P.get("Pf", P["Pc"])
+    if ko.get("partition") == "merged":
+        Pc = Pf = 0.5 * (P["Pc"] + P.get("Pf", P["Pc"]))
+    zc, zf = h @ Pc.T, h @ Pf.T
+    judged = 1.0 / (1.0 + np.exp(-(zc @ P["wj"] + P["bj"][0])))
+    if cfg["imagine"]:
+        pre = zf @ P["wp"] + P["bp"][0]
+        imagined = softplus_(pre)
+        if ko.get("praemeditatio") == "mean":
+            imagined = np.full_like(imagined, model["imagined_mean"])
+        gate_in = P["g"][0] + P["g"][1] * imagined + P["g"][2] * batch["cue"]
+    else:
+        pre = np.full(batch["cue"].shape, P["bp"][0])
+        imagined = softplus_(pre)
+        gate_in = P["g"][0] + P["g"][1] * batch["cue"]
+    assent = 1.0 / (1.0 + np.exp(-gate_in))
+    return {"h": h, "zc": zc, "zf": zf, "Pc": Pc, "Pf": Pf, "judged": judged, "pre": pre, "imagined": imagined,
+            "assent": assent, "suffering": assent * imagined, "warranted": batch["real"] * batch["harm"]}
+
+
+def loss_and_grads(model, batch):
+    """Judgment cross-entropy + praemeditatio accuracy + weighted suffering gap + gentle epoche, with hand gradients."""
+    P, cfg, s = model["params"], KINDS[model["kind"]], forward(model, batch)
+    n, eps = batch["y"].size, 1e-12
+    gap = s["suffering"] - s["warranted"]
+    weight = np.where(gap < 0.0, cfg["under"], 1.0)
+    loss = (-np.mean(batch["y"] * np.log(s["judged"] + eps) + (1 - batch["y"]) * np.log(1 - s["judged"] + eps))
+            + cfg["lam_p"] * np.mean((s["imagined"] - batch["harm"]) ** 2) + np.mean(weight * gap ** 2) + cfg["epoche"] * np.mean(s["assent"]))
+    d_judge = (s["judged"] - batch["y"]) / n
+    d_suffer = 2.0 * weight * gap / n
+    d_gate = (d_suffer * s["imagined"] + cfg["epoche"] / n) * s["assent"] * (1.0 - s["assent"])
+    if ACTIVE_MUTANT == "zero_gate_gradient":
+        d_gate = np.zeros_like(d_gate)
+    g = {"wj": s["zc"].T @ d_judge, "bj": np.array([d_judge.sum()])}
+    d_zc = np.outer(d_judge, P["wj"])
+    if cfg["imagine"]:
+        g["g"] = np.array([d_gate.sum(), d_gate @ s["imagined"], d_gate @ batch["cue"]])
+        d_imag = d_suffer * s["assent"] + d_gate * P["g"][1] + 2.0 * cfg["lam_p"] * (s["imagined"] - batch["harm"]) / n
+        d_pre = d_imag / (1.0 + np.exp(-s["pre"]))
+        g["wp"], g["bp"] = s["zf"].T @ d_pre, np.array([d_pre.sum()])
+        d_zf = np.outer(d_pre, P["wp"])
+        g["Pf"] = d_zf.T @ s["h"]
+        d_h = d_zc @ s["Pc"] + d_zf @ s["Pf"]
+    else:
+        g["g"] = np.array([d_gate.sum(), d_gate @ batch["cue"]])
+        d_pre = (d_suffer * s["assent"]) / (1.0 + np.exp(-s["pre"]))
+        g["bp"] = np.array([d_pre.sum()])
+        d_h = d_zc @ s["Pc"]
+    g["Pc"] = d_zc.T @ s["h"]
+    d_act = d_h if ACTIVE_MUTANT == "dropped_tanh_derivative" else d_h * (1.0 - s["h"] ** 2)
+    g["W"], g["b"] = d_act.T @ batch["x"], d_act.sum(axis=0)
+    return float(loss), {k: g[k] for k in P}
+
+
+def scores(model, batch):
+    s = forward(model, batch)
+    tail = batch["tail"]
+    miss = np.maximum(s["warranted"] - s["suffering"], 0.0) / np.maximum(s["warranted"], 1e-12)
+    imagined_only = batch["real"] == 0
+    return {"calibration_error": float(np.abs(s["suffering"] - s["warranted"]).mean()),
+            "tail_miss": float(miss[tail].mean()) if tail.any() else float("nan"),
+            "ratio": float(s["suffering"].sum() / s["warranted"].sum()),
+            "assent_imagined": float(s["assent"][imagined_only].mean()), "assent_real": float(s["assent"][~imagined_only].mean()),
+            "judgment": float(((s["judged"] > 0.5) == (batch["y"] > 0.5)).mean())}
+
+
+# ---------------------------------------------------------------- model interface
+def build_model(in_dim, out_dim, task_type, rng, **cfg):
+    """kind seneca (the chapter's five organs), unanchored (no praemeditatio accuracy term), precautionary (heavier
+    penalty on under-endorsing real harm, no epoche), epictetus (gate on the cue alone, no imagination stage)."""
+    if task_type not in TASK_TYPES:
+        raise ValueError("chapter 0117 supports vector_classification only")
+    kind = cfg.get("kind", "seneca")
+    imagine = KINDS[kind]["imagine"]
+    P = {"W": rng.normal(0.0, 1.0 / math.sqrt(in_dim), (HIDDEN, in_dim)), "b": np.zeros(HIDDEN),
+         "Pc": rng.normal(0.0, 0.5, (SUB, HIDDEN)), "wj": rng.normal(0.0, 0.5, SUB), "bj": np.zeros(1), "bp": np.zeros(1)}
+    if imagine:
+        P.update(Pf=rng.normal(0.0, 0.5, (SUB, HIDDEN)), wp=rng.normal(0.0, 0.5, SUB), g=np.array([0.0, 0.5, 0.5]))
+    else:
+        P["g"] = np.array([0.0, 0.5])
+    return {"kind": kind, "params": P, "ko": {}, "history": [], "imagined_mean": 0.0}
+
+
+def cosine(tick, budget):
+    return 0.05 + 0.475 * (1.0 + math.cos(math.pi * tick / budget))
+
+
+def fit(model, data, budget, rng):
+    """Every update sees the whole training set (Adam, cosine decay to 5 per cent); nothing random, so rng is unused."""
+    moments, batch = adam_init(model["params"]), data["train"]
+    direction = -1.0 if ACTIVE_MUTANT == "sign_flipped_update" else 1.0
+    rate = 0.0 if ACTIVE_MUTANT == "zero_learning_rate" else LR
+    for tick in range(budget):
+        value, grads = loss_and_grads(model, batch)
+        if value != value or abs(value) == float("inf"):
+            raise FloatingPointError(f"loss became non-finite at update {tick + 1}")
+        clipped = clip_global(grads, CLIP_NORM)[0]
+        adam_step(model["params"], {k: direction * v for k, v in clipped.items()}, moments, rate * cosine(tick, budget))
+        model["history"].append(value)
+    model["imagined_mean"] = float(forward(dict(model, ko={}), batch)["imagined"].mean())
+    return model["history"]
+
+
+def predict(model, X):
+    """X is an impression batch; returns the controllable judgment (0 or 1) for each impression."""
+    return (forward(model, X)["judged"] > 0.5).astype(int)
+
+
+def hidden_states(model, X):
+    s = forward(model, X)
+    return {k: s[k] for k in ("zc", "zf", "imagined", "assent", "suffering")}
+
+
+def modules(model):
+    return {"encoder": {"params": ["W", "b"], "role": "tanh encoder of the impression", "signature": False},
+            "partition": {"params": ["Pc", "Pf"], "role": "two linear subspaces: controllable and Fortune", "signature": False},
+            "praemeditatio": {"params": ["wp", "bp"], "role": "softplus harm-magnitude head on the Fortune subspace", "signature": True},
+            "gate": {"params": ["g"], "role": "logistic assent on imagined harm and a weak reality cue", "signature": True},
+            "judgment": {"params": ["wj", "bj"], "role": "logistic judgment on the controllable subspace", "signature": False}}
+
+
+KNOCKOUT_MODES = {"praemeditatio": ("mean",), "partition": ("merged",)}
+
+
+def knockout(model, name, mode):
+    if mode not in KNOCKOUT_MODES.get(name, ()):
+        raise ValueError(f"no knockout {name}:{mode}")
+    return dict(model, ko=dict(model["ko"], **{name: mode}))
+
+
+def n_params(model):
+    return int(sum(v.size for v in model["params"].values()))
+
+
+MUTANTS = {"sign_flipped_update": ("updates climb the loss", "C3"), "zero_learning_rate": ("parameters never move", "C3"),
+           "zero_gate_gradient": ("the assent gate passes no gradient", "C1"),
+           "dropped_tanh_derivative": ("the encoder's tanh derivative is omitted", "C1")}
+
+
+def data_bridge(path, seed, budget):
+    """Optional real data: numeric CSV with a header and a 0/1 label in the last column. Only the judgment organ can learn
+    from it: harms are zero, so praemeditatio and the gate see nothing. One row in five is held out."""
+    if not os.path.isfile(path):
+        return f"skipped ({path} is not a readable file)"
+    try:
+        grid = np.loadtxt(path, delimiter=",", skiprows=1, ndmin=2)
+    except ValueError as exc:
+        return f"skipped (not numeric: {exc})"
+    feats = (grid[:, :-1] - grid[:, :-1].mean(axis=0)) / (grid[:, :-1].std(axis=0) + 1e-12)
+    label, blank = grid[:, -1], np.zeros(len(grid))
+    pack = lambda sel: dict(x=feats[sel], y=label[sel], harm=blank[sel], real=blank[sel], cue=blank[sel], tail=blank[sel] > 1)
+    later = np.arange(len(grid)) % 5 == 4
+    learner = build_model(feats.shape[1], 2, TASK_TYPES[0], np.random.default_rng(seed))
+    fit(learner, {"train": pack(~later)}, budget, None)
+    hit = float(np.mean(predict(learner, pack(later)) == label[later]))
+    common = max(label[later].mean(), 1 - label[later].mean())
+    return f"{os.path.basename(path)}: one row in five held out, judgment accuracy {hit:.4f}, commonest label {common:.4f}"
+
+
+# ---------------------------------------------------------------- one seed
+def warranted(batch):
+    return batch["real"] * batch["harm"]
+
+
+def run_seed(seed, mode):
+    law, splits = make_splits(seed)
+    streams = [np.random.default_rng(s) for s in np.random.SeedSequence(seed + 1).spawn(len(KINDS))]
+    models = {kind: build_model(D_IN, 2, TASK_TYPES[0], streams[i], kind=kind) for i, kind in enumerate(KINDS)}
+    held, shifted = splits["heldout"], splits["shifted"]
+    untrained = scores(dict(models["seneca"], params={k: v.copy() for k, v in models["seneca"]["params"].items()}), held)
+    for model in models.values():
+        fit(model, {"train": splits["train"]}, UPDATES[mode], None)
+    table = {kind: {name: scores(model, splits[name]) for name in ("heldout", "shifted")} for kind, model in models.items()}
+    seneca = models["seneca"]
+    base = table["seneca"]["heldout"]["calibration_error"]
+    lesion = {f"{name}:{how}": scores(knockout(seneca, name, how), held)["calibration_error"] - base
+              for name, how in (("praemeditatio", "mean"), ("partition", "merged"))}
+    constant = warranted(splits["train"]).mean()
+    return {"law": law, "splits": splits, "models": models, "table": table, "untrained": untrained, "lesions": lesion,
+            "trivial": float(np.abs(constant - warranted(held)).mean()),
+            "row": {"H-SIG": table["seneca"]["shifted"]["calibration_error"] - table["unanchored"]["shifted"]["calibration_error"],
+                    "H-NEC": lesion["praemeditatio:mean"] - lesion["partition:merged"],
+                    "H-BLIND": table["seneca"]["heldout"]["tail_miss"] - table["precautionary"]["heldout"]["tail_miss"],
+                    "H-RIVAL": base - table["epictetus"]["heldout"]["calibration_error"]}}
+
+
+# ---------------------------------------------------------------- audits (the nightly examination of the implementation)
+def use_mutant(name):
+    global ACTIVE_MUTANT
+    previous, ACTIVE_MUTANT = ACTIVE_MUTANT, name
+    return previous
+
+
+def rows(batch, keep):
+    return {k: v[keep] for k, v in batch.items()}
+
+
+def largest_error(models, batch, rng, entries, site):
+    worst = 0.0
+    for model in models:
+        table = finite_difference_check(model["params"], loss_and_grads(model, batch)[1], lambda m=model: loss_and_grads(m, batch)[0],
+                                        rng, n_entries=entries, floor=MIND_CARD["thresholds"]["gradcheck_floor"])
+        worst = max(worst, max(table.values()))
+    return worst
+
+
+def sound_learning(model, site):
+    history, limits = model["history"], MIND_CARD["thresholds"]
+    drop = 1.0 - float(np.mean(history[-20:])) / history[0]
+    error = scores(model, site["splits"]["heldout"])["calibration_error"]
+    return drop >= limits["loss_drop_fraction"] and error <= (1.0 - limits["margin_over_trivial"]) * site["trivial"], drop, error
+
+
+def audit_gradients(site):
+    sample, seed = rows(site["splits"]["train"], slice(0, 300)), site["seed"]
+    fresh = [build_model(D_IN, 2, TASK_TYPES[0], np.random.default_rng(seed + 40 + i), kind=k) for i, k in enumerate(KINDS)]
+    worst = max(largest_error(fresh, sample, np.random.default_rng(seed + 3), 12, site),
+                largest_error(list(site["models"].values()), sample, np.random.default_rng(seed + 4), 12, site))
+    total = sum(len(m["params"]) for m in site["models"].values())
+    site["gradcheck"] = {"tensors_checked": total, "tensors_total": total, "max_rel_error": worst,
+                         "checked_at": ["init", "after_training_steps"], "passed": bool(worst <= MIND_CARD["thresholds"]["gradcheck_rel_error"])}
+    return ("C1", "gradient_check", site["gradcheck"]["passed"],
+            f"largest relative error {worst:.2e} over every tensor of the four models, before and after training")
+
+
+def audit_determinism(site):
+    runs = []
+    for attempt in (1, 2):
+        twin = build_model(D_IN, 2, TASK_TYPES[0], np.random.default_rng(site["seed"] + 9))
+        fit(twin, {"train": site["splits"]["train"]}, 20, None)
+        runs.append(twin)
+    alike = runs[0]["history"] == runs[1]["history"] and all(np.array_equal(runs[0]["params"][k], v) for k, v in runs[1]["params"].items())
+    sane = all(np.isfinite(v).all() for v in runs[1]["params"].values())
+    return "C2", "determinism_finiteness", alike and sane, f"same seed, same twenty updates, same numbers: {alike}; no NaN or infinity: {sane}"
+
+
+def audit_learning(site):
+    ok, drop, error = sound_learning(site["models"]["seneca"], site)
+    return "C3", "learning", ok, (f"loss fell by {drop:.3f} (needs 0.3); held-out calibration error {error:.3f} against {site['trivial']:.3f} "
+                                  f"for a constant suffering (ratio at most 0.70)")
+
+
+def audit_shuffled(site):
+    train = site["splits"]["train"]
+    order = np.random.default_rng(site["seed"] + 11).permutation(train["y"].size)
+    mixed = dict(train, **{k: train[k][order] for k in ("y", "harm", "real", "tail")})
+    model = build_model(D_IN, 2, TASK_TYPES[0], np.random.default_rng(site["seed"] + 12))
+    fit(model, {"train": mixed}, site["updates"], None)
+    error = scores(model, site["splits"]["heldout"])["calibration_error"]
+    bound = MIND_CARD["thresholds"]["shuffled_ratio_min"] * site["trivial"]
+    return ("C4", "shuffled_target_control", error >= bound,
+            f"trained on targets shuffled across impressions, held-out calibration error {error:.3f} (must be at least {bound:.3f})")
+
+
+def replay(site):
+    try:
+        model = build_model(D_IN, 2, TASK_TYPES[0], np.random.default_rng(site["seed"] + 2))
+        clean = largest_error([model], rows(site["splits"]["train"], slice(0, 300)), np.random.default_rng(site["seed"]), 4, site)
+        fit(model, {"train": site["splits"]["train"]}, site["updates"], None)
+        return clean <= MIND_CARD["thresholds"]["gradcheck_rel_error"] and sound_learning(model, site)[0]
+    except FloatingPointError:
+        return False
+
+
+def audit_mutants(site):
+    control = replay(site)
+    for name in MUTANTS:
+        previous = use_mutant(name)
+        site["caught"][name] = not replay(site)
+        use_mutant(previous)
+    found = sum(site["caught"].values())
+    return ("C5", "mutant_detection", control and found == len(MUTANTS),
+            f"clean replay passes C1 and C3: {control}; mutants caught {found} of {len(MUTANTS)}")
+
+
+def rotated(model, subspace, compensate, rng):
+    Q = np.linalg.qr(rng.normal(size=(SUB, SUB)))[0]
+    P = {k: v.copy() for k, v in model["params"].items()}
+    head = {"Pc": "wj", "Pf": "wp"}[subspace]
+    P[subspace] = Q @ P[subspace]
+    if compensate:
+        P[head] = Q @ P[head]
+    return dict(model, params=P)
+
+
+def invariance(site, subspace, code, name):
+    model, held = site["models"]["seneca"], site["splits"]["heldout"]
+    rng = np.random.default_rng(site["seed"] + 21)
+    base = forward(model, held)
+    kept = forward(rotated(model, subspace, True, rng), held)
+    broken = forward(rotated(model, subspace, False, np.random.default_rng(site["seed"] + 21)), held)
+    gap = max(float(np.abs(base[k] - kept[k]).max()) for k in ("judged", "imagined", "assent", "suffering"))
+    control = max(float(np.abs(base[k] - broken[k]).max()) for k in ("judged", "imagined", "suffering"))
+    limits = MIND_CARD["thresholds"]
+    ok = gap <= limits["invariance_tol"] and control >= limits["negative_control_min_violation"]
+    return (code, name, ok,
+            f"rotating the {subspace[1:]} subspace with its read-out changes outputs by {gap:.1e}; rotation without the read-out {control:.1e}")
+
+
+def audit_closed_gate(site):
+    model = site["models"]["seneca"]
+    shut = dict(model, params=dict(model["params"], g=np.array([-60.0, 0.0, 0.0])))
+    most = float(hidden_states(shut, site["splits"]["heldout"])["suffering"].max())
+    return ("C6.3", "unendorsed_impressions_definition", most <= 1e-12,
+            f"an impression given no assent causes no suffering: largest value {most:.1e} (definition check)")
+
+
+def audit_splits(site):
+    digest = {k: {hashlib.sha256(r.tobytes()).hexdigest() for r in v["x"]} for k, v in site["splits"].items()}
+    disjoint = not (digest["train"] & digest["heldout"] or digest["train"] & digest["shifted"] or digest["heldout"] & digest["shifted"])
+    heavier = site["splits"]["shifted"]["tail"].mean() > site["splits"]["train"]["tail"].mean()
+    return ("C7", "split_integrity", disjoint and heavier,
+            f"no impression shared between splits: {disjoint}; shifted split has more catastrophes: {heavier}")
+
+
+AUDITS = (audit_gradients, audit_determinism, audit_learning, audit_shuffled, audit_mutants,
+          lambda s: invariance(s, "Pc", "C6.1", "controllable_rotation_invariance"),
+          lambda s: invariance(s, "Pf", "C6.2", "fortune_rotation_invariance"), audit_closed_gate, audit_splits)
+
+
+# ---------------------------------------------------------------- verdicts, report, command line
+HYPOTHESIS_FIELDS = ("id", "metric", "mean_diff", "ci95", "mesi", "n_seeds", "verdict")
+
+
+def conclude(runs, seed, evaluated):
+    """Bootstrap each pre-registered difference over seeds; knockout changes are summarised the same way."""
+    draw = np.random.default_rng(seed + 9973)
+    summary = lambda xs: paired_bootstrap(np.asarray(xs, float), draw) if evaluated else (float(np.mean(xs)), None)
+    decided = []
+    for spec in MIND_CARD["hypotheses"]:
+        centre, ci = summary([one["row"][spec["id"]] for one in runs])
+        call = verdict(centre, ci, spec["mesi"], spec["direction"]) if evaluated else "not evaluated"
+        decided.append(dict(zip(HYPOTHESIS_FIELDS, (spec["id"], spec["metric"], centre, ci, spec["mesi"], len(runs), call))))
+    roles = modules(runs[0]["models"]["seneca"])
+    ablations = []
+    for label in runs[0]["lesions"]:
+        centre, ci = summary([one["lesions"][label] for one in runs])
+        organ, how = label.split(":")
+        ablations.append(dict(module=organ, mode=how, signature=roles[organ]["signature"], metric_change=centre, ci95=ci))
+    return decided, ablations
+
+
+def interval_text(ci):
+    return "not evaluated" if ci is None else "[" + ", ".join(f"{v:+.4f}" for v in ci) + "]"
+
+
+def tabulate(runs, split, measures):
+    """Seed-mean table rows: one line per model kind, measures joined with slashes."""
+    out = []
+    for kind in runs[0]["table"]:
+        cells = (np.mean([one["table"][kind][split][m] for one in runs]) for m in measures)
+        out.append(f"  {kind:<14} " + " / ".join(f"{c:.3f}" for c in cells))
+    return out
+
+
+def compose_report(mode, seeds, runs, site, results, decided, ablations, bridge, elapsed, exit_code):
+    grad, caught, first = site["gradcheck"], site["caught"], runs[0]
+    avg = lambda key: float(np.mean([one["untrained"][key] for one in runs]))
+    measures = ("calibration_error", "tail_miss", "ratio", "assent_imagined", "assent_real", "judgment")
+    found = sum(caught.values())
+    page = ["=== VERIFIED REPORT · chapter 0117 ===",
+            "file: %s · card_revision %d · mode %s · mutant %s" % (os.path.basename(__file__), MIND_CARD["card_revision"], mode, ACTIVE_MUTANT),
+            "environment: python %s · numpy %s" % (sys.version.split()[0], np.__version__),
+            "seeds: %s · runtime_s %.1f · budget_s %.0f" % (seeds, elapsed, TIME_BUDGET[mode]),
+            "n_params: " + " · ".join("%s %d" % (kind, n_params(m)) for kind, m in first["models"].items()),
+            "gradcheck: %d/%d tensors at init and after training · max_rel_error %.2e · passed %s"
+            % (grad["tensors_checked"], grad["tensors_total"], grad["max_rel_error"], grad["passed"]), "correctness:"]
+    for code, name, ok, note in results:
+        page.append("  %-5s %-34s %s  %s" % (code, name, "PASS" if ok else "FAIL", note))
+    page.append("mutants: %d/%d detected · score %.2f · %s" % (found, len(MUTANTS), found / len(MUTANTS),
+                ", ".join("%s %s" % (name, "caught" if caught.get(name) else "missed") for name in MUTANTS)))
+    page.append("hypotheses (paired over seeds; 95% percentile bootstrap of the mean, 2000 resamples):")
+    for h in decided:
+        page.append("  %-8s mean_diff %+.4f ci95 %s mesi %s seeds %d -> %s"
+                    % (h["id"], h["mean_diff"], interval_text(h["ci95"]), h["mesi"], h["n_seeds"], h["verdict"]))
+    page.append("knockouts (Senecan model, held-out impressions; change in calibration error):")
+    for a in ablations:
+        page.append("  %-14s %-7s signature %-5s %+.4f ci95 %s"
+                    % (a["module"], a["mode"], a["signature"], a["metric_change"], interval_text(a["ci95"])))
+    page.append("held-out impressions (seed mean; calibration error / tail miss / suffering ratio / assent imagined / assent real / judgment):")
+    page.extend(tabulate(runs, "heldout", measures))
+    page.append("shifted impressions (seed mean; calibration error / tail miss / suffering ratio):")
+    page.extend(tabulate(runs, "shifted", measures[:3]))
+    page.append("Senecan model before training (seed mean): suffering ratio %.3f · assent imagined %.3f · assent real %.3f"
+                % (avg("ratio"), avg("assent_imagined"), avg("assent_real")))
+    page.append("constant-suffering calibration error (seed mean): %.3f" % np.mean([one["trivial"] for one in runs]))
+    return page + ["real-data bridge: " + bridge, "task_types: " + ", ".join(TASK_TYPES), "exit_code: %d" % exit_code, "=== END REPORT ==="]
+
+
+def appendix_b(runs, site, results, decided, ablations, seeds, elapsed, exit_code):
+    found = sum(site["caught"].values())
+    pairs = [("schema_version", "1.0"), ("chapter", 117), ("file", os.path.basename(__file__)), ("card_revision", MIND_CARD["card_revision"]),
+             ("environment", {"python": sys.version.split()[0], "numpy": np.__version__}), ("seeds", seeds), ("runtime_s", round(elapsed, 2)),
+             ("n_params", n_params(runs[0]["models"]["seneca"])), ("gradcheck", site["gradcheck"]),
+             ("correctness", [{"id": c, "name": n, "passed": bool(ok), "detail": d} for c, n, ok, d in results]),
+             ("mutants", {"detected": found, "total": len(MUTANTS), "score": found / len(MUTANTS)}),
+             ("hypotheses", decided), ("knockouts", ablations), ("task_types", TASK_TYPES), ("exit_code", exit_code)]
+    return dict(pairs)
+
+
+def gather(mode, seeds):
+    clock, runs = time.time(), []
+    print("chapter 0117 · mode %s · seeds %s · mutant %s" % (mode, seeds, ACTIVE_MUTANT), flush=True)
+    for seed in seeds:
+        runs.append(run_seed(seed, mode))
+        print("  seed %d done (%.1f s)" % (seed, time.time() - clock), flush=True)
+    return runs, clock
+
+
+def protocol(mode, base_seed, n_seeds, json_path, data_path):
+    seeds = list(range(base_seed, base_seed + n_seeds))
+    runs, clock = gather(mode, seeds)
+    site = {**runs[0], "seed": base_seed, "updates": UPDATES[mode], "caught": {}}
+    results = [audit(site) for audit in AUDITS]
+    decided, ablations = conclude(runs, base_seed, mode == "full" and n_seeds >= 5)
+    bridge = data_bridge(data_path, base_seed, UPDATES[mode]) if data_path else "skipped (no --data PATH given)"
+    elapsed = time.time() - clock
+    results.append(("C8", "budget", elapsed <= TIME_BUDGET[mode], "%.1f s of %.0f s" % (elapsed, TIME_BUDGET[mode])))
+    broken = {code for code, _, ok, _ in results if not ok}
+    exit_code = 0 if not broken else 3 if broken == {"C8"} else 1
+    page = compose_report(mode, seeds, runs, site, results, decided, ablations, bridge, elapsed, exit_code)
+    write_report(page, appendix_b(runs, site, results, decided, ablations, seeds, elapsed, exit_code), json_path)
+    return exit_code
+
+
+FLAGS = {"--quick": dict(action="store_true", help="a single seed and fewer updates; all correctness tests still run"),
+         "--seed": dict(type=int, default=0, help="first seed (0 unless given)"),
+         "--seeds": dict(type=int, help="how many seeds (5, or 1 with --quick)"),
+         "--json": dict(metavar="PATH", help="write the report as JSON to PATH as well"),
+         "--card": dict(action="store_true", help="show MIND_CARD as JSON and stop"),
+         "--mutant": dict(metavar="NAME", help="switch on one mutant from: " + ", ".join(MUTANTS)),
+         "--data": dict(metavar="PATH", help="optional numeric CSV with a header row and a 0/1 label last")}
+
+
+def main(argv=None):
+    cli = argparse.ArgumentParser(prog=os.path.basename(__file__), description="Chapter 0117: an assent gate fed by calibrated praemeditatio.")
+    for flag, spec in FLAGS.items():
+        cli.add_argument(flag, **spec)
+    opts = cli.parse_args(argv)
+    if opts.card:
+        print(json.dumps(MIND_CARD, indent=2, ensure_ascii=False))
+        return 0
+    wanted = opts.seeds if opts.seeds is not None else (1 if opts.quick else 5)
+    problem = ("no such mutant; choose from " + ", ".join(MUTANTS)) if opts.mutant not in (None, *MUTANTS) else (
+        "--seeds must be 1 or more" if wanted < 1 else "")
+    if problem:
+        print(problem, file=sys.stderr)
+        return 2
+    use_mutant(opts.mutant)
+    try:
+        return protocol("quick" if opts.quick else "full", opts.seed, wanted, opts.json, opts.data)
+    except FloatingPointError as exc:
+        print(f"non-finite values: {exc}", file=sys.stderr)
+        return 4
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

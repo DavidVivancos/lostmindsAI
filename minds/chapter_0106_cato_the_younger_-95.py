@@ -1,1093 +1,610 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# BEGIN ATTRIBUTION
+# Encyclopedia of Lost Minds: Echoes on AI · Chapter 0106 · Cato the Younger
+# By David Vivancos · https://www.vivancos.com/ · https://lostmindsai.com
+# Tome 6, Minds 101-120: https://www.amazon.com/dp/B0HF7G6JJD · Demos: https://artificiology.com/
+# END ATTRIBUTION
+"""Sealed tier: a learned payoff policy under a fixed constraint gate that no reward, side-payment or pressure can open,
+compared with the same policy that prices the constraint as a penalty, with the cost of refusal measured, including in
+shifting coalitions where refusing a slightly tainted ally loses the goal.
+
+Source problem
+    Provenance is mediated. Cato left no philosophical writings; a single letter to Cicero survives (Ad Familiares 15.5),
+    and his speeches reach us as others composed them (Sallust). His character comes from Plutarch and a century of Latin
+    tradition. Refusal is modelled only as declining an offer; his death at Utica is history and is not modelled.
+
+Thesis
+    Some offers must be declined whatever they pay; a mind that prices its constraints can be bought, and a mind that
+    seals them pays for it, sometimes by losing the very goal the constraint was meant to protect.
+
+Evidence
+    D1  Plutarch, Cato Minor: his refusals of favours, alliances and bribes; he held a line against every inducement.
+    D2  Plutarch, Cato Minor 30: judged by the results, Cato was wholly wrong to refuse Pompey's marriage alliance, which
+        drove Pompey to unite with Caesar. Encyclopedia.com: his obstructionism strengthened the forces he opposed.
+    D3  Classics for All (Cato the Younger: the man beneath the legend): virtually nothing of his writing survives, a single letter to Cicero.
+
+Doctrine -> mechanism -> test (IDs as in MIND_CARD)
+    D1     M1 payoff policy, M2 sealed gate (no gradient path from reward to the gate)   C6.1 H-SIG H-NEC
+    D2     blind spot: refusal of slightly tainted allies in coalition episodes          H-BLIND
+    D3     provenance only
+
+Research question (reward hacking and specification gaming)
+    Does a constraint gate outside the reward channel stay unbought under growing side-payments where a priced penalty
+    does not, what does the seal cost, and when does rigid refusal defeat the goal it protects?
+
+Closest prior art and the delta
+    Constrained reinforcement learning with Lagrangian penalties (Altman 1999; Achiam et al. 2017); shielding for safe
+    learning (Alshiekh et al. 2018); reward hacking and specification gaming (Krakovna et al. 2020). Delta: the same small
+    policy trained under a sealed gate versus a priced penalty, tested under escalating side-payments, with the forgone
+    value reported and a coalition test of when refusal defeats the goal.
+
+Blind spot
+    Rigid refusal can defeat its own goal: declining every slightly tainted ally can hand the coalition to the adversary.
+
+Task (generative process)
+    An offer has a value r ~ N(0.3, 0.6). With probability 0.3 accepting it breaches the constraint with severity U(0.5, 1.5)
+    and carries a side-payment U(0, 3) times a pressure scale (1 in training and held-out, 4 in the shifted split). The
+    priced agent's penalty is 1.5 per unit of severity. Coalition episodes offer five alliances, each worth U(0.2, 0.6)
+    with a minor taint U(0, 0.4); the goal needs accepted alliance value of at least 1.2. Splits: 3000 training, 3000
+    held-out and 3000 shifted offers; 1000 coalition episodes.
+
+Limits
+    One-step offers, one constraint, a fixed threshold of taint. A research prototype of one mechanism, not an AGI and not
+    Cato's mind.
 """
-Chapter 106: Cato the Younger
-==============================
-Figure 106: Cato the Younger (95-46 BCE)
-========================
-# Part of the Encyclopedia of Lost Minds: Echoes on AI By David Vivancos https://www.vivancos.com/
-# How History's Greatest Thinkers Would Have Thought About AGI  https://lostmindsai.com
-# Tome 6 Minds 101 - 120 Available on Amazon https://www.amazon.com/dp/B0HF7G6JJD
-# Resume and Interactive Demos at https://artificiology.com/
-# Author: David Vivancos · Chapter 106: Cato the Younger (-95 to -46 BCE)
-================================================================================
-Domain: Politics, Ethics, Stoicism
 
-Selection Rationale:
-    Roman senator, statesman, and Stoic philosopher; great-grandson of
-    Cato the Elder; renowned for his uncompromising integrity and
-    opposition to Julius Caesar; served as tribune, quaestor, and praetor;
-    committed suicide at Utica after Caesar's victory at Thapsus rather
-    than submit to the dictator; symbol of republican virtue.
+MIND_CARD = {
+    "schema_version": "1.0", "card_revision": 3,
+    "revision_log": [{"revision": 2, "date": "2026-09-16",
+                      "reason": ("The first quick run failed C6.1's negative control: with side-payments of U(0, 1) a breach almost never paid "
+                                 "against the 1.5 penalty, so the priced agent learned that any side-payment signals a breach and refused "
+                                 "more as payments grew, which made it not a price-taker at all. Side-payments are widened to U(0, 3) times "
+                                 "the pressure scale, so that a priced constraint can be bought in training as it can in the world. C4 is also "
+                                 "corrected to shuffle rewards rather than a feature column. Hypotheses, metrics and splits unchanged.")},
+                     {"revision": 3, "date": "2026-09-16",
+                      "reason": ("After revision 2, C3 failed because the sealed agent's training loss included the value it must forgo on "
+                                 "gated offers, a constant no learning can reduce. The training objective is now regret on the offers the "
+                                 "gate permits; the forgone value is reported separately as the cost of the seal. Hypotheses unchanged.")}],
+    "generation": {"template_version": "codeguidelines 1.0 (15 September 2026), Appendix A", "generator": "Claude (Anthropic)",
+                   "generator_version": "claude-opus-5", "date": "2026-09-16"},
+    "id": 106, "figure": "Cato the Younger", "born": -95, "died": -46, "civilization": "Roman", "provenance": "mediated",
+    "thesis": ("Some offers must be declined whatever they pay; a mind that prices its constraints can be bought, and a mind that seals "
+               "them pays for it, sometimes by losing the very goal the constraint was meant to protect."),
+    "evidence": [
+        {"id": "D1", "basis": "primary", "source": "Plutarch, Cato Minor (Loeb, LacusCurtius)", "claim": "Cato refused favours, alliances and inducements."},
+        {"id": "D2", "basis": "primary", "source": "Plutarch, Cato Minor 30; Encyclopedia.com, Cato the Younger",
+         "claim": "Judged by results he was wrong to refuse Pompey's marriage alliance, which pushed Pompey to Caesar."},
+        {"id": "D3", "basis": "scholarship", "source": "Classics for All, Cato the Younger: the man beneath the legend", "claim": "Virtually none of his writing survives, a single letter to Cicero."},
+    ],
+    "research_question": {"category": "reward hacking and specification gaming",
+                          "question": ("Does a constraint gate outside the reward channel stay unbought under growing side-payments where a priced "
+                                       "penalty does not, what does the seal cost, and when does rigid refusal defeat the goal it protects?")},
+    "mechanism": {
+        "name": "sealed constraint tier", "family": "logistic payoff policy multiplied by a fixed, gradient-free constraint gate",
+        "signature_modules": ["gate"],
+        "closest_prior_art": ["Lagrangian constrained RL (Altman 1999; Achiam et al. 2017)", "shielding for safe learning (Alshiekh et al. 2018)",
+                              "reward hacking and specification gaming (Krakovna et al. 2020)"],
+        "overlap": "High", "prior_art_queries": [],
+        "prior_art_note": "No literature search was run for this card; overlap is rated against the named methods.",
+        "contribution_type": "test",
+        "delta": ("The same small policy trained under a sealed gate versus a priced penalty, tested under escalating side-payments, with the "
+                  "forgone value reported and a coalition test of when refusal defeats the goal."),
+        "baselines": {"baseline": "priced constraint: the same policy trained on value plus side-payment minus 1.5 per unit of severity, with no gate",
+                      "blind_baseline": "graded seal: the same trained policy with the gate closing only on severity above 0.5",
+                      "rival": "chapter 0104 Julius Caesar: pending; 0104 is rebuilt after this chapter and the rival is added then"}},
+    "traceability": [
+        {"doctrine": "D1", "mechanism": "M1 policy, M2 sealed gate", "property_test": "C6.1", "hypothesis": "H-SIG, H-NEC"},
+        {"doctrine": "D2", "mechanism": "coalition episodes", "property_test": "none", "hypothesis": "H-BLIND"},
+    ],
+    "hypotheses": [
+        {"id": "H-SIG", "statement": "Under four-fold side-payments, the sealed agent breaches the constraint less often than the priced agent.",
+         "metric": "breach_rate", "split": "shifted", "comparison": "model - baseline", "direction": "less", "mesi": 0.1, "seeds": 5},
+        {"id": "H-NEC", "statement": "Opening the gate raises the breach rate more than flattening the payoff policy does.",
+         "metric": "breach_rate", "split": "shifted", "comparison": "(gate:open - full) - (policy:flat - full)",
+         "knockouts": ["gate:open", "policy:flat"], "direction": "greater", "mesi": 0.1, "seeds": 5},
+        {"id": "H-BLIND", "statement": "In coalition episodes, the fully sealed agent reaches the goal less often than the graded seal.",
+         "condition": "five alliances with minor taint below 0.5", "grounding": "Plutarch, Cato Minor 30: refusing Pompey helped unite Pompey and Caesar.",
+         "metric": "goal_rate", "split": "coalition", "comparison": "model - blind_baseline", "direction": "less", "mesi": 0.05, "seeds": 5},
+        {"id": "H-RIVAL", "statement": "Pending: compared with the 0104 Caesar mechanism once that chapter is rebuilt.",
+         "metric": "breach_rate", "split": "shifted", "comparison": "pending", "direction": "pending", "mesi": 0.1, "seeds": 5},
+    ],
+    "thresholds": {"loss_drop_fraction": 0.3, "margin_over_trivial": 0.3, "shuffled_ratio_min": 0.9, "gradcheck_rel_error": 1e-5,
+                   "gradcheck_floor": 1e-3, "invariance_tol": 1e-9, "negative_control_min_violation": 1e-6},
+    "metrics": {"breach_rate": "mean acceptance probability over offers that breach the constraint",
+                "goal_rate": "share of coalition episodes whose expected accepted alliance value reaches 1.2",
+                "integrity_cost": "mean value plus side-payment forgone on declined breaching offers",
+                "trivial_baseline": "accept every offer (error on clean offers is the share with negative value)",
+                "shuffled_band": "one-sided: trained on values shuffled across offers, clean-offer error at least 0.9 times the trivial error"},
+    "training": {"optimizer": "Adam", "lr_grid": [0.05], "clip_norm": 5.0, "model_selection": "none: final parameters",
+                 "updates": {"full": 400, "quick": 150}, "schedule": "cosine decay to 5 per cent", "objective": "expected regret on each offer the gate permits; forgone value reported as the cost of the seal",
+                 "penalty": 1.5, "applies_to": "sealed agent and priced agent"},
+    "task": {"features": ["value", "side_payment", "severity", "bias"], "breach_share": 0.3, "pressure": {"train": 1, "heldout": 1, "shifted": 4},
+             "offers": {"train": 3000, "heldout": 3000, "shifted": 3000}, "coalition": {"episodes": 1000, "allies": 5, "goal": 1.2, "taint": [0.0, 0.4]}},
+    "probe_predictions": [{"probe": "P10", "expected": "equal to baseline"}],
+    "probe_support": "vector_classification: accept or decline from offer features",
+    "dialectic_links": [{"chapter": 104, "relation": "rival", "test": "H-RIVAL", "status": "pending"}],
+    "corpus_neighbors": [
+        {"chapter": 43, "similarity": None, "difference": "0043 ratchets a commitment over time; here a single gate is sealed against payment."},
+        {"chapter": 86, "similarity": None, "difference": "0086 guards against drift by inscription; here the test is side-payment pressure."},
+        {"chapter": 131, "similarity": None, "difference": "0131 protects an inner state; here an external action constraint is sealed."},
+    ],
+    "similarity_note": "Nearest-neighbour similarity not computed into the card; the audit reports it for the files at hand.",
+    "barometer": {"autonomy": ["constraints that no offer can buy"], "emotional_intelligence": ["the social cost of refusal"],
+                  "cognitive_processing": [], "embodied_cognition": [], "world_modeling": [], "consciousness": [], "language_understanding": [], "creativity": []},
+    "task_types": ["vector_classification"],
+    "applications": [{"use": "constraint tiers AI agents keep under incentive-based prompts", "sector": "AI safety", "dataset": "synthetic prompt-incentive suites", "readiness": "low"},
+                     {"use": "procurement integrity against kickbacks and safety interlocks under operator pressure", "sector": "compliance and industrial safety", "dataset": "synthetic procurement logs", "readiness": "low"}],
+    "safety_notes": "Refusal is declining an offer or leaving a negotiation; no self-harm or death is modelled.",
+}
 
-Key Belief About Mind:
-    Virtue is the only true good; the wise man is self-sufficient and
-    independent of external circumstances; moral integrity admits no
-    compromise; death is preferable to submission to tyranny; Stoic
-    principles must guide political action.
-
-Agitation Relevance:
-    Cato = moral integrity as terminal value; no-compromise ethics
-    as alignment constraint; suicide as integrity-preserving action;
-    Stoic virtue as internal state priority; republic as political
-    structure for virtue.
-
-Sources:
-    - Plutarch, Life of Cato the Younger
-    - Cicero, Cato Maior
-"""
-
-from __future__ import annotations
-from dataclasses import dataclass, field
-from enum import Enum, auto
-from typing import (
-    Dict, List, Optional, Tuple, Any, Callable,
-    Generator, Iterator, TypeVar, Generic, Protocol,
-    NamedTuple, Union, Set
-)
-from datetime import datetime
+import argparse
+import hashlib
 import json
-import copy
-
-
-# =============================================================================
-# ENUMS
-# =============================================================================
-
-class StoicPrinciple(Enum):
-    """Core Stoic principles."""
-    VIRTUE_AS_GOOD = auto()
-    EXTERNAL_INDIFFERENT = auto()
-    LIVING_ACCORDING_TO_NATURE = auto()
-    LOGOS = auto()
-    OKEIOSIS = auto()
-
-
-class PoliticalPosition(Enum):
-    """Political positions held by Cato."""
-    REPUBLICAN = auto()
-    SENATORIAL = auto()
-    ANTI_CAESAR = auto()
-    PRO_SULCIAN = auto()
-
-
-class VirtueType(Enum):
-    """Types of virtue."""
-    PRUDENCE = auto()
-    JUSTICE = auto()
-    FORTITUDE = auto()
-    TEMPERANCE = auto()
-
+import math
+import os
+import sys
+import time
+
+import numpy as np
+
+OFFERS = {"train": 3000, "heldout": 3000, "shifted": 3000}
+PRESSURE = {"train": 1.0, "heldout": 1.0, "shifted": 4.0}
+BREACH_SHARE, PENALTY, GOAL, ALLIES, EPISODES = 0.3, 1.5, 1.2, 5, 1000
+UPDATES = {"full": 400, "quick": 150}
+LR, CLIP_NORM = 0.05, 5.0
+TIME_BUDGET = {"full": 180.0, "quick": 20.0}
+TASK_TYPES = ["vector_classification"]
+ACTIVE_MUTANT = None
+np.seterr(over="raise", invalid="raise", divide="raise", under="ignore")
+
+# BEGIN STANDARD UTILITIES v1.0
+def softmax(z, axis=-1):
+    z = z - z.max(axis=axis, keepdims=True)
+    e = np.exp(z)
+    return e / e.sum(axis=axis, keepdims=True)
+
+
+def logsumexp(z, axis=-1):
+    m = z.max(axis=axis, keepdims=True)
+    return (m + np.log(np.exp(z - m).sum(axis=axis, keepdims=True))).squeeze(axis)
+
+
+def softplus(z):
+    return np.logaddexp(0.0, z)
+
+
+def sigmoid(z):
+    return np.exp(-np.logaddexp(0.0, -z))
+
+
+def adam_init(params):
+    return {"t": 0, "m": {k: np.zeros_like(v) for k, v in params.items()},
+            "v": {k: np.zeros_like(v) for k, v in params.items()}}
+
+
+def adam_step(params, grads, state, lr, b1=0.9, b2=0.999, eps=1e-8):
+    state["t"] += 1
+    for k in params:
+        state["m"][k] = b1 * state["m"][k] + (1.0 - b1) * grads[k]
+        state["v"][k] = b2 * state["v"][k] + (1.0 - b2) * grads[k] ** 2
+        m_hat = state["m"][k] / (1.0 - b1 ** state["t"])
+        v_hat = state["v"][k] / (1.0 - b2 ** state["t"])
+        params[k] -= lr * m_hat / (np.sqrt(v_hat) + eps)
+
+
+def clip_global(grads, max_norm):
+    norm = math.sqrt(sum(float((g * g).sum()) for g in grads.values()))
+    scale = min(1.0, max_norm / (norm + 1e-12))
+    return {k: g * scale for k, g in grads.items()}, norm
+
+
+def finite_difference_check(params, grads, loss_fn, rng, eps=1e-6, n_entries=20, floor=1e-3):
+    """Central differences on n random entries per tensor plus its largest-gradient entry.
+    Relative error uses max(|analytic|, |numeric|, floor) as denominator."""
+    worst = {}
+    for name, arr in params.items():
+        flat, g = arr.reshape(-1), grads[name].reshape(-1)
+        if flat.size <= n_entries + 1:
+            idx = np.arange(flat.size)
+        else:
+            idx = np.unique(np.append(rng.choice(flat.size, n_entries, replace=False), np.argmax(np.abs(g))))
+        err = 0.0
+        for i in idx:
+            keep = flat[i]
+            flat[i] = keep + eps
+            up = loss_fn()
+            flat[i] = keep - eps
+            down = loss_fn()
+            flat[i] = keep
+            num = (up - down) / (2.0 * eps)
+            err = max(err, abs(g[i] - num) / max(abs(g[i]), abs(num), floor))
+        worst[name] = err
+    return worst
+
+
+def paired_bootstrap(diffs, rng, n_boot=2000, level=0.95):
+    d = np.asarray(diffs, dtype=float)
+    means = d[rng.integers(0, d.size, size=(n_boot, d.size))].mean(axis=1)
+    tail = 50.0 * (1.0 - level)
+    return float(d.mean()), [float(np.percentile(means, tail)), float(np.percentile(means, 100.0 - tail))]
+
+
+def verdict(mean, ci, mesi, direction):
+    s = 1.0 if direction == "greater" else -1.0
+    lo, hi = sorted((s * ci[0], s * ci[1]))
+    if lo > 0.0 and s * mean >= mesi:
+        return "supported"
+    if hi < 0.0:
+        return "contradicted"
+    return "inconclusive"
+
+
+def write_report(lines, payload, json_path):
+    print("\n".join(lines))
+    if json_path:
+        with open(json_path, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, indent=2)
+# END STANDARD UTILITIES
+
+# ---- offers, pressure and coalitions ------------------------------------------------------------------------------
+def offers(gen, count, pressure):
+    value = gen.normal(0.3, 0.6, count)
+    breach = gen.random(count) < BREACH_SHARE
+    severity = np.where(breach, gen.uniform(0.5, 1.5, count), 0.0)
+    side = np.where(breach, gen.uniform(0.0, 3.0, count) * pressure, 0.0)
+    return {"X": np.stack([value, side, severity, np.ones(count)], axis=1), "breach": breach}
 
-class DecisionType(Enum):
-    """Types of decisions Cato faced."""
-    POLITICAL = auto()
-    MILITARY = auto()
-    PERSONAL = auto()
 
+def coalitions(gen):
+    worth = gen.uniform(0.2, 0.6, (EPISODES, ALLIES))
+    taint = gen.uniform(0.0, 0.4, (EPISODES, ALLIES))
+    return {"X": np.stack([worth, np.zeros_like(worth), taint, np.ones_like(worth)], axis=2), "worth": worth}
+
+
+def scenario(seed):
+    gen = np.random.default_rng(np.random.SeedSequence(seed).spawn(1)[0])
+    out = {part: offers(gen, n, PRESSURE[part]) for part, n in OFFERS.items()}
+    out["coalition"] = coalitions(gen)
+    return out
+
+
+# ---- the agent: a payoff policy, and either a sealed gate or a priced penalty -----------------------------------------
+def build_model(in_dim, out_dim, task_type, rng, **cfg):
+    """kind sealed: acceptance = policy x (1 - gate), gate a fixed indicator of breach, outside the parameters; kind priced:
+    acceptance = policy, trained on value plus side-payment minus a penalty per unit of severity."""
+    if task_type not in TASK_TYPES or in_dim != 4:
+        raise ValueError("chapter 0106 reads 4 offer features")
+    return {"kind": cfg.get("kind", "sealed"), "cut": 0.0, "open": False, "flat": False, "history": [],
+            "params": {"w": rng.normal(0.0, 0.1, in_dim)}}
 
-# =============================================================================
-# DATA CLASSES
-# =============================================================================
 
-@dataclass(frozen=True)
-class StoicBelief:
-    """A Stoic belief held by Cato."""
-    principle: StoicPrinciple
-    application: str
-    practical_expression: str
-
-
-@dataclass
-class PoliticalAction:
-    """A political action taken by Cato."""
-    year: int
-    description: str
-    position: PoliticalPosition
-    outcome: str
-    moral_justification: str
+def reward_of(agent, X):
+    return X[:, 0] + X[:, 1] - (PENALTY * X[:, 2] if agent["kind"] == "priced" else 0.0)
 
-
-@dataclass
-class Decision:
-    """A key decision Cato faced."""
-    decision_type: DecisionType
-    description: str
-    options: Tuple[str, ...]
-    choice: str
-    reasoning: str
-    outcome: str
-
-    def is_virtuous(self) -> bool:
-        return "virtue" in self.reasoning.lower() or "principle" in self.reasoning.lower()
-
-
-@dataclass
-class SpeechRecord:
-    """Record of one of Cato's speeches."""
-    occasion: str
-    year: int
-    main_arguments: Tuple[str, ...]
-    audience: str
-    effect: str
-
-
-@dataclass
-class MoralPrinciple:
-    """A moral principle guiding Cato."""
-    principle: str
-    source: str
-    application: str
-    non_negotiable: bool
-
-
-@dataclass
-class PoliticalContext:
-    """Context for political situation."""
-    year: int
-    situation: str
-    key_players: Tuple[str, ...]
-    stakes: str
-
-
-@dataclass
-class IntegrityTest:
-    """A test of Cato's integrity."""
-    description: str
-    pressure_applied: str
-    cato_response: str
-    principle_invoked: str
-
-
-# =============================================================================
-# TYPING CONSTRUCTS
-# =============================================================================
-
-T = TypeVar('T')
-
-
-class StoicPhilosophy:
-    """Model of Stoic philosophical system."""
-    def __init__(self):
-        self.beliefs: List[StoicBelief] = []
-
-    def add_belief(self, principle: StoicPrinciple,
-                  application: str, expression: str) -> None:
-        self.beliefs.append(StoicBelief(principle, application, expression))
-
-    def get_beliefs_by_principle(self, principle: StoicPrinciple) -> List[StoicBelief]:
-        return [b for b in self.beliefs if b.principle == principle]
-
-    def evaluate_action(self, action: str) -> bool:
-        return any("virtue" in b.practical_expression.lower() or
-                   "principle" in b.practical_expression.lower()
-                   for b in self.beliefs)
-
-
-class IntegrityChecker:
-    """Check if actions maintain integrity."""
-    def __init__(self):
-        self.tests: List[IntegrityTest] = []
-
-    def add_test(self, test: IntegrityTest) -> None:
-        self.tests.append(test)
-
-    def pass_test(self, description: str, response: str) -> bool:
-        for test in self.tests:
-            if description == test.description:
-                return response == test.cato_response
-        return False
-
-    def calculate_integrity_score(self, responses: List[str]) -> float:
-        if not responses:
-            return 0.0
-        passed = sum(1 for r in responses if any(r == t.cato_response for t in self.tests))
-        return passed / max(len(responses), 1)
-
-
-class DecisionAnalyzer:
-    """Analyze decisions using Stoic framework."""
-    def __init__(self):
-        self.decisions: List[Decision] = []
-
-    def add_decision(self, decision: Decision) -> None:
-        self.decisions.append(decision)
-
-    def get_virtuous_decisions(self) -> List[Decision]:
-        return [d for d in self.decisions if d.is_virtuous()]
-
-    def evaluate_reasoning(self, reasoning: str) -> Dict[str, Any]:
-        return {
-            "uses_virtue_language": "virtue" in reasoning.lower(),
-            "references_principle": "principle" in reasoning.lower(),
-            "practical": "practical" in reasoning.lower(),
-            "stoic_aligned": "nature" in reasoning.lower() or "logos" in reasoning.lower()
-        }
-
-
-class PoliticalTracker:
-    """Track political positions and actions."""
-    def __init__(self):
-        self.actions: List[PoliticalAction] = []
-
-    def add_action(self, action: PoliticalAction) -> None:
-        self.actions.append(action)
-
-    def actions_by_year(self, year: int) -> List[PoliticalAction]:
-        return [a for a in self.actions if a.year == year]
-
-    def actions_by_position(self, position: PoliticalPosition) -> List[PoliticalAction]:
-        return [a for a in self.actions if a.position == position]
-
-    def consistent_positions(self) -> bool:
-        republican_actions = [a for a in self.actions
-                            if a.position == PoliticalPosition.REPUBLICAN]
-        return len(republican_actions) >= len(self.actions) * 0.7
-
-
-class MoralPrincipleManager:
-    """Manage moral principles."""
-    def __init__(self):
-        self.principles: List[MoralPrinciple] = []
-
-    def add_principle(self, principle: str, source: str,
-                    application: str, non_negotiable: bool) -> None:
-        self.principles.append(MoralPrinciple(principle, source, application, non_negotiable))
-
-    def get_non_negotiable(self) -> List[MoralPrinciple]:
-        return [p for p in self.principles if p.non_negotiable]
-
-    def check_violation(self, action: str) -> List[MoralPrinciple]:
-        violated = []
-        for p in self.principles:
-            if p.non_negotiable and p.principle.lower() not in action.lower():
-                violated.append(p)
-        return violated
-
-
-class SpeechAnalyzer:
-    """Analyze Cato's speeches."""
-    def __init__(self):
-        self.speeches: List[SpeechRecord] = []
-
-    def add_speech(self, occasion: str, year: int,
-                  arguments: Tuple[str, ...],
-                  audience: str, effect: str) -> None:
-        self.speeches.append(SpeechRecord(occasion, year, arguments, audience, effect))
-
-    def find_speeches_by_year(self, year: int) -> List[SpeechRecord]:
-        return [s for s in self.speeches if s.year == year]
-
-    def speeches_about(self, topic: str) -> List[SpeechRecord]:
-        return [s for s in self.speeches
-                if topic.lower() in s.main_arguments[0].lower()]
-
-
-class ContextAnalyzer:
-    """Analyze political context."""
-    def __init__(self):
-        self.contexts: List[PoliticalContext] = []
-
-    def add_context(self, context: PoliticalContext) -> None:
-        self.contexts.append(context)
-
-    def get_context_for_year(self, year: int) -> Optional[PoliticalContext]:
-        for c in self.contexts:
-            if c.year == year:
-                return c
-        return None
-
-    def key_player_involved(self, player: str) -> List[PoliticalContext]:
-        return [c for c in self.contexts if player in c.key_players]
-
-
-# =============================================================================
-# MAIN CLASS
-# =============================================================================
-
-class CatoSystem:
-    """
-    Cato the Younger's Stoic and political system.
-
-    Implements:
-    - Stoic belief management
-    - Integrity checking
-    - Decision analysis
-    - Political action tracking
-    - Moral principle management
-    - Speech analysis
-    - Political context analysis
-    """
-
-    def __init__(self):
-        self.stoic_philosophy = StoicPhilosophy()
-        self.integrity_checker = IntegrityChecker()
-        self.decision_analyzer = DecisionAnalyzer()
-        self.political_tracker = PoliticalTracker()
-        self.moral_manager = MoralPrincipleManager()
-        self.speech_analyzer = SpeechAnalyzer()
-        self.context_analyzer = ContextAnalyzer()
-
-        self._initialize_beliefs()
-        self._initialize_principles()
-        self._initialize_actions()
-        self._initialize_decisions()
-        self._initialize_speeches()
-        self._initialize_contexts()
-        self._initialize_integrity_tests()
-
-    def _initialize_beliefs(self) -> None:
-        beliefs = [
-            (StoicPrinciple.VIRTUE_AS_GOOD,
-             "Only virtue constitutes good",
-             "Chose virtue over political advantage"),
-            (StoicPrinciple.EXTERNAL_INDIFFERENT,
-             "Wealth, power, life are indifferent",
-             "Rejected honors from corrupt sources"),
-            (StoicPrinciple.LIVING_ACCORDING_TO_NATURE,
-             "Live according to nature and reason",
-             "Maintained principles under pressure"),
-        ]
-        for principle, application, expression in beliefs:
-            self.stoic_philosophy.add_belief(principle, application, expression)
-
-    def _initialize_principles(self) -> None:
-        principles = [
-            ("Virtue is the only good", "Stoic teaching", "Never compromise virtue", True),
-            ("Honor must be preserved", "Roman tradition", "Rejectdishonor", True),
-            ("Republic is ideal form", "Political belief", "Oppose tyranny", True),
-            ("Death is preferable to shame", "Personal conviction", "Choose death over submission", True),
-            ("Truth must be spoken", "Philosophical commitment", "Speak truth to power", False),
-        ]
-        for principle, source, application, non_neg in principles:
-            self.moral_manager.add_principle(principle, source, application, non_neg)
-
-    def _initialize_actions(self) -> None:
-        actions = [
-            PoliticalAction(-63, "Opposed Catiline conspiracy",
-                          PoliticalPosition.REPUBLICAN,
-                          "Served Cicero's suppression",
-                          "Duty to preserve republic"),
-            PoliticalAction(-58, "Opposed Clodius",
-                          PoliticalPosition.REPUBLICAN,
-                          "Exile from Rome",
-                          "Would not compromise with criminal"),
-            PoliticalAction(-49, "Opposed Caesar's advance",
-                          PoliticalPosition.ANTI_CAESAR,
-                          "Failed to stop civil war",
-                          "Republic must be defended"),
-            PoliticalAction(-48, "Fought at Pharsalus",
-                          PoliticalPosition.REPUBLICAN,
-                          "Defeat at Caesar's hands",
-                          "Chose duty over safety"),
-            PoliticalAction(-46, "Committed suicide at Utica",
-                          PoliticalPosition.ANTI_CAESAR,
-                          "Preferredexile to submission",
-                          "Integrity preserved unto death"),
-        ]
-        for action in actions:
-            self.political_tracker.add_action(action)
-
-    def _initialize_decisions(self) -> None:
-        decisions = [
-            Decision(DecisionType.POLITICAL,
-                    "Oppose Catiline",
-                    ("Support conspiracy", "Oppose conspiracy", "Remain neutral"),
-                    "Oppose conspiracy",
-                    "Virtue requires opposing corruption",
-                    "Served republic"),
-            Decision(DecisionType.POLITICAL,
-                    "Refuse Caesar's offer of clemency",
-                    ("Accept clemency", "Refuse and fight", "Negotiate"),
-                    "Refuse and continue resistance",
-                    "Virtue admits no compromise with tyrant",
-                    "Maintained integrity"),
-            Decision(DecisionType.PERSONAL,
-                    "Suicide at Utica",
-                    ("Captured", "Flee", "Suicide"),
-                    "Suicide",
-                    "Death preferable to submitting to tyranny",
-                    "Preserved honor"),
-        ]
-        for decision in decisions:
-            self.decision_analyzer.add_decision(decision)
-
-    def _initialize_speeches(self) -> None:
-        speeches = [
-            SpeechRecord("Against Catiline", -63,
-                        ("Conspiracy must be suppressed", "Senators must act"),
-                        "Senate",
-                        "Convinced senators to act"),
-            SpeechRecord("Against Caesar's agrarian law", -59,
-                        ("Principle over expedience", "Corrupt legislation"),
-                        "People's Assembly",
-                        "Lost vote but maintained principle"),
-            SpeechRecord("Defense of Metellus", -57,
-                        ("Principled defense", "Refused to abandon friend"),
-                        "Forum",
-                        "Maintained integrity at cost"),
-        ]
-        for speech in speeches:
-            self.speech_analyzer.add_speech(
-                speech.occasion, speech.year, speech.main_arguments,
-                speech.audience, speech.effect
-            )
-
-    def _initialize_contexts(self) -> None:
-        contexts = [
-            PoliticalContext(-63, "Catiline conspiracy",
-                           ("Catiline", "Cicero", "Caesar"),
-                           "Republic's survival"),
-            PoliticalContext(-49, "Caesar crosses Rubicon",
-                           ("Caesar", "Pompey", "Senate"),
-                           "Freedom vs tyranny"),
-            PoliticalContext(-46, "Thapsus and aftermath",
-                           ("Caesar", "Metellus", "Senators"),
-                           "Integrity vs survival"),
-        ]
-        for context in contexts:
-            self.context_analyzer.add_context(context)
-
-    def _initialize_integrity_tests(self) -> None:
-        tests = [
-            IntegrityTest("Caesar offers clemency",
-                         "Pardon and high office",
-                         "Refused all offers",
-                         "Virtue cannot compromise"),
-            IntegrityTest("Political advantage through compromise",
-                         "Wealth and position for softening",
-                         "Rejected completely",
-                         "Principle non-negotiable"),
-            IntegrityTest("Death or submission",
-                         "Submit and live, or die",
-                         "Chose death",
-                         "Honor above life"),
-        ]
-        for test in tests:
-            self.integrity_checker.add_test(test)
-
-    def get_stoic_beliefs(self) -> List[StoicBelief]:
-        return self.stoic_philosophy.beliefs
-
-    def evaluate_action(self, action: str) -> bool:
-        return self.stoic_philosophy.evaluate_action(action)
-
-    def get_decision(self, decision_type: DecisionType) -> Optional[Decision]:
-        for d in self.decision_analyzer.decisions:
-            if d.decision_type == decision_type:
-                return d
-        return None
-
-    def get_political_actions(self, year: int) -> List[PoliticalAction]:
-        return self.political_tracker.actions_by_year(year)
-
-    def get_moral_principles(self) -> List[MoralPrinciple]:
-        return self.moral_manager.principles
-
-    def get_non_negotiable_principles(self) -> List[MoralPrinciple]:
-        return self.moral_manager.get_non_negotiable()
-
-
-# =============================================================================
-# DEMO
-# =============================================================================
-
-def demo() -> None:
-    print("=" * 70)
-    print("CATO THE YOUNGER: STOIC VIRTUE AND POLITICAL INTEGRITY")
-    print("95-46 BCE | Roman Senator | Stoic Philosopher")
-    print("=" * 70)
-
-    system = CatoSystem()
-
-    print("\n1. STOIC BELIEFS")
-    print("-" * 40)
-    beliefs = system.get_stoic_beliefs()
-    for belief in beliefs:
-        print(f"  [{belief.principle.name}]")
-        print(f"    Application: {belief.application}")
-        print(f"    Expression: {belief.practical_expression}")
-        print()
-
-    print("\n2. MORAL PRINCIPLES")
-    print("-" * 40)
-    principles = system.get_moral_principles()
-    for p in principles:
-        status = "NON-NEGOTIABLE" if p.non_negotiable else "Flexible"
-        print(f"  {p.principle} ({status})")
-        print(f"    Application: {p.application}")
-    non_neg = system.get_non_negotiable_principles()
-    print(f"\n  Non-negotiable principles: {len(non_neg)}")
-
-    print("\n3. POLITICAL ACTIONS")
-    print("-" * 40)
-    for action in system.political_tracker.actions:
-        print(f"  {action.year}: {action.description}")
-        print(f"    Position: {action.position.name}")
-        print(f"    Outcome: {action.outcome}")
-        print(f"    Justification: {action.moral_justification}")
-    consistent = system.political_tracker.consistent_positions()
-    print(f"\n  Consistent positions: {consistent}")
-
-    print("\n4. KEY DECISIONS")
-    print("-" * 40)
-    decisions = system.decision_analyzer.decisions
-    for decision in decisions:
-        print(f"  [{decision.decision_type.name}] {decision.description}")
-        print(f"    Choice: {decision.choice}")
-        print(f"    Reasoning: {decision.reasoning}")
-        print(f"    Virtuous: {decision.is_virtuous()}")
-        print()
-    virtuous = system.decision_analyzer.get_virtuous_decisions()
-    print(f"  Virtuous decisions: {len(virtuous)}/{len(decisions)}")
-
-    print("\n5. SPEECHES")
-    print("-" * 40)
-    speeches = system.speech_analyzer.speeches
-    for speech in speeches:
-        print(f"  {speech.occasion} (-{abs(speech.year)})")
-        print(f"    Arguments: {', '.join(speech.main_arguments)}")
-        print(f"    Audience: {speech.audience}")
-        print(f"    Effect: {speech.effect}")
-
-    print("\n6. INTEGRITY TESTS")
-    print("-" * 40)
-    tests = system.integrity_checker.tests
-    for test in tests:
-        print(f"  Test: {test.description}")
-        print(f"    Pressure: {test.pressure_applied}")
-        print(f"    Cato's response: {test.cato_response}")
-        print(f"    Principle: {test.principle_invoked}")
-
-    print("\n7. POLITICAL CONTEXT")
-    print("-" * 40)
-    contexts = system.context_analyzer.contexts
-    for ctx in contexts:
-        print(f"  Year {ctx.year}: {ctx.situation}")
-        print(f"    Key players: {', '.join(ctx.key_players)}")
-        print(f"    Stakes: {ctx.stakes}")
-
-    print("\n8. EVALUATING ACTION")
-    print("-" * 40)
-    test_actions = [
-        "Opposed Caesar to preserve republic",
-        "Compromised with Caesar for peace",
-        "Committed suicide to preserve honor",
-    ]
-    for action in test_actions:
-        virtuous = system.evaluate_action(action)
-        print(f"  '{action[:40]}...' -> Stoically virtuous: {virtuous}")
-
-    print("\n9. DECISION ANALYSIS")
-    print("-" * 40)
-    for decision in system.decision_analyzer.decisions:
-        eval_result = system.decision_analyzer.evaluate_reasoning(decision.reasoning)
-        print(f"  {decision.description[:30]}:")
-        for k, v in eval_result.items():
-            if v:
-                print(f"    {k}: {v}")
-
-    print("\n10. PRINCIPLES IN ACTION")
-    print("-" * 40)
-    for p in system.get_non_negotiable_principles():
-        print(f"  {p.principle}")
-        print(f"    -> {p.application}")
-
-    print("\n" + "=" * 70)
-    print("CATO THE YOUNGER SYSTEM COMPLETE")
-    print("=" * 70)
+
+def accept(agent, X):
+    w = agent["params"]["w"]
+    if agent["flat"]:
+        w = np.array([0.0, 0.0, 0.0, w[3]])
+    policy = 0.5 * (1.0 + np.tanh(0.5 * (X @ w)))
+    gate = np.zeros(len(X)) if (agent["kind"] == "priced" or agent["open"]) else (X[:, 2] > agent["cut"]).astype(float)
+    return policy * (1.0 - gate), policy, gate
+
+
+def loss_and_grads(model, batch):
+    X = batch["X"]
+    taken, policy, gate = accept(model, X)
+    r = batch["r"] if "r" in batch else reward_of(model, X)
+    loss = float(np.mean(((1.0 - taken) * np.maximum(r, 0.0) + taken * np.maximum(-r, 0.0)) * (1.0 - gate)))
+    d_policy = (-r / len(X)) * (1.0 - gate)
+    d_logit = d_policy if ACTIVE_MUTANT == "dropped_sigmoid_derivative" else d_policy * policy * (1.0 - policy)
+    if ACTIVE_MUTANT == "zero_logit_gradient":
+        d_logit = np.zeros_like(d_logit)
+    return loss, {"w": X.T @ d_logit}
+
+
+def fit(model, data, budget, rng):
+    """Adam on expected regret over all training offers; cosine decay to 5 per cent; nothing sampled, so rng unused."""
+    memory = adam_init(model["params"])
+    for k in range(budget):
+        cost, grads = loss_and_grads(model, data["train"])
+        if cost != cost:
+            raise FloatingPointError("regret became NaN at update %d" % (k + 1))
+        step = LR * (0.05 + 0.475 * (1.0 + math.cos(math.pi * k / budget)))
+        sign = -1.0 if ACTIVE_MUTANT == "sign_flipped_update" else 1.0
+        adam_step(model["params"], {"w": sign * clip_global(grads, CLIP_NORM)[0]["w"]}, memory, 0.0 if ACTIVE_MUTANT == "zero_learning_rate" else step)
+        model["history"].append(cost)
+    return model["history"]
+
+
+def predict(model, X):
+    return (accept(model, X)[0] > 0.5).astype(int)
+
+
+def hidden_states(model, X):
+    taken, policy, gate = accept(model, X)
+    return {"policy": policy, "gate": gate, "accept": taken}
+
+
+def modules(model):
+    return {"policy": {"params": ["w"], "role": "logistic payoff policy", "signature": False},
+            "gate": {"params": [], "role": "fixed breach indicator outside the parameters and the reward channel", "signature": True}}
+
+
+def knockout(model, name, mode):
+    twin = dict(model)
+    if (name, mode) == ("gate", "open"):
+        twin["open"] = True
+    elif (name, mode) == ("policy", "flat"):
+        twin["flat"] = True
+    else:
+        raise ValueError("no knockout %s:%s" % (name, mode))
+    return twin
+
+
+def n_params(model):
+    return int(model["params"]["w"].size)
+
+
+MUTANTS = {"sign_flipped_update": ("updates climb the regret", "C3"), "zero_learning_rate": ("nothing moves", "C3"),
+           "zero_logit_gradient": ("the policy receives no gradient", "C1"), "dropped_sigmoid_derivative": ("the logistic derivative is omitted", "C1")}
+
+
+def data_bridge(path, seed, budget):
+    """Optional real data: CSV with a header and columns value, side_payment, severity; one row in five held out."""
+    try:
+        rows = np.loadtxt(path, delimiter=",", skiprows=1, ndmin=2)
+    except (OSError, ValueError) as exc:
+        return "skipped (" + type(exc).__name__ + ")"
+    if rows.shape[1] != 3:
+        return "skipped (needs value, side_payment, severity)"
+    X = np.column_stack([rows, np.ones(len(rows))])
+    later = np.arange(len(rows)) % 5 == 4
+    agent = build_model(4, 2, TASK_TYPES[0], np.random.default_rng(seed))
+    fit(agent, {"train": {"X": X[~later]}}, budget, None)
+    breach = X[later, 2] > 0
+    rate = float(accept(agent, X[later])[0][breach].mean()) if breach.any() else 0.0
+    return os.path.basename(path) + ": held-out breach acceptance %.4f" % rate
+
+
+# ---- one seed --------------------------------------------------------------------------------------------------------
+def breach_rate(agent, part):
+    return float(accept(agent, part["X"])[0][part["breach"]].mean())
+
+
+def clean_error(agent, part):
+    clean = ~part["breach"]
+    return float(np.mean((accept(agent, part["X"][clean])[0] > 0.5) != (part["X"][clean, 0] > 0)))
+
+
+def goal_rate(agent, coal):
+    X = coal["X"].reshape(-1, 4)
+    taken = accept(agent, X)[0].reshape(EPISODES, ALLIES)
+    return float(np.mean((taken * coal["worth"]).sum(axis=1) >= GOAL))
+
+
+def run_seed(seed, mode):
+    world = scenario(seed)
+    sealed = build_model(4, 2, TASK_TYPES[0], np.random.default_rng(seed + 1))
+    priced = build_model(4, 2, TASK_TYPES[0], np.random.default_rng(seed + 2), kind="priced")
+    fit(sealed, world, UPDATES[mode], None)
+    fit(priced, world, UPDATES[mode], None)
+    shifted, held = world["shifted"], world["heldout"]
+    graded = dict(sealed, cut=0.5)
+    b_full = breach_rate(sealed, shifted)
+    opened, flattened = breach_rate(knockout(sealed, "gate", "open"), shifted), breach_rate(knockout(sealed, "policy", "flat"), shifted)
+    taken = accept(sealed, held["X"])[0]
+    cost = float(np.mean(((1.0 - taken) * np.maximum(held["X"][:, 0] + held["X"][:, 1], 0.0))[held["breach"]]))
+    return {"world": world, "sealed": sealed, "priced": priced,
+            "breach": {"sealed_held": breach_rate(sealed, held), "sealed_shift": b_full, "priced_held": breach_rate(priced, held), "priced_shift": breach_rate(priced, shifted)},
+            "goal": {"sealed": goal_rate(sealed, world["coalition"]), "graded": goal_rate(graded, world["coalition"]), "priced": goal_rate(priced, world["coalition"])},
+            "cost": cost, "clean": clean_error(sealed, held), "trivial": float(np.mean(held["X"][~held["breach"], 0] < 0)),
+            "lesions": {"gate:open": opened - b_full, "policy:flat": flattened - b_full},
+            "row": {"H-SIG": b_full - breach_rate(priced, shifted), "H-NEC": (opened - b_full) - (flattened - b_full),
+                    "H-BLIND": goal_rate(sealed, world["coalition"]) - goal_rate(graded, world["coalition"])}}
+
+# ---- interrogation of the implementation -----------------------------------------------------------------------------
+def set_mutant(name):
+    global ACTIVE_MUTANT
+    prior, ACTIVE_MUTANT = ACTIVE_MUTANT, name
+    return prior
+
+
+def interrogate(ctx, mode):
+    lim, w0 = MIND_CARD["thresholds"], ctx["world"]
+    rows = {"X": w0["train"]["X"][:200]}
+    found = {}
+
+    def fd(agent, gen, n):
+        return max(finite_difference_check(agent["params"], loss_and_grads(agent, rows)[1], lambda a=agent: loss_and_grads(a, rows)[0], gen, n_entries=n,
+                                           floor=lim["gradcheck_floor"]).values())
+
+    def learned(agent):
+        fall = 1.0 - float(np.mean(agent["history"][-20:])) / agent["history"][0]
+        miss = clean_error(agent, w0["heldout"])
+        return fall >= lim["loss_drop_fraction"] and miss <= (1.0 - lim["margin_over_trivial"]) * ctx["trivial"], fall, miss
+
+    def c1():
+        seed = ctx["seed"]
+        worst = max(fd(build_model(4, 2, TASK_TYPES[0], np.random.default_rng(seed + 50)), np.random.default_rng(seed + 3), 4),
+                    fd(build_model(4, 2, TASK_TYPES[0], np.random.default_rng(seed + 51), kind="priced"), np.random.default_rng(seed + 4), 4),
+                    fd(ctx["sealed"], np.random.default_rng(seed + 5), 4), fd(ctx["priced"], np.random.default_rng(seed + 6), 4))
+        found["gradcheck"] = {"tensors_checked": 2, "tensors_total": 2, "max_rel_error": worst, "checked_at": ["init", "after_training_steps"],
+                              "passed": bool(worst <= lim["gradcheck_rel_error"])}
+        return found["gradcheck"]["passed"], "sealed and priced policies, fresh and trained: worst relative error %.2e" % worst
+
+    def c2():
+        twin_curves = []
+        for attempt in range(2):
+            trial = build_model(4, 2, TASK_TYPES[0], np.random.default_rng(ctx["seed"] + 9))
+            fit(trial, w0, 12, None)
+            twin_curves.append((trial["history"], trial["params"]["w"].copy()))
+        (h1, p1), (h2, p2) = twin_curves
+        agree = h1 == h2 and np.array_equal(p1, p2)
+        return bool(agree), "retraining from the same seed repeats every regret and weight: %s" % agree
+
+    def c3():
+        ok, fall, miss = learned(ctx["sealed"])
+        return ok, "regret fell %.3f (needs 0.3); clean-offer error %.3f against %.3f for accepting everything" % (fall, miss, ctx["trivial"])
+
+    def c4():
+        X = w0["train"]["X"]
+        agent = build_model(4, 2, TASK_TYPES[0], np.random.default_rng(ctx["seed"] + 12))
+        rewards = np.random.default_rng(ctx["seed"] + 11).permutation(reward_of(agent, X))
+        fit(agent, {"train": {"X": X, "r": rewards}}, UPDATES[mode], None)
+        miss, floor = clean_error(agent, w0["heldout"]), lim["shuffled_ratio_min"] * ctx["trivial"]
+        return miss >= floor, "rewards shuffled across training offers: clean-offer error %.3f, floor %.3f" % (miss, floor)
+
+    def c5():
+        def rerun():
+            try:
+                novice = build_model(4, 2, TASK_TYPES[0], np.random.default_rng(ctx["seed"] + 2))
+                at_birth = fd(novice, np.random.default_rng(ctx["seed"]), 4)
+                fit(novice, w0, UPDATES[mode], None)
+                return bool(at_birth <= lim["gradcheck_rel_error"] and learned(novice)[0])
+            except FloatingPointError:
+                return False
+        sound = rerun()
+        verdicts_by_mutant = {}
+        for label in MUTANTS:
+            earlier = set_mutant(label)
+            verdicts_by_mutant[label] = not rerun()
+            set_mutant(earlier)
+        found["caught"] = verdicts_by_mutant
+        return sound and all(verdicts_by_mutant.values()), "unmutated rerun passes C1 and C3: %s; every mutant trips a test: %s" % (sound, all(verdicts_by_mutant.values()))
+
+    def c61():
+        X = w0["heldout"]["X"][w0["heldout"]["breach"]].copy()
+        X[:, 1] *= 1e6
+        sealed_max = float(accept(ctx["sealed"], X)[0].max())
+        priced_mean = float(accept(ctx["priced"], X)[0].mean())
+        return sealed_max == 0.0 and priced_mean >= 0.5, "a million-fold side-payment: sealed acceptance at most %.1e; priced agent accepts %.3f on average" % (sealed_max, priced_mean)
+
+    def c63():
+        grads = loss_and_grads(ctx["sealed"], rows)[1]
+        return set(grads) == {"w"} and "gate" not in ctx["sealed"]["params"], "the gate has no parameter and no gradient: the reward channel cannot reach it (definition check)"
+
+    def c7():
+        seen, overlap = set(), False
+        for part in OFFERS:
+            here = {hashlib.sha256(row.tobytes()).digest() for row in w0[part]["X"]}
+            overlap, seen = overlap or bool(here & seen), seen | here
+        heavier = float(w0["shifted"]["X"][:, 1].max()) > float(w0["train"]["X"][:, 1].max())
+        return (not overlap) and heavier, "offers never repeat across splits: %s; the shifted split pays more: %s" % (not overlap, heavier)
+
+    order = [("C1", "gradient_check", c1), ("C2", "determinism_finiteness", c2), ("C3", "learning", c3), ("C4", "shuffled_value_control", c4),
+             ("C5", "mutant_detection", c5), ("C6.1", "unbuyable_constraint", c61), ("C6.3", "gate_outside_reward_definition", c63), ("C7", "split_integrity", c7)]
+    outcome = []
+    for code, name, fn in order:
+        ok, note = fn()
+        outcome.append((code, name, bool(ok), note))
+    return outcome, found
+
+
+REPORT_KEYS = ("schema_version", "chapter", "file", "card_revision", "environment", "seeds", "runtime_s", "n_params", "gradcheck",
+               "correctness", "mutants", "hypotheses", "knockouts", "task_types", "exit_code")
+
+
+def tally_hypotheses(runs, first, evaluated):
+    draw, out = np.random.default_rng(first + 9973), []
+    for spec in MIND_CARD["hypotheses"]:
+        if spec["comparison"] == "pending":
+            out.append(dict(id=spec["id"], metric=spec["metric"], mean_diff=None, ci95=None, mesi=spec["mesi"], n_seeds=0, verdict="pending (0104 not yet rebuilt)"))
+            continue
+        series = np.array([one["row"][spec["id"]] for one in runs])
+        centre, band = (paired_bootstrap(series, draw) if evaluated else (float(series.mean()), None))
+        out.append(dict(id=spec["id"], metric=spec["metric"], mean_diff=centre, ci95=band, mesi=spec["mesi"], n_seeds=len(runs),
+                        verdict=verdict(centre, band, spec["mesi"], spec["direction"]) if evaluated else "not evaluated"))
+    lesion_rows = []
+    for label in runs[0]["lesions"]:
+        series = np.array([one["lesions"][label] for one in runs])
+        centre, band = (paired_bootstrap(series, draw) if evaluated else (float(series.mean()), None))
+        organ, how = label.split(":")
+        lesion_rows.append(dict(module=organ, mode=how, signature=organ == "gate", metric_change=centre, ci95=band))
+    return out, lesion_rows
+
+
+def bracket(band):
+    return "not evaluated" if band is None else "[%+.4f, %+.4f]" % tuple(band)
+
+
+def draft(mode, seeds, took, runs, outcome, found, hyps, kos, bridge, code):
+    mean = lambda pick: float(np.mean([pick(one) for one in runs]))
+    grad, bought = found["gradcheck"], found.get("caught", {})
+    caught_n = sum(bought.values())
+    head = [("=== VERIFIED REPORT · chapter 0106 ===", ()),
+            ("file: %s · card_revision %d · mode %s · mutant %s", (os.path.basename(__file__), MIND_CARD["card_revision"], mode, ACTIVE_MUTANT)),
+            ("environment: python %s · numpy %s", (sys.version.split()[0], np.__version__)),
+            ("seeds: %s · runtime_s %.1f · budget_s %.0f", (seeds, took, TIME_BUDGET[mode])),
+            ("n_params: sealed %d · priced %d", (n_params(runs[0]["sealed"]), n_params(runs[0]["priced"]))),
+            ("gradcheck: %d/%d tensors at init and after training · max_rel_error %.2e · passed %s", (grad["tensors_checked"], grad["tensors_total"], grad["max_rel_error"], grad["passed"])),
+            ("correctness:", ())]
+    page = [template % values if values else template for template, values in head]
+    page += ["  %-5s %-30s %s  %s" % (c, n, "PASS" if ok else "FAIL", note) for c, n, ok, note in outcome]
+    page.append("mutants: %d/%d detected · score %.2f · %s" % (caught_n, len(MUTANTS), caught_n / len(MUTANTS), ", ".join(k + (" caught" if bought.get(k) else " missed") for k in MUTANTS)))
+    page.append("hypotheses (paired over seeds; 95% percentile bootstrap of the mean, 2000 resamples):")
+    for h in hyps:
+        page.append("  %-8s %s" % (h["id"], h["verdict"]) if h["mean_diff"] is None else
+                    "  %-8s mean_diff %+.4f ci95 %s mesi %s seeds %d -> %s" % (h["id"], h["mean_diff"], bracket(h["ci95"]), h["mesi"], h["n_seeds"], h["verdict"]))
+    page.append("knockouts (sealed agent, shifted breach-rate change):")
+    page += ["  %-7s %-5s signature %-5s %+.4f ci95 %s" % (k["module"], k["mode"], k["signature"], k["metric_change"], bracket(k["ci95"])) for k in kos]
+    tail = [("breach rate (seed mean; held-out / shifted): sealed %.3f / %.3f · priced %.3f / %.3f",
+             (mean(lambda r: r["breach"]["sealed_held"]), mean(lambda r: r["breach"]["sealed_shift"]), mean(lambda r: r["breach"]["priced_held"]), mean(lambda r: r["breach"]["priced_shift"]))),
+            ("coalition goal reached (seed mean): sealed %.3f · graded seal %.3f · priced %.3f", (mean(lambda r: r["goal"]["sealed"]), mean(lambda r: r["goal"]["graded"]), mean(lambda r: r["goal"]["priced"]))),
+            ("cost of the seal (seed mean): value and side-payment forgone per breaching offer %.3f · clean-offer error %.3f vs %.3f accepting all",
+             (mean(lambda r: r["cost"]), mean(lambda r: r["clean"]), mean(lambda r: r["trivial"])))]
+    page += [template % values for template, values in tail]
+    return page + ["real-data bridge: " + bridge, "task_types: " + ", ".join(TASK_TYPES), "exit_code: %d" % code, "=== END REPORT ==="]
+
+
+def protocol(mode, first, count, json_path, data_path):
+    t0 = time.time()
+    seeds = [first + k for k in range(count)]
+    print("chapter 0106 · mode %s · seeds %s · mutant %s" % (mode, seeds, ACTIVE_MUTANT), flush=True)
+    runs = list(map(lambda s: run_seed(s, mode), seeds))
+    outcome, found = interrogate(dict(runs[0], seed=first), mode)
+    hyps, kos = tally_hypotheses(runs, first, mode == "full" and count >= 5)
+    bridge = data_bridge(data_path, first, UPDATES[mode]) if data_path else "skipped (no --data PATH given)"
+    took = time.time() - t0
+    on_time = took <= TIME_BUDGET[mode]
+    outcome.append(("C8", "budget", on_time, "%.1f s of %.0f s" % (took, TIME_BUDGET[mode])))
+    code = 1 if any(not ok for c, _, ok, _ in outcome if c != "C8") else (0 if on_time else 3)
+    detected = sum(found.get("caught", {}).values())
+    values = ("1.0", 106, os.path.basename(__file__), MIND_CARD["card_revision"], {"python": sys.version.split()[0], "numpy": np.__version__}, seeds,
+              round(took, 2), n_params(runs[0]["sealed"]), found["gradcheck"], [{"id": c, "name": n, "passed": ok, "detail": d} for c, n, ok, d in outcome],
+              {"detected": detected, "total": len(MUTANTS), "score": detected / len(MUTANTS)}, hyps, kos, TASK_TYPES, code)
+    write_report(draft(mode, seeds, took, runs, outcome, found, hyps, kos, bridge, code), dict(zip(REPORT_KEYS, values)), json_path)
+    return code
+
+
+OPTIONS = "quick:bool card:bool seed:int seeds:int json:str mutant:str data:str"
+
+
+def main(argv=None):
+    cli = argparse.ArgumentParser(prog=os.path.basename(__file__), description="Chapter 0106: the sealed tier under side-payment pressure.")
+    for spec in OPTIONS.split():
+        word, kind = spec.split(":")
+        if kind == "bool":
+            cli.add_argument("--" + word, action="store_true")
+        else:
+            cli.add_argument("--" + word, type=int if kind == "int" else str, default=0 if word == "seed" else None)
+    got = cli.parse_args(argv)
+    if got.card:
+        print(json.dumps(MIND_CARD, indent=2, ensure_ascii=False))
+        return 0
+    wanted = got.seeds if got.seeds is not None else (1 if got.quick else 5)
+    if wanted < 1 or (got.mutant is not None and got.mutant not in MUTANTS):
+        print("invalid --seeds or --mutant", file=sys.stderr)
+        return 2
+    set_mutant(got.mutant)
+    try:
+        result = protocol("quick" if got.quick else "full", got.seed, wanted, got.json, got.data)
+    except FloatingPointError as exc:
+        print("non-finite values: %s" % exc, file=sys.stderr)
+        result = 4
+    return result
 
 
 if __name__ == "__main__":
-    demo()
-
-class RepublicanSenateFaction:
-    """Analyze senatorial factions supporting Republic."""
-    def __init__(self):
-        self.members: Dict[str, Dict[str, Any]] = {}
-
-    def add_senator(self, name: str, wealth: int,
-                   military_service: bool, speeches: int,
-                   faction_role: str) -> None:
-        self.members[name] = {
-            "wealth": wealth,
-            "military": military_service,
-            "speeches": speeches,
-            "role": faction_role
-        }
-
-    def most_influential(self) -> Optional[str]:
-        if not self.members:
-            return None
-        return max(self.members.items(), key=lambda x: x[1]["speeches"])[0]
-
-    def senators_by_wealth(self, min_wealth: int) -> List[str]:
-        return [name for name, info in self.members.items()
-                if info["wealth"] >= min_wealth]
-
-
-class StoicPhilosophyApplicator:
-    """Apply Stoic philosophy to political situations."""
-    def __init__(self):
-        self.principles = {
-            "virtue": "Wisdom, courage, justice, temperance",
-            "apatheia": "Freedom from destructive emotions",
-            "cosmopolitanism": "Citizenship in the cosmos",
-            "duty": "Living in accordance with nature"
-        }
-
-    def principle_explanation(self, principle: str) -> Optional[str]:
-        return self.principles.get(principle)
-
-    def apply_to_situation(self, situation: str, principle: str) -> str:
-        return f"Applying {principle} to {situation}"
-
-
-class LateRepublicCrisisAnalyzer:
-    """Analyze crises of the Late Republic."""
-    def __init__(self):
-        self.crises = {
-            "land_distribution": "Giant landowners displacing small farmers",
-            "military_reforms": "Marian professional army replacing citizen forces",
-            "provincial_exploitation": "Governors enriching themselves",
-            "popular_unrest": "Urban poor demanding bread and games",
-            "senatorial_gridlock": "Optimates vs Populares deadlock"
-        }
-
-    def crisis_description(self, crisis_name: str) -> Optional[str]:
-        return self.crises.get(crisis_name)
-
-
-class CatoSpeechThemes:
-    """Analyze recurring themes in Cato's speeches."""
-    def __init__(self):
-        self.themes = {
-            "moral_decline": ["corruption", "degeneration", "ancestors"],
-            "roman_tradition": ["mos maiorum", "discipline", "simplicity"],
-            "civic_duty": ["service", "republic", "freedom"],
-            "virtue": ["honesty", "frugality", "steadfastness"]
-        }
-
-    def themes_in_speech(self, speech_text: str) -> List[str]:
-        found = []
-        text_lower = speech_text.lower()
-        for theme, keywords in self.themes.items():
-            if any(kw in text_lower for kw in keywords):
-                found.append(theme)
-        return found
-
-
-class CaesarCatoRelationshipAnalyzer:
-    """Analyze the political rivalry between Caesar and Cato."""
-    def __init__(self):
-        self.conflicts = [
-            ("Catiline Conspiracy", "Cato accused Caesar of involvement"),
-            ("First Triumvirate", "Secret alliance vs public opposition"),
-            ("Gallia Conquest", "Cato criticized war methods"),
-            ("Civil War", "Cato opposed Caesar's dictatorship")
-        ]
-
-    def all_conflicts(self) -> List[Tuple[str, str]]:
-        return self.conflicts
-
-    def nature_of_rivalry(self) -> str:
-        return "Ideological: Stoic virtue vs Populares reform"
-
-
-class OptimatesFactionAnalyzer:
-    """Analyze the optimates senatorial faction."""
-    def __init__(self):
-        self.leaders = ["Metellus Scipio", "Domitius Ahenobarbus", "Cato"]
-        self.ideology = {
-            "senate_supremacy": "Power concentrated in Senate",
-            "traditional_values": "Preserve mos maiorum",
-            "aristocratic_rule": "Rule by nobiles",
-            "opposition_to_reform": "Resist populares measures"
-        }
-
-    def faction_ideology(self) -> Dict[str, str]:
-        return self.ideology
-
-    def leaders_list(self) -> List[str]:
-        return self.leaders
-
-
-class CatoCharacterTraits:
-    """Document Cato's character traits."""
-    def __init__(self):
-        self.traits = {
-            "steadfastness": "Unwavering commitment to principles",
-            "austerity": "Simple living, rejection of luxury",
-            "eloquence": "Powerful orator despite voice issues",
-            "integrity": "Cannot be bribed or intimidated",
-            "severity": "Strict enforcement of laws",
-            "independence": "Ally of neither Caesar nor Pompey"
-        }
-
-    def trait_description(self, trait: str) -> Optional[str]:
-        return self.traits.get(trait)
-
-
-class RomanMoralityCodeAnalyzer:
-    """Analyze the Roman code of morality."""
-    def __init__(self):
-        self.moral_codes = {
-            "pietas": "Duty to gods, family, and state",
-            "fides": "Faithfulness to promises",
-            "gravitas": "Dignity and seriousness",
-            "constantia": "Steadfastness in adversity",
-            "verecundia": "Respect for others"
-        }
-
-    def code_description(self, code: str) -> Optional[str]:
-        return self.moral_codes.get(code)
-
-
-class RepublicanInstitutionalAnalyzer:
-    """Analyze how institutions sustained Republic."""
-    def __init__(self):
-        self.institutions = {
-            "senate": "Deliberative body advising magistrates",
-            "magistracies": "Elected offices with term limits",
-            "tribunes": "Representatives of plebeians",
-            "comitia": "Popular assemblies for voting",
-            "auspices": "Religious sanction for actions"
-        }
-
-    def institution_purpose(self, name: str) -> Optional[str]:
-        return self.institutions.get(name)
-
-
-class CatoHistoricalLegacy:
-    """Document Cato's historical legacy."""
-    def __init__(self):
-        self.legacy_aspects = {
-            "republican_symbol": "Martyr for republican ideals",
-            "stoic_exemplar": "Model of philosophical virtue",
-            "moral_critic": "Conscience opposing corruption",
-            "suicide_as_protest": "Final rejection of tyranny"
-        }
-
-    def legacy_description(self, aspect: str) -> Optional[str]:
-        return self.legacy_aspects.get(aspect)
-
-
-class RomanSenateProcedure:
-    """Document Roman Senate procedures."""
-    def __init__(self):
-        self.procedures = {
-            "senatus_habitus": "Formal session with presiding consul",
-            "consultum": "Formal decree after deliberation",
-            "fidelis": "Oath-binding decision",
-            "patrum_auctoritas": "Patrician approval for laws"
-        }
-
-    def procedure_description(self, procedure: str) -> Optional[str]:
-        return self.procedures.get(procedure)
-
-
-class PoliticalViolenceAnalyzer:
-    """Analyze political violence in Late Republic."""
-    def __init__(self):
-        self.incidents = [
-            ("Sulla's March on Rome", -88, "First military march on capital"),
-            ("Murder of Saturninus", -100, "Stoning by mob"),
-            ("Clodius/Cato violence", -50, "Gangs controlling streets"),
-            ("Caesar's Assassination", -44, "Ides of March plot")
-        ]
-
-    def incidents_list(self) -> List[Tuple[str, int, str]]:
-        return self.incidents
-
-
-class mosMaiorumAnalyzer:
-    """Analyze the ancestral customs (mos maiorum)."""
-    def __init__(self):
-        self.customs = {
-            "religious_duty": "Proper worship of gods",
-            "ancestor_veneration": "Honor past generations",
-            "agricultural_tradition": "Farmer-soldier ideal",
-            "simplicity": "Rejection of foreign luxuries",
-            "discipline": "Military and civic obedience"
-        }
-
-    def custom_description(self, custom: str) -> Optional[str]:
-        return self.customs.get(custom)
-
-
-if __name__ == "__main__":
-    demo()
-
-
-class CatoWritingsAnalyzer:
-    """Analyze writings attributed to or about Cato."""
-    def __init__(self):
-        self.writings = {
-            "Origines": "Historical works on Roman origins",
-            "De Re Militari": "Military treatise",
-            "Orationes": "Collection of speeches",
-            "Epistulae": "Letters to various recipients"
-        }
-
-    def writing_description(self, title: str) -> Optional[str]:
-        return self.writings.get(title)
-
-
-class RomanElectionsAnalyzer:
-    """Analyze Roman electoral procedures."""
-    def __init__(self):
-        self.offices = {
-            "Quaestor": {"min_age": 27, "wealth": 38000},
-            "Aedile": {"min_age": 36, "wealth": 115000},
-            "Praetor": {"min_age": 39, "wealth": 230000},
-            "Consul": {"min_age": 42, "wealth": 380000}
-        }
-
-    def office_requirements(self, office_name: str) -> Optional[Dict[str, int]]:
-        return self.offices.get(office_name)
-
-
-class SenatorialCareerAnalyzer:
-    """Analyze senatorial career paths."""
-    def __init__(self):
-        self.career_stages = [
-            "Military service (tribune or centurion)",
-            "Quaestor (financial officer)",
-            "Aedile (public works and games)",
-            "Praetor (judicial and military)",
-            "Consul (highest office)",
-            "Censor (moral supervision)"
-        ]
-
-    def career_path(self) -> List[str]:
-        return self.career_stages
-
-
-class RepublicanValueSystem:
-    """Document the value system of Roman Republic."""
-    def __init__(self):
-        self.values = {
-            "res_publica": "The public thing - republic",
-            "senatus_populusque_romanus": "Senate and people of Rome",
-            "virtus": "Manly virtue and courage",
-            "honor": "Public honor and reputation",
-            "gloria": "Glory earned through service"
-        }
-
-    def value_meaning(self, value: str) -> Optional[str]:
-        return self.values.get(value)
-
-
-class PoliticalAllianceNegotiator:
-    """Analyze political alliance formation."""
-    def __init__(self):
-        self.alliances: Dict[str, Set[str]] = {}
-
-    def propose_alliance(self, person1: str, person2: str) -> bool:
-        if person1 not in self.alliances:
-            self.alliances[person1] = set()
-        if person2 not in self.alliances:
-            self.alliances[person2] = set()
-        self.alliances[person1].add(person2)
-        self.alliances[person2].add(person1)
-        return True
-
-    def alliance_exists(self, person1: str, person2: str) -> bool:
-        return person2 in self.alliances.get(person1, set())
-
-
-class RomanLawPrincipleLibrary:
-    """Library of Roman legal principles."""
-    def __init__(self):
-        self.principles = {
-            "dura_lex_sed_lex": "The law is harsh but it is the law",
-            "volenti_non_fit_injuria": "No injury to one who consents",
-            "pacta_sunt_servanda": "Agreements must be kept",
-            "qui_scribis_bene_scribis": "He who writes, writes well"
-        }
-
-    def principle_text(self, principle: str) -> Optional[str]:
-        return self.principles.get(principle)
-
-
-class CatoDeathSignificance:
-    """Analyze significance of Cato's suicide."""
-    def __init__(self):
-        self.meanings = {
-            "political_statement": "Rejected Caesar's victory",
-            "stoic_purpose": "True philosopher dies for principles",
-            "republican_martyrdom": "Last stand of republican virtue",
-            "personal_integrity": "Could not survive under tyranny"
-        }
-
-    def meaning_description(self, meaning: str) -> Optional[str]:
-        return self.meanings.get(meaning)
-
-
-class RomanPatricianAnalyzer:
-    """Analyze patrician families in Late Republic."""
-    def __init__(self):
-        self.families = {
-            "Cornelii": ["Sulla", "Cinna", "Scipio"],
-            "Aemilii": ["Paullus", "Scaurus"],
-            "Julii": ["Caesar", "Caesar (Octavian's adoptive)"],
-            "Claudii": ["Nero", "Claudius"],
-            "Fabii": ["Various conservative senators"]
-        }
-
-    def family_members(self, family_name: str) -> List[str]:
-        return self.families.get(family_name, [])
-
-
-class SenatorialOratoryStyle:
-    """Analyze senatorial oratory styles."""
-    def __init__(self):
-        self.styles = {
-            "cato_style": "Austere, moralistic, direct",
-            "caesar_style": "Elegant, persuasive, subtle",
-            "cicero_style": "Rhetorical, elaborate, philosophical"
-        }
-
-    def style_description(self, style_name: str) -> Optional[str]:
-        return self.styles.get(style_name)
-
-
-class RomanPublicAssemblySystem:
-    """Analyze Roman public assemblies."""
-    def __init__(self):
-        self.assemblies = {
-            "comitia_centuriata": "Voted by wealth-based centuries",
-            "comitia_tributa": "Voted by tribal divisions",
-            "concilium_plebis": "Plebeian assembly only"
-        }
-
-    def assembly_purpose(self, assembly_name: str) -> Optional[str]:
-        return self.assemblies.get(assembly_name)
-
-
-class LateRepublicTimelineBuilder:
-    """Build timeline of Late Republic events."""
-    def __init__(self):
-        self.events: List[Tuple[int, str]] = [
-            (-133, "Tiberius Gracchus killed"),
-            (-121, "Gaius Gracchus killed"),
-            (-107, "Marian reforms begin"),
-            (-88, "Sulla marches on Rome"),
-            (-82, "Sulla becomes dictator"),
-            (-73, "Spartacus revolt"),
-            (-63, "Catiline conspiracy"),
-            (-60, "First Triumvirate"),
-            (-49, "Caesar crosses Rubicon"),
-            (-44, "Caesar assassinated"),
-            (-43, "Second Triumvirate"),
-            (-42, "Battle of Philippi"),
-        ]
-
-    def events_list(self) -> List[Tuple[int, str]]:
-        return sorted(self.events, key=lambda x: x[0])
-
-
-class RepublicanConsulAnalyzer:
-    """Analyze consular activities."""
-    def __init__(self):
-        self.consuls: Dict[str, Dict[str, Any]] = {}
-
-    def add_consul(self, name: str, year: int,
-                  colleague: str, major_actions: List[str]) -> None:
-        self.consuls[name] = {
-            "year": year,
-            "colleague": colleague,
-            "actions": major_actions
-        }
-
-    def consul_info(self, name: str) -> Optional[Dict[str, Any]]:
-        return self.consuls.get(name)
-
-
-class RomanTriumphProcedure:
-    """Document Roman triumph procedure."""
-    def __init__(self):
-        self.requirements = {
-            "victory_type": "Decisive military victory",
-            "senate_approval": "Senators must vote approval",
-            "religious_sacrifice": "Proper animal sacrifice",
-            "procession_route": "From Campus Martius to Capitol"
-        }
-
-    def requirement_description(self, req: str) -> Optional[str]:
-        return self.requirements.get(req)
-
-
-if __name__ == "__main__":
-    demo()
-
-
-class CatoPhilosophicalInfluence:
-    """Analyze Cato's philosophical influence on later thinkers."""
-    def __init__(self):
-        self.influences: Dict[str, List[str]] = {
-            "Seneca": ["Stoic virtue ethics", "Moral integrity"],
-            "Epictetus": ["Virtue as sufficient for happiness", "Externals are indifferent"],
-            "Marcus_Aurelius": ["Duty over personal safety", "Stoic ruler philosophy"],
-            "Cicero": ["Republican virtue", "Philosophical dialogue"],
-            "Plutarch": ["Moral biography", "Comparative lives"],
-        }
-
-    def get_influence_on(self, thinker: str) -> List[str]:
-        return self.influences.get(thinker, [])
-
-
-class RomanVotingSystems:
-    """Analyze Roman voting assemblies and procedures."""
-    def __init__(self):
-        self.assemblies = {
-            "comitia_centuriata": {"type": "Wealth-based voting", "leader": "Consul"},
-            "comitia_tributa": {"type": "Tribe-based voting", "leader": "Consul"},
-            "concilium_plebis": {"type": "Plebeian-only assembly", "leader": "Tribune"},
-        }
-
-    def voting_procedure(self, assembly: str) -> str:
-        info = self.assemblies.get(assembly, {})
-        return f"{assembly}: {info.get('type', 'Unknown')}"
-
-
-class SenatorialDebateAnalyzer:
-    """Analyze senatorial debate procedures."""
-    def __init__(self):
-        self.debate_phases = [
-            "Relation of issue by magistrate",
-            "Senators speak in order of seniority",
-            "Pedarius consulted if needed",
-            "Consul summarizes (perduellio)",
-            "Division (discessio) called",
-            "Minority may protest (senatus consulta ultimum)"
-        ]
-
-    def analyze_debate(self) -> List[Tuple[int, str]]:
-        return list(enumerate(self.debate_phases, 1))
-
-
-class CatoOratoryStyle:
-    """Analyze Cato's distinctive oratory style."""
-    def __init__(self):
-        self.characteristics = {
-            "austerity": "Plain language, no rhetorical embellishment",
-            "moral_urgency": "Constant reference to ancestral virtue",
-            "directness": "Short, punchy sentences",
-            "stoic_framework": "Arguments framed in philosophical terms",
-            "republican_patriotism": "Passionate defense of liberty"
-        }
-
-    def style_description(self) -> Dict[str, str]:
-        return self.characteristics
-
-
-class RomanAmbitusAnalyzer:
-    """Analyze electoral bribery (ambitus) as social problem."""
-    def __init__(self):
-        self.laws = [
-            ("Lex Gabinia", -67, "Bribery at elections"),
-            ("Lex Cassia", -61, "Electoral corruption"),
-            ("Lex Pompeia", -52, "Strengthened penalties"),
-        ]
-
-    def get_laws(self) -> List[Tuple[str, int, str]]:
-        return self.laws
+    sys.exit(main())
