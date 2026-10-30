@@ -819,7 +819,7 @@ def test_definitions(rng):
 # ----------------------------------------------------------------------------- tests: hypotheses
 def run_seed(seed, budget, quick):
     rng = np.random.default_rng(seed)
-    data = make_task(np.random.default_rng(np.random.SeedSequence([seed, 292]).generate_state(1)[0]), quick)
+    data = make_task(np.random.default_rng(np.random.SeedSequence([seed, 293]).generate_state(1)[0]), quick)
     models, hist = train_all(data, rng, budget)
     res = {"acc": {n: {s: accuracy(m, data[s]) for s in ("id", "shift", "blind")} for n, m in models.items()},
            "viol": {n: violation_rate(m, data["shift"]) for n, m in models.items()},
@@ -910,7 +910,7 @@ def build_report(args, seeds, runtime, models, gc, corr, det, hyps, per_seed):
         m, ci = paired_bootstrap(vals, np.random.default_rng(args.seed + 3000))
         kos.append({"module": name, "signature": name == "core_gate", "metric_change": m, "ci95": ci})
     all_ok = all(c[2] for c in corr)
-    return {"schema_version": "1.0", "chapter": 292, "file": os.path.basename(__file__),
+    return {"schema_version": "1.0", "chapter": 293, "file": os.path.basename(__file__),
             "card_revision": MIND_CARD["card_revision"],
             "environment": {"python": sys.version.split()[0], "numpy": np.__version__},
             "seeds": seeds, "runtime_s": round(runtime, 2),
@@ -953,7 +953,7 @@ def print_report(rep, per_seed):
     t = rep["trivial"]
     L.append(f"  majority   {t['id']:.3f} / {t['shift']:.3f} / {t['blind']:.3f}")
     L.append(f"task types: {rep['task_types']}   exit code: {rep['exit_code']}")
-    write_report(292, L)
+    write_report(293, L)
 
 
 def export_weights(path, models, data):

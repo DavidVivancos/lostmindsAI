@@ -785,7 +785,7 @@ def run_self_tests(quick: bool = False) -> bool:
 
 def demo():
     print("\n" + "=" * 78)
-    print("0239 -- LombardNet: a distinction-learning sententiae resolver")
+    print("LombardNet: a distinction-learning sententiae resolver")
     print("with a four-book curriculum router")
     print("=" * 78)
 

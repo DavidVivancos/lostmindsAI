@@ -329,7 +329,7 @@ FACTOR_NAMES = ["R1", "R2", "R3", "pattern"]
 DX = 3 * (N_SKEL + N_DOTOBS) + 2 * 5 + 2
 POS_CUE_COLS = list(range(DX - 2, DX))
 N_MAX = 6                                              # entries per section chunk
-LEXICON_SEED = 293
+LEXICON_SEED = 294
 
 # Which factor each filing scheme names in its headings ("strong") or guards by order only ("weak").
 SCHEMES = {
@@ -1023,7 +1023,7 @@ def fmt(x, nd=3):
 
 
 def print_report(rep, results, full):
-    L = [f"=== VERIFIED REPORT · chapter 0293 ===",
+    L = [f"=== VERIFIED REPORT · chapter 0294 ===",
          f"file            {rep['file']}  (card revision {rep['card_revision']})",
          f"environment     python {rep['environment']['python']}, numpy {rep['environment']['numpy']}",
          f"seeds           {rep['seeds']}   runtime {rep['runtime_s']:.1f} s",
@@ -1099,7 +1099,7 @@ def run_protocol(args):
     full = not quick
     for c in corr:
         c["passed"] = bool(c["passed"])
-    rep = {"schema_version": "1.0", "chapter": 293, "file": os.path.basename(__file__),
+    rep = {"schema_version": "1.0", "chapter": 294, "file": os.path.basename(__file__),
            "card_revision": MIND_CARD["card_revision"],
            "environment": {"python": sys.version.split()[0], "numpy": np.__version__},
            "seeds": seeds, "runtime_s": runtime,
@@ -1125,7 +1125,7 @@ def run_protocol(args):
 def main(argv=None):
     global MUTANT
     ap = argparse.ArgumentParser(prog=os.path.basename(__file__),
-                                 description="Chapter 0293 Hirasa decoder: full protocol by default.")
+                                 description="Chapter 0294 Hirasa decoder: full protocol by default.")
     ap.add_argument("--quick", action="store_true", help="one seed, reduced steps, all correctness tests")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--seeds", type=int, default=5)

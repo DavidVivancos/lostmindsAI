@@ -504,6 +504,6 @@ if __name__ == "__main__":
         },
         "final_metrics": {k: float(v) for k, v in metrics.items()},
     }
-    with open("chapter_0228_william_the_conqueror_1028_weights.json", "w") as f:
+    with open("chapter_0271_william_the_conqueror_1028_weights.json", "w") as f:
         json.dump(export, f)
-    print("Exported trained weights -> chapter_0228_william_the_conqueror_1028_weights.json")
+    print("Exported trained weights -> chapter_0271_william_the_conqueror_1028_weights.json")

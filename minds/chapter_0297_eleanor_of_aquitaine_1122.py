@@ -692,7 +692,7 @@ def run_self_tests(verbose: bool = True) -> bool:
 
 def main():
     print("=" * 78)
-    print("FIGURE 0243 -- ELEANOR OF AQUITAINE (c.1122/1124-1204)")
+    print("ELEANOR OF AQUITAINE (c.1122/1124-1204)")
     print("Portable-Core / Host-Adapter Governance Network")
     print("Encyclopedia of Lost Minds: Echoes on AI")
     print("=" * 78)
@@ -758,7 +758,7 @@ def main():
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Figure 0243: Eleanor of Aquitaine — Neuron.py")
+    parser = argparse.ArgumentParser(description="Chapter 0297: Eleanor of Aquitaine — Neuron.py")
     parser.add_argument("--test", action="store_true", help="run self-tests only")
     args = parser.parse_args()
 

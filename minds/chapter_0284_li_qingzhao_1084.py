@@ -607,7 +607,7 @@ def test_policy_gradient_check():
 
 def main():
     print("=" * 78)
-    print("TLCN -- Tone-Lattice Consolidation Network (Figure 0237, Li Qingzhao)")
+    print("TLCN -- Tone-Lattice Consolidation Network (chapter 0284, Li Qingzhao, 1084-1155)")
     print("=" * 78)
 
     print("\n[1] Finite-difference gradient check -- tonal encoder ...")

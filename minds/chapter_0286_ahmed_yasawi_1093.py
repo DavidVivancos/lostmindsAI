@@ -864,7 +864,7 @@ def knockout_table(runs, rng):
 
 # ---------------------------------------------------------------- report
 def print_report(rep, acc_table):
-    print("=== VERIFIED REPORT · chapter 0285 ===")
+    print("=== VERIFIED REPORT · chapter 0286 ===")
     print("environment: python %s, numpy %s" % (rep["environment"]["python"], rep["environment"]["numpy"]))
     print("seeds: %s   runtime: %.1f s   n_params: %s" % (rep["seeds"], rep["runtime_s"], rep["n_params"]))
     g = rep["gradcheck"]
@@ -955,7 +955,7 @@ def run_protocol(args):
     passed = all(r[2] for r in results)
     exit_code = 0 if passed else (3 if not results[-1][2] and all(r[2] for r in results[:-1]) else 1)
     rep = {
-        "schema_version": "1.0", "chapter": 285, "file": os.path.basename(__file__),
+        "schema_version": "1.0", "chapter": 286, "file": os.path.basename(__file__),
         "card_revision": MIND_CARD["card_revision"],
         "environment": {"python": sys.version.split()[0], "numpy": np.__version__},
         "seeds": seeds, "runtime_s": round(time.time() - t0, 2),

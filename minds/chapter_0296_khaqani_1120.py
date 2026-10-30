@@ -1081,12 +1081,12 @@ def protocol(args):
     quick = args.quick
     size, lrs = SIZES["quick" if quick else "full"], ((0.03,) if quick else LR_GRID)
     seeds = [args.seed + i for i in range(1 if quick else args.seeds)]
-    print("chapter 0295 · held-field reader · seeds %s · %s" % (seeds, "quick" if quick else "full protocol"))
+    print("chapter 0296 · held-field reader · seeds %s · %s" % (seeds, "quick" if quick else "full protocol"))
     runs = []
     for s in seeds:
         runs.append(run_seed(s, size, lrs, args.mutant))
         print("  seed %d done (%.1f s)" % (s, time.time() - t0))
-    rng = np.random.default_rng(np.random.SeedSequence([args.seed, 295]))
+    rng = np.random.default_rng(np.random.SeedSequence([args.seed, 296]))
     kids = rng.spawn(3)
     trivial = runs[0]["trivial"]
     gc, mut, correct = correctness_suite(args, runs[0], size, lrs, trivial, kids[0], [r["data"] for r in runs])
@@ -1104,7 +1104,7 @@ def protocol(args):
                     "detail": "%.1f s (<= %.0f s)" % (runtime, budget)})
     failed = [c["id"] for c in correct if not c["passed"]]
     code = 0 if not failed else (3 if failed == ["C8"] else 1)
-    rep = {"schema_version": "1.0", "chapter": 295, "file": os.path.basename(__file__),
+    rep = {"schema_version": "1.0", "chapter": 296, "file": os.path.basename(__file__),
            "card_revision": MIND_CARD["card_revision"],
            "environment": {"python": sys.version.split()[0], "numpy": np.__version__},
            "seeds": seeds, "runtime_s": round(runtime, 2),
@@ -1123,7 +1123,7 @@ def protocol(args):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(prog=os.path.basename(__file__),
-                                 description="Chapter 0295: held-field reader with declared renewal")
+                                 description="Chapter 0296: held-field reader with declared renewal")
     ap.add_argument("--quick", action="store_true", help="one seed, reduced steps, all correctness tests")
     ap.add_argument("--seed", type=int, default=0, help="base seed")
     ap.add_argument("--seeds", type=int, default=5, help="number of seeds (default 5)")

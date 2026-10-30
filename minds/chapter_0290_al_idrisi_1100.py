@@ -875,7 +875,7 @@ def run_self_tests(model, params, history, bank, judgments, generalization,
 
 def main():
     print("=" * 78)
-    print(" MIND 0240 -- AL-IDRISI: TRIANGULATED-ADDRESS WORLD MODEL")
+    print("AL-IDRISI: TRIANGULATED-ADDRESS WORLD MODEL")
     print("=" * 78)
     print(f"\nWorld: {N} places, {M} witnesses, {len(ALL_REPORTS)} testimony reports, "
           f"{len(HELD_OUT_PAIRS)} pairs held out entirely (no witness reports them).\n")

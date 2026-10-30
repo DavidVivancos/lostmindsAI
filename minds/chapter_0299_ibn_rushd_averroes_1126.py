@@ -801,7 +801,7 @@ def self_test_module3(model):
 
 if __name__ == "__main__":
     print("=" * 78)
-    print("CHAPTER 244 -- IBN RUSHD (AVERROES) -- THE COMMON-INTELLECT NETWORK")
+    print("IBN RUSHD (AVERROES) -- THE COMMON-INTELLECT NETWORK")
     print("=" * 78)
 
     print("\n[1/3] Finite-difference gradient check (mandatory, run before training)")
@@ -840,7 +840,7 @@ pasted here unedited as required proof-of-execution before shipping.
 ==============================================================================
 
 ==============================================================================
-CHAPTER 244 -- IBN RUSHD (AVERROES) -- THE COMMON-INTELLECT NETWORK
+IBN RUSHD (AVERROES) -- THE COMMON-INTELLECT NETWORK
 ==============================================================================
 
 [1/3] Finite-difference gradient check (mandatory, run before training)

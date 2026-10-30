@@ -755,7 +755,7 @@ def fmt_ci(ci):
 
 
 def report_lines(ctx):
-    L = [f"=== VERIFIED REPORT · chapter 0290 ===",
+    L = [f"=== VERIFIED REPORT · chapter 0291 ===",
          f"file            {os.path.basename(__file__)}   card revision {MIND_CARD['card_revision']}",
          f"environment     python {sys.version.split()[0]} · numpy {np.__version__}",
          f"seeds           {ctx['seeds']}   mode {'quick' if ctx['quick'] else 'full'}   steps {ctx['steps']}",
@@ -786,7 +786,7 @@ def report_lines(ctx):
 
 
 def json_payload(ctx):
-    return {"schema_version": "1.0", "chapter": 290, "file": os.path.basename(__file__),
+    return {"schema_version": "1.0", "chapter": 291, "file": os.path.basename(__file__),
             "card_revision": MIND_CARD["card_revision"],
             "environment": {"python": sys.version.split()[0], "numpy": np.__version__},
             "seeds": ctx["seeds"], "runtime_s": round(ctx["runtime"], 2), "n_params": ctx["n_params"][0],
@@ -801,7 +801,7 @@ def json_payload(ctx):
 # ------------------------------------------------------------------ command line
 def parse_args(argv):
     ap = argparse.ArgumentParser(prog=os.path.basename(__file__),
-                                 description="Chapter 0290 Yennenga: custom-counterfactual residual reader.")
+                                 description="Chapter 0291 Yennenga: custom-counterfactual residual reader.")
     ap.add_argument("--quick", action="store_true")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--seeds", type=int, default=5)
@@ -854,7 +854,7 @@ def main(argv=None):
     t0 = time.time()
     steps, n_seeds = (QUICK_STEPS, 1) if args.quick else (FULL_STEPS, max(1, args.seeds))
     seeds = [args.seed + k for k in range(n_seeds)]
-    print(f"chapter 0290 · seeds {seeds} · steps {steps} · mutant {args.mutant}")
+    print(f"chapter 0291 · seeds {seeds} · steps {steps} · mutant {args.mutant}")
     runs = [run_seed(s, steps) for s in seeds]
     ctx = {"seeds": seeds, "quick": args.quick, "steps": steps, "runs": runs,
            "n_params": (n_params(runs[0]["model"]), n_params(runs[0]["base"]))}
