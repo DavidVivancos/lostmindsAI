@@ -827,7 +827,7 @@ def test_reward_improves(history):
 
 def run_self_tests():
     print("=" * 78)
-    print("SELF-TEST SUITE -- The Bay'a Coalition Network (Chapter 248, Saladin)")
+    print("SELF-TEST SUITE -- The Bay'a Coalition Network (Chapter 0303, Saladin)")
     print("=" * 78)
     all_pass = True
 

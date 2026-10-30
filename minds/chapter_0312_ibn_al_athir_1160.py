@@ -83,7 +83,7 @@ close the file, each one testing a specific claim made in the paragraph
 above, not merely that the code executes.
 
 AUTHOR: 1000 Minds Project -- Encyclopedia of Lost Minds: Echoes on AI
-CHAPTER: 256 -- Ibn al-Athir (1160-1233 CE)
+CHAPTER: 0312 -- Ibn al-Athir (1160-1233 CE)
 """
 
 import numpy as np
@@ -1140,7 +1140,7 @@ def test_testimonial_trust_dynamics(model):
 
 def main():
     print("=" * 78)
-    print("0256_Neuron.py -- IBN AL-ATHIR: THE DUAL-LEDGER MIND")
+    print("IBN AL-ATHIR: THE DUAL-LEDGER MIND")
     print("Universal annals (temporal) + Companion register (alphabetical),")
     print("a legible patron-bias residual, and cause/precedent decoupling")
     print("=" * 78)

@@ -207,7 +207,7 @@ import time
 import numpy as np
 
 CHAPTER = 319
-FILE_NAME = "chapter_0318_walther_von_der_vogelweide_1170.py"
+FILE_NAME = "chapter_0319_walther_von_der_vogelweide_1170.py"
 TASK_TYPES = ["vector_classification"]
 HM_EPS = 1e-6
 DEFAULTS = dict(dA=6, dB=6, K=4, H=16, J=12, lam=0.3, lr=0.01, batch=64, clip=5.0, steps=1400,
@@ -1071,7 +1071,7 @@ def print_report(rep, desc):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(prog=os.path.basename(__file__),
-                                 description="Zweiherz two-heart co-carrying network (chapter 0318).")
+                                 description="Zweiherz two-heart co-carrying network (chapter 0319).")
     ap.add_argument("--quick", action="store_true")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--seeds", type=int, default=5)

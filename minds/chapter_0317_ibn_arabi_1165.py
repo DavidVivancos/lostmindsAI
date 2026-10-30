@@ -117,11 +117,11 @@ Principles of Ibn al-'Arabi's Cosmology" (SUNY Press, 1998); Henry Corbin,
 "Ibn 'Arabi" (William C. Chittick, 2008/2014). None of this file's
 technical choices are invented out of thin air; every module name below
 is glossed against one of these sources in the chapter text
-(chapter_0259_ibn_arabi_1165.md), which is where the philosophical
+(chapter_0317_ibn_arabi_1165.md), which is where the philosophical
 argument is made in full and where AGI-relevance is discussed -- this file
 is the architecture, not the essay.
 
-AUTHOR: Encyclopedia of Lost Minds: Echoes on AI, Chapter 259.
+AUTHOR: Encyclopedia of Lost Minds: Echoes on AI, Chapter 0317.
 LICENSE: Apache License 2.0. NOT a demo: forward pass, backward pass,
 gradient check, training loop and self-tests are all real and are all
 executed at the bottom of this file.
@@ -803,7 +803,7 @@ def test_balance_effect():
 
 if __name__ == "__main__":
     print("=" * 78)
-    print("BARZAKH-QALB NETWORK -- Chapter 259, Ibn 'Arabi (1165-1240)")
+    print("BARZAKH-QALB NETWORK -- Chapter 0317, Ibn 'Arabi (1165-1240)")
     print("=" * 78)
 
     print("\n[1/3] MANDATORY GRADIENT CHECK")
@@ -821,12 +821,12 @@ if __name__ == "__main__":
 
     print("\n[3/3] TRAINING RUN on the combinatorial-particulars task")
     d_x, d_h, d_z, K, d_y = 10, 24, 24, 8, 5
-    task = ParticularsTask(d_x, d_y, K, seed=259)
+    task = ParticularsTask(d_x, d_y, K, seed=317)
     P = init_params(d_x, d_h, d_z, K, d_y)
     print(f"  dims: d_x={d_x} d_h={d_h} d_z={d_z} K={K} (Names: {', '.join(NAME_LABELS)}) d_y={d_y}")
     t0 = time.time()
     hist = train(P, task, K, d_h, steps=150, batch_size=8, T=10, lr=0.02,
-                 lambda1=0.15, lambda2=0.05, seed=259, log_every=25)
+                 lambda1=0.15, lambda2=0.05, seed=317, log_every=25)
     print(f"  training time: {time.time()-t0:.1f}s")
     print(f"  loss[0]={hist[0]:.5f}  loss[-1]={hist[-1]:.5f}  "
           f"(reduction: {100*(1-hist[-1]/hist[0]):.1f}%)")

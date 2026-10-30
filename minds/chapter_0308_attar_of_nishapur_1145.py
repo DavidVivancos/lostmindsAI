@@ -768,7 +768,7 @@ def run_self_tests():
 
 if __name__ == "__main__":
     print("=" * 78)
-    print("CHAPTER 252 -- ATTAR OF NISHAPUR -- VALLEY-ATTRITION NETWORK")
+    print("ATTAR OF NISHAPUR -- VALLEY-ATTRITION NETWORK")
     print("=" * 78)
 
     max_rel_err, _ = run_self_tests()

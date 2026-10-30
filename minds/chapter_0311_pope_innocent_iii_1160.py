@@ -812,7 +812,7 @@ def run_crusade_experiment(legate, rng, d0, incentive_dir, T=10):
 def main():
     print("=" * 78)
     print("PLENITUDO POTESTATIS NET")
-    print("Figure 0255 -- Pope Innocent III (c.1160-1216)")
+    print("Pope Innocent III (c.1160-1216)")
     print("=" * 78)
 
     build_rng = np.random.default_rng(RNG_SEED)

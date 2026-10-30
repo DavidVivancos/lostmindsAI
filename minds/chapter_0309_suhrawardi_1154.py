@@ -68,7 +68,7 @@ Blind spot
 
 Task (lit scene, 4 classes)
     z ~ N(0, I4); y = 2[z0 z1 > 0] + [|z2| > |z3|]
-    x = alpha * A z + noise, A fixed (task seed 308), alpha ~ U(0.7, 1.4) nuisance gain
+    x = alpha * A z + noise, A fixed (task seed 309), alpha ~ U(0.7, 1.4) nuisance gain
     splits: train, validation, held-out test, brighter dawn (alpha 1.6-2.4, more noise)
     shaded split: held-out test with one internal unit corrupted by a fault family
     never used in training or calibration (sign, rotate, stuck, tint)
@@ -1031,7 +1031,7 @@ def mean_of(results, *path):
 
 
 def print_report(rep, results):
-    print("=== VERIFIED REPORT · chapter 0308 ===")
+    print("=== VERIFIED REPORT · chapter 0309 ===")
     print(f"environment  python {rep['environment']['python']}  numpy {rep['environment']['numpy']}")
     print(f"seeds {rep['seeds']}  runtime {rep['runtime_s']:.1f} s  params(lattice) {rep['n_params']}"
           f"  params(mlp baseline) {rep['n_params_baseline']}")
@@ -1135,7 +1135,7 @@ def run(args):
     code = 0 if all(c[2] for c in corr) else 1
     if code == 0 and runtime > budget:
         code = 3
-    rep = {"schema_version": "1.0", "chapter": 308, "file": os.path.basename(__file__), "card_revision":
+    rep = {"schema_version": "1.0", "chapter": 309, "file": os.path.basename(__file__), "card_revision":
            MIND_CARD["card_revision"], "environment": {"python": sys.version.split()[0], "numpy": np.__version__},
            "seeds": seeds, "runtime_s": runtime, "n_params": n_params(seeds_S[0]["lat"]),
            "n_params_baseline": n_params(seeds_S[0]["mlp"]), "gradcheck": grad,

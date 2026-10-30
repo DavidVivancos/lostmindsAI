@@ -824,7 +824,7 @@ def run_self_tests(model: MarieMind, gen: CaseGenerator):
 
 def main():
     print("#" * 78)
-    print("# Chapter 250 -- Marie de France: gloss / gated surplus / recognition")
+    print("# Chapter 0306 -- Marie de France: gloss / gated surplus / recognition")
     print("#" * 78)
     print()
 

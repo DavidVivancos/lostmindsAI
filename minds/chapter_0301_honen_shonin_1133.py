@@ -1131,7 +1131,7 @@ def self_test_mappo_decay(history: Dict[str, List[float]], net: SenjakuNet) -> N
 
 def main() -> None:
     print("=" * 78)
-    print("SenjakuNet — Chapter 246: Hōnen Shōnin (1133-1212 CE)")
+    print("SenjakuNet — Chapter 0301, Hōnen Shōnin (1133-1212 CE)")
     print("A cascading selection-and-retrieval architecture, pure NumPy")
     print("=" * 78)
 

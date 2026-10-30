@@ -640,7 +640,7 @@ def fit(model, data, budget, rng, lr=0.03):
 
 
 def make_suite(seed, n_eval=N_EVAL):
-    ss = np.random.SeedSequence([315, seed])
+    ss = np.random.SeedSequence([316, seed])
     r = [np.random.default_rng(s) for s in ss.spawn(5)]
     plan = r[0].normal(size=(P, D_TRUE))
     train_w = make_worlds(r[1], plan, N_TRAIN_WORLDS, "identity")
@@ -989,7 +989,7 @@ def print_report(rep, runs, props, mut, hyps, kos, bridge, steps, audit_steps, b
     out = [f"=== VERIFIED REPORT · chapter {rep['chapter']:04d} ===",
            f"file: {rep['file']} · card revision {rep['card_revision']} · {MIND_CARD['mechanism']['name']}",
            f"environment: Python {rep['environment']['python']}, NumPy {rep['environment']['numpy']}",
-           f"seeds: {rep['seeds']} (worlds and training from SeedSequence([315, seed])); fixed audit generators 7, 11-16, 99, 2024",
+           f"seeds: {rep['seeds']} (worlds and training from SeedSequence([316, seed])); fixed audit generators 7, 11-16, 99, 2024",
            f"training: {steps} Adam steps per model and seed (batch {BATCH}, lr 0.03, global-norm clip {CLIP}); "
            f"mutant audit {audit_steps} steps",
            f"runtime: {rep['runtime_s']:.1f} s (budget {budget:.0f} s)",
@@ -1055,7 +1055,7 @@ def protocol(a, rng, kids):
 def main(argv=None):
     global MUTANT
     ap = argparse.ArgumentParser(prog=os.path.basename(__file__),
-                                 description="Third-copy revelation network (chapter 0315): full protocol by default.")
+                                 description="Third-copy revelation network (chapter 0316): full protocol by default.")
     ap.add_argument("--quick", action="store_true", help="one seed, reduced steps, all correctness tests")
     ap.add_argument("--seed", type=int, default=0, help="base seed")
     ap.add_argument("--seeds", type=int, default=5, help="number of seeds (hypotheses need 5)")

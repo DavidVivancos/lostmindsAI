@@ -721,8 +721,7 @@ def run_khizr_iskandar_gate(verbose=True):
 def main():
     t0 = time.time()
     print("=" * 78)
-    print("NizamiNet -- 0251_Neuron.py")
-    print("Chapter 251: Nizami Ganjavi (c.1141-1209) -- Encyclopedia of Lost Minds")
+    print("NizamiNet -- Chapter 0307, Nizami Ganjavi (c.1141-1209)")
     print("=" * 78)
 
     print("\n[0] MANDATORY GRADIENT CHECK (shared Dense/MLP backward pass)")

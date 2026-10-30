@@ -1034,7 +1034,7 @@ def applicable_n(net):
 
 if __name__ == '__main__':
     print("=" * 78)
-    print("MIND #0249 -- MOSES MAIMONIDES -- Apophatic / Graded-Disclosure Network")
+    print("MOSES MAIMONIDES -- Apophatic / Graded-Disclosure Network")
     print("=" * 78)
 
     net = MorehNetwork(d_raw=16, n_modalities=3, d_common=24, n_universals=6,
